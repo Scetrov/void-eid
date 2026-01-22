@@ -1,0 +1,36 @@
+services:
+  backend:
+    build:
+      context: ./src/rust
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5038:5038"
+    environment:
+      - DATABASE_URL=sqlite:///data/void-eid.db?mode=rwc
+      - PORT=5038
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
+      - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
+      - DISCORD_REDIRECT_URI=${DISCORD_REDIRECT_URI:-http://localhost:5038/api/auth/discord/callback}
+      - JWT_SECRET=${JWT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
+      - INITIAL_ADMIN_ID=${INITIAL_ADMIN_ID:-}
+    volumes:
+      - ./data:/data
+      - ./src/rust:/usr/src/app
+      - /usr/src/app/target # Prevent overwriting container target with host target
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./src/sui
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:5038
+    volumes:
+      - ./src/sui:/app
+      - /app/node_modules # Prevent overwriting container node_modules
+    depends_on:
+      - backend
+    restart: unless-stopped

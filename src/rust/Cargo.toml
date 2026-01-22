@@ -1,0 +1,33 @@
+[package]
+name = "void-eid-backend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7.5"
+tokio = { version = "=1.47.1", features = ["full"] }
+serde = { version = "1.0.203", features = ["derive"] }
+serde_json = "1.0.117"
+sqlx = { version = "0.7.4", features = [
+    "sqlite",
+    "runtime-tokio-native-tls",
+    "chrono",
+] }
+tower-http = { version = "0.5.2", features = ["cors"] }
+reqwest = { version = "0.12.4", features = ["json"] }
+dotenvy = "0.15.7"
+jsonwebtoken = "9.3.0"
+rand = "0.8.5"
+chrono = { version = "0.4.38", features = ["serde"] }
+anyhow = "1.0.86"
+base64 = "0.22.1"
+urlencoding = "2.1.3"
+
+uuid = { version = "1.19.0", features = ["v4", "serde"] }
+axum-extra = { version = "0.12.5", features = ["typed-header"] }
+bcs = "0.1.6"
+sui-sdk = { git = "https://github.com/MystenLabs/sui", package = "sui-sdk" }
+shared-crypto = { git = "https://github.com/MystenLabs/sui", package = "shared-crypto" }
+utoipa = { version = "5.4.0", features = ["axum_extras", "uuid", "chrono"] }
+utoipa-scalar = { version = "0.2.0", features = ["axum"] }
+utoipa-swagger-ui = { version = "7.0.0", features = ["axum"] }

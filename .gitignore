@@ -1,0 +1,176 @@
+# =============================================================================
+# Void eID - Comprehensive .gitignore
+# =============================================================================
+
+# =============================================================================
+# IDE & Editor
+# =============================================================================
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# =============================================================================
+# OS Generated Files
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# =============================================================================
+# Rust / Cargo
+# =============================================================================
+/src/rust/target/
+src/rust/target/
+**/target/
+**/*.rs.bk
+Cargo.lock
+*.pdb
+
+# Rust database files (SQLite)
+*.db
+*.db-shm
+*.db-wal
+src/rust/*.db
+src/rust/SuiMumble.db
+
+# =============================================================================
+# Node.js / NPM / Bun
+# =============================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+bun.lockb
+.npm
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# =============================================================================
+# Frontend Build Outputs
+# =============================================================================
+/src/sui/dist/
+src/sui/dist/
+**/dist/
+*.local
+
+# =============================================================================
+# Testing
+# =============================================================================
+coverage/
+*.lcov
+.nyc_output/
+
+# Playwright
+/src/sui/test-results/
+/src/sui/playwright-report/
+/src/sui/playwright/.cache/
+test-results/
+playwright-report/
+
+# =============================================================================
+# Environment & Secrets
+# =============================================================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+*.env
+!.env.example
+!.env.template
+
+# Rust environment
+src/rust/.env
+src/rust/.env.backup
+
+# =============================================================================
+# Logs
+# =============================================================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# =============================================================================
+# Docker
+# =============================================================================
+# Ignore docker data volumes (if mounted locally)
+/data/
+data/
+
+# =============================================================================
+# Temporary Files
+# =============================================================================
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.cache
+
+# =============================================================================
+# TanStack Router Generated Files
+# =============================================================================
+# Keep the generated route tree - it should be committed
+# src/sui/src/routeTree.gen.ts
+
+# TanStack internal cache
+.tanstack/
+
+# =============================================================================
+# Miscellaneous
+# =============================================================================
+# Package manager lockfiles at root (keep subdirectory ones)
+/package-lock.json
+
+# Certificates
+*.pem
+*.key
+*.crt
+*.p12
+
+# Core dumps
+core
+
+# Debug files
+*.dSYM/
+
+# Build artifacts
+*.o
+*.a
+*.so
+*.dylib
+
+# =============================================================================
+# Project-specific
+# =============================================================================
+# Gemini/AI assistant files (optional - remove if you want to track)
+.gemini/

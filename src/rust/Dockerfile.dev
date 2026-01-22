@@ -1,0 +1,18 @@
+FROM docker.io/library/rust:latest AS development
+
+WORKDIR /usr/src/app
+
+# Install cargo-watch
+RUN cargo install cargo-watch
+
+# Copy manifests
+COPY Cargo.toml Cargo.lock ./
+
+# Copy source code (will be overridden by bind mount)
+COPY . .
+
+# Expose API port
+EXPOSE 5038
+
+# Run with cargo-watch
+CMD ["cargo", "watch", "-x", "run"]

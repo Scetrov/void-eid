@@ -1,0 +1,187 @@
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { useAuth } from '../../providers/AuthProvider'
+import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { ArrowUpDown, Search, ShieldAlert } from 'lucide-react'
+import { DashboardLayout } from '../../components/DashboardLayout'
+
+export const Route = createFileRoute('/roster/')({
+  component: RosterPage,
+})
+
+interface RosterMember {
+    discord_id: string;
+    username: string;
+    avatar: string | null;
+    wallets: string[];
+}
+
+function RosterPage() {
+    const { user, token, isAuthenticated } = useAuth()
+    const [search, setSearch] = useState('')
+    const [sort, setSort] = useState<'username' | 'wallet_count'>('username')
+    const [order, setOrder] = useState<'asc' | 'desc'>('asc')
+    const navigate = useNavigate()
+
+    // Fetch Roster
+    const { data: roster, isLoading, error } = useQuery({
+        queryKey: ['roster', search, sort, order],
+        queryFn: async () => {
+            if (!token) throw new Error("No token");
+
+            const params = new URLSearchParams();
+            if (search) params.append('search', search);
+            params.append('sort', sort);
+            params.append('order', order);
+
+            const res = await fetch(`http://localhost:5038/api/roster?${params.toString()}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!res.ok) {
+                 if (res.status === 403) throw new Error("Access Denied: You must be an admin to view this page.");
+                 throw new Error("Failed to fetch roster");
+            }
+            return res.json() as Promise<RosterMember[]>;
+        },
+        enabled: !!token && !!user?.isAdmin,
+        retry: false
+    });
+
+    if (!isAuthenticated) {
+        return (
+             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', flexDirection: 'column', gap: '1rem' }}>
+                <h2>Please Login</h2>
+                <Link to="/login" className="btn btn-primary">Login</Link>
+             </div>
+        )
+    }
+
+    if (user && !user.isAdmin) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', flexDirection: 'column', gap: '1rem', textAlign: 'center' }}>
+                <ShieldAlert size={64} style={{ color: '#ef4444' }} />
+                <h2>Access Denied</h2>
+                <p>Only users with the 'Admin' role can view the Tribe Roster.</p>
+                <Link to="/dashboard" className="btn btn-secondary">Back to Dashboard</Link>
+            </div>
+        )
+    }
+
+    const toggleSort = (field: 'username' | 'wallet_count') => {
+        if (sort === field) {
+            setOrder(order === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSort(field);
+            setOrder('asc');
+        }
+    }
+
+    return (
+        <DashboardLayout>
+
+            <div className="card">
+                <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div style={{ position: 'relative', flex: 1 }}>
+                        <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                        <input
+                            type="text"
+                            placeholder="Search by username or Discord ID..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: '0.75rem 1rem 0.75rem 2.75rem',
+                                background: 'var(--bg-secondary)',
+                                border: '1px solid var(--glass-border)',
+                                borderRadius: 'var(--radius-sm)',
+                                color: 'var(--text-primary)',
+                                outline: 'none'
+                             }}
+                        />
+                    </div>
+                </div>
+
+                {error ? (
+                     <div style={{ padding: '2rem', textAlign: 'center', color: '#ef4444' }}>
+                        Error: {(error as Error).message}
+                     </div>
+                ) : isLoading ? (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                        Loading roster...
+                    </div>
+                ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                            <thead>
+                                <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                                    <th style={{ padding: '1rem', cursor: 'pointer' }} onClick={() => toggleSort('username')}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            Member
+                                            {sort === 'username' && <ArrowUpDown size={14} />}
+                                        </div>
+                                    </th>
+                                    <th style={{ padding: '1rem' }}>Discord ID</th>
+                                    <th style={{ padding: '1rem', cursor: 'pointer' }} onClick={() => toggleSort('wallet_count')}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            Wallets
+                                            {sort === 'wallet_count' && <ArrowUpDown size={14} />}
+                                        </div>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {roster?.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={3} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                            No members found.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    roster?.map((member) => (
+                                        <tr
+                                            key={member.discord_id}
+                                            style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer' }}
+                                            onClick={() => navigate({ to: '/roster/$id', params: { id: member.discord_id } })}
+                                            className="roster-row"
+                                        >
+                                            <td style={{ padding: '1rem' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                                    {member.avatar ? (
+                                                        <img
+                                                            src={`https://cdn.discordapp.com/avatars/${member.discord_id}/${member.avatar}.png`}
+                                                            alt={member.username}
+                                                            style={{ width: '32px', height: '32px', borderRadius: '50%' }}
+                                                        />
+                                                    ) : (
+                                                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem' }}>
+                                                            {member.username.charAt(0).toUpperCase()}
+                                                        </div>
+                                                    )}
+                                                    {member.username}
+                                                </div>
+                                            </td>
+                                            <td style={{ padding: '1rem', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
+                                                {member.discord_id}
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                                    {member.wallets.map(w => (
+                                                        <code key={w} style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>
+                                                            {w.slice(0, 6)}...{w.slice(-4)}
+                                                        </code>
+                                                    ))}
+                                                    {member.wallets.length === 0 && <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>None</span>}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+        </DashboardLayout>
+    )
+}

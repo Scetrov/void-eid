@@ -1,0 +1,350 @@
+@font-face {
+  font-family: "Diskette Mono";
+  src: url("/fonts/disket-mono-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Diskette Mono";
+  src: url("/fonts/disket-mono-bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  /* EVE Frontier Palette */
+  --brand-orange: #ff4700;
+  --brand-orange-dim: rgba(255, 116, 0, 0.5);
+
+  /* Restored Lighter Warm Scale (Stone) */
+  --bg-primary: #f5f5f4; /* Stone 100 */
+  --bg-secondary: #e7e5e4; /* Stone 200 */
+  --panel-bg: rgba(255, 255, 255, 0.95);
+  --text-primary: #1c1917; /* Stone 900 */
+  --text-secondary: #57534e; /* Stone 600 */
+
+  --border-color: #a8a29e; /* Stone 400 */
+  --border-active: #ff7400;
+
+  /* Angular Design System */
+  --radius-sm: 0px !important;
+  --radius-md: 0px !important;
+  --radius-lg: 0px !important;
+
+  --card-bg: var(--panel-bg);
+  --glass-border: var(--border-color);
+
+  --font-family: "Diskette Mono", monospace;
+  --font-body: "Inter", sans-serif;
+  --font-heading: "Diskette Mono", monospace;
+
+  --accent-primary: var(--brand-orange);
+  --accent-secondary: var(--text-secondary);
+  --accent-hover: #ff9d4d;
+}
+
+/* Dark Mode Overrides */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #0b0b0b;
+    --bg-secondary: #050505;
+    --panel-bg: rgba(11, 11, 11, 0.95);
+    --text-primary: #fafae5;
+    --text-secondary: #6b6b5e;
+    --border-color: #6b6b5e;
+  }
+}
+
+html[data-theme="dark"] {
+  --bg-primary: #0b0b0b;
+  --bg-secondary: #050505;
+  --panel-bg: rgba(11, 11, 11, 0.95);
+  --text-primary: #fafae5;
+  --text-secondary: #6b6b5e;
+  --border-color: #6b6b5e;
+}
+
+html[data-theme="light"] {
+  --bg-primary: #f5f5f4;
+  --bg-secondary: #e7e5e4;
+  --panel-bg: rgba(255, 255, 255, 0.95);
+  --text-primary: #1c1917;
+  --text-secondary: #57534e;
+  --border-color: #a8a29e;
+}
+
+body {
+  margin: 0;
+  /* Lighter, warmer gradient for default/light mode */
+  background: radial-gradient(circle at 50% -20%, #e7e5e4 0%, #f5f5f4 100%);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  min-height: 100vh;
+}
+
+html[data-theme="dark"] body {
+  background: radial-gradient(circle at 50% -20%, #1a0a0a 0%, #050505 100%);
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not(html[data-theme="light"]) body {
+    background: radial-gradient(circle at 50% -20%, #1a0a0a 0%, #050505 100%);
+  }
+}
+
+/* Angular Buttons - Global overrides including Dapp Kit */
+
+.btn,
+button,
+[data-dapp-kit] button,
+.ju367v,
+.ui-trigger,
+[role="button"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  font-family: var(--font-heading) !important;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid var(--border-color) !important;
+  background: transparent;
+  color: var(--text-primary);
+  position: relative;
+  border-radius: 0px !important; /* Force Angular */
+  outline: none;
+}
+
+/* Force everything in Dapp Kit to be square */
+[data-dapp-kit] *,
+.radix-themes *,
+button * {
+  border-radius: 0px !important;
+}
+
+/* Ensure avatars stay round if we want them to (User Profile) */
+.avatar-image,
+img[alt] {
+  border-radius: 0px; /* Or 50% if we want round avatars? EVE is usually square/tech. Let's go square for avatars too to match the theme! */
+}
+/* Revert profile pictures to square for full EVE aesthetic */
+img {
+  border-radius: 0px !important;
+}
+
+.btn-primary {
+  border-color: var(--brand-orange) !important;
+  color: var(--brand-orange) !important;
+  background: rgba(255, 116, 0, 0.05) !important;
+}
+
+.btn-primary:hover {
+  background: var(--brand-orange) !important;
+  color: #fff !important;
+  box-shadow: 0 0 15px rgba(255, 116, 0, 0.3);
+}
+
+.btn-secondary {
+  border-color: var(--text-secondary);
+  color: var(--text-secondary);
+}
+
+.btn-secondary:hover {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* Theme Toggle Button Overrides */
+.btn-icon,
+.btn-icon button {
+  border-radius: 0px !important;
+}
+
+/* Frontier Cards */
+.card {
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  padding: 2rem;
+  position: relative;
+  box-shadow: none;
+  border-radius: 0px !important;
+}
+
+.card::before,
+.card::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-style: solid;
+  border-color: var(--text-secondary);
+  transition: border-color 0.3s;
+}
+
+.card::before {
+  top: -1px;
+  left: -1px;
+  border-width: 1px 0 0 1px;
+}
+
+.card::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 1px 1px 0;
+}
+
+.card:hover::before,
+.card:hover::after {
+  border-color: var(--brand-orange);
+}
+
+/* Headings */
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+  margin-top: 0;
+}
+
+h1 {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 1rem;
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+h1::after {
+  /* Orange tick */
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 60px;
+  height: 1px;
+  background: var(--brand-orange);
+}
+
+/* Inputs */
+input {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 0.8rem;
+  font-family: var(--font-heading);
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 0px !important;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--brand-orange);
+  box-shadow: 0 0 10px rgba(255, 116, 0, 0.1);
+}
+
+/* Utility */
+code {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  padding: 0.2rem 0.5rem;
+  color: var(--brand-orange);
+  font-family: "Diskette Mono", monospace;
+  border-radius: 0px !important;
+}
+
+/* Dotted dividers */
+.dashed-line {
+  height: 1px;
+  background-image: linear-gradient(
+    to right,
+    var(--border-color) 50%,
+    transparent 50%
+  );
+  background-size: 8px 1px;
+  width: 100%;
+  margin: 1rem 0;
+}
+
+/* Fix for Dapp Kit Connect Button specific override if specificity is high */
+div[data-radix-popper-content-wrapper] {
+  border-radius: 0px !important;
+}
+
+/* Dashboard Layout with Container Queries */
+.dashboard-container {
+  padding: 2rem;
+  width: 100%;
+
+  /* Ensure outer gutter is maintained by clamping width */
+  /* If viewport is 1200px, width becomes 100%. If box-sizing is border-box, padding eats inside.
+       If we want visual outer gutter, we can set max-width relative to viewport or use margin.
+    */
+  max-width: 1200px;
+  margin: 0 auto;
+
+  /* Enable container queries */
+  container-type: inline-size;
+  container-name: dashboard;
+}
+
+/* Ensure minimal outer margin on screens smaller than max-width but larger than collapse point */
+@media (max-width: 1240px) {
+  .dashboard-container {
+    padding-inline: 2rem; /* Ensure standard padding acts as gutter */
+    /* width: auto; Use default block width which respects margin */
+  }
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3rem;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 2rem;
+}
+
+/*
+   Mobile/Portrait Optimization
+   Targeting when width is constrained (typical mobile)
+*/
+@container dashboard (max-width: 800px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr; /* Stack vertically */
+  }
+
+  .dashboard-header {
+    flex-direction: row;
+    margin-bottom: 2rem;
+  }
+}
+
+/* Mobile Padding Adjustment - Use Media Query since container can't query itself */
+@media (max-width: 600px) {
+  .dashboard-container {
+    padding: 1rem;
+    padding-inline: 1rem; /* Explicitly override stricter inline padding */
+  }
+}

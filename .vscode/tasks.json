@@ -1,0 +1,43 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Backend",
+      "type": "shell",
+      "command": "cargo run",
+      "options": {
+        "cwd": "${workspaceFolder}/src/rust"
+      },
+      "problemMatcher": ["$rustc"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "group": "build"
+    },
+    {
+      "label": "Run Frontend",
+      "type": "npm",
+      "script": "dev",
+      "path": "src/sui",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "sui-mumble"
+      },
+      "group": "build"
+    },
+    {
+        "label": "Docker Compose Up",
+        "type": "shell",
+        "command": "docker compose up",
+        "args": [],
+        "presentation": {
+            "reveal": "always",
+            "panel": "new"
+        },
+        "group": "test"
+    }
+  ]
+}
