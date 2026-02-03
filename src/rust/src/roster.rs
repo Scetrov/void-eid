@@ -151,18 +151,20 @@ pub async fn get_roster_member(
 
     let total_pages = (total.0 as f64 / per_page as f64).ceil() as i64;
 
-    // 6. Audit Log (Write)
-    let _ = log_audit(
-        &state.db,
-        AuditAction::ViewMember,
-        &current_user.id,
-        Some(&target_member.id),
-        &format!(
-            "Viewed member {} ({})",
-            target_member.username, target_member.discord_id
-        ),
-    )
-    .await;
+    // 6. Audit Log (Write) - Only log if viewing someone else (not self)
+    if current_user.id != target_member.id {
+        let _ = log_audit(
+            &state.db,
+            AuditAction::ViewMember,
+            &current_user.id,
+            Some(&target_member.id),
+            &format!(
+                "Viewed member {} ({})",
+                target_member.username, target_member.discord_id
+            ),
+        )
+        .await;
+    }
 
     // 7. Return RosterMember
     Json(RosterMember {

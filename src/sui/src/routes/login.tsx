@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth } from '../providers/AuthProvider'
-import DiscordLogo from "../assets/Discord-Symbol-White.png";
+import DiscordLogo from "../assets/discord.svg";
 
 export const Route = createFileRoute('/login')({
   component: Login,

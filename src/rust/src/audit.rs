@@ -4,12 +4,17 @@ use uuid::Uuid;
 
 /// Actions that can be recorded in the audit log
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)] // Some variants are defined for future use
 pub enum AuditAction {
     Login,
     LinkWallet,
     UnlinkWallet,
     ViewRoster,
     ViewMember,
+    AdminGrant,
+    AdminRevoke,
+    TribeJoin,
+    TribeLeave,
 }
 
 impl AuditAction {
@@ -20,6 +25,10 @@ impl AuditAction {
             AuditAction::UnlinkWallet => "UNLINK_WALLET",
             AuditAction::ViewRoster => "VIEW_ROSTER",
             AuditAction::ViewMember => "VIEW_MEMBER",
+            AuditAction::AdminGrant => "ADMIN_GRANT",
+            AuditAction::AdminRevoke => "ADMIN_REVOKE",
+            AuditAction::TribeJoin => "TRIBE_JOIN",
+            AuditAction::TribeLeave => "TRIBE_LEAVE",
         }
     }
 }
@@ -131,5 +140,9 @@ mod tests {
         assert_eq!(AuditAction::UnlinkWallet.as_str(), "UNLINK_WALLET");
         assert_eq!(AuditAction::ViewRoster.as_str(), "VIEW_ROSTER");
         assert_eq!(AuditAction::ViewMember.as_str(), "VIEW_MEMBER");
+        assert_eq!(AuditAction::AdminGrant.as_str(), "ADMIN_GRANT");
+        assert_eq!(AuditAction::AdminRevoke.as_str(), "ADMIN_REVOKE");
+        assert_eq!(AuditAction::TribeJoin.as_str(), "TRIBE_JOIN");
+        assert_eq!(AuditAction::TribeLeave.as_str(), "TRIBE_LEAVE");
     }
 }

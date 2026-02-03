@@ -5,7 +5,7 @@ import { useAuth } from '../providers/AuthProvider'
 import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Calendar, Layers, Wallet, Clock } from 'lucide-react'
-import DiscordLogo from "../assets/Discord-Symbol-White.png";
+import DiscordLogo from "../assets/discord.svg";
 import { formatAddress, formatTimeAgo, formatLoginDate } from '../utils';
 
 export const Route = createFileRoute('/dashboard')({

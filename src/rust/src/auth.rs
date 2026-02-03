@@ -155,10 +155,12 @@ pub async fn discord_callback(
     let is_initial_admin = initial_admin_id.as_deref() == Some(&discord_id);
 
     // Find or Create User
-    let user = match sqlx::query_as::<_, User>("SELECT * FROM users WHERE discord_id = ?")
-        .bind(&discord_id)
-        .fetch_optional(&state.db)
-        .await
+    let (user, admin_granted) = match sqlx::query_as::<_, User>(
+        "SELECT * FROM users WHERE discord_id = ?",
+    )
+    .bind(&discord_id)
+    .fetch_optional(&state.db)
+    .await
     {
         Ok(Some(mut u)) => {
             // If they are strictly the initial admin, force upgrade appropriately?
@@ -168,6 +170,7 @@ pub async fn discord_callback(
             // but for "initial" setup, ensuring they get admin is key.
 
             let should_be_admin = u.is_admin || is_initial_admin;
+            let was_promoted = is_initial_admin && !u.is_admin;
 
             if is_initial_admin && !u.is_admin {
                 u.is_admin = true;
@@ -184,7 +187,7 @@ pub async fn discord_callback(
                 .execute(&state.db)
                 .await;
             u.last_login_at = Some(now);
-            u
+            (u, was_promoted)
         }
         Ok(None) => {
             let now = Utc::now();
@@ -210,7 +213,8 @@ pub async fn discord_callback(
                 .execute(&state.db)
                 .await;
 
-            new_user
+            // New user created as admin
+            (new_user, is_initial_admin)
         }
         Err(e) => {
             return (
@@ -230,6 +234,18 @@ pub async fn discord_callback(
         &format!("User {} logged in via Discord", user.username),
     )
     .await;
+
+    // Audit log for admin grant (if applicable)
+    if admin_granted {
+        let _ = log_audit(
+            &state.db,
+            AuditAction::AdminGrant,
+            &user.id, // Actor is the system (represented by the user themselves for initial admin)
+            Some(&user.id),
+            &format!("User {} granted admin via INITIAL_ADMIN_ID", user.username),
+        )
+        .await;
+    }
 
     let jwt_secret = env::var("JWT_SECRET").expect("JWT_SECRET missing");
     let expiration = Utc::now()
