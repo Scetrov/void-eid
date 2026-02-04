@@ -42,7 +42,7 @@ Desktop.ini
 src/rust/target/
 **/target/
 **/*.rs.bk
-Cargo.lock
+/Cargo.lock
 *.pdb
 
 # Rust database files (SQLite)
