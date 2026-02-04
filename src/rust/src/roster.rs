@@ -63,6 +63,11 @@ pub struct RosterQuery {
     pub search: Option<String>,
 }
 
+#[derive(Deserialize, ToSchema)]
+pub struct GrantAdminRequest {
+    pub wallet_id: String,
+}
+
 #[utoipa::path(
     get,
     path = "/api/roster/{discord_id}",
@@ -548,4 +553,114 @@ mod integration_tests {
             .into_response();
         assert_eq!(response.status(), StatusCode::FORBIDDEN);
     }
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/roster/{discord_id}/grant-admin",
+    params(
+        ("discord_id" = String, Path, description = "Discord ID of the member"),
+        MemberQuery
+    ),
+    request_body = GrantAdminRequest,
+    responses(
+        (status = 200, description = "Admin granted successfully"),
+        (status = 403, description = "Forbidden"),
+        (status = 404, description = "User or wallet not found")
+    ),
+    security(
+        ("jwt" = [])
+    )
+)]
+pub async fn grant_admin(
+    Path(discord_id): Path<String>,
+    Query(query): Query<MemberQuery>,
+    State(state): State<AppState>,
+    auth_user: AuthenticatedUser,
+    Json(payload): Json<GrantAdminRequest>,
+) -> impl IntoResponse {
+    // Verify admin in tribe
+    let (current_user, tribe, _all_tribes) =
+        match require_admin_in_tribe(&state.db, auth_user.user_id, query.tribe.as_deref()).await {
+            Ok(result) => result,
+            Err(e) => return e.into_response(),
+        };
+
+    // Get target user
+    let target_user = match get_user_by_discord_id(&state.db, &discord_id).await {
+        Ok(Some(u)) => u,
+        Ok(None) => return (StatusCode::NOT_FOUND, "User not found").into_response(),
+        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response(),
+    };
+
+    // Verify wallet exists and belongs to target user
+    let wallet: Option<crate::models::FlatLinkedWallet> =
+        sqlx::query_as("SELECT * FROM wallets WHERE id = ? AND user_id = ?")
+            .bind(&payload.wallet_id)
+            .bind(target_user.id)
+            .fetch_optional(&state.db)
+            .await
+            .unwrap_or(None);
+
+    if wallet.is_none() {
+        return (
+            StatusCode::NOT_FOUND,
+            "Wallet not found or doesn't belong to user",
+        )
+            .into_response();
+    }
+
+    // Check if user_tribe entry already exists
+    let existing: Option<(i64,)> =
+        sqlx::query_as("SELECT user_id FROM user_tribes WHERE user_id = ? AND tribe = ?")
+            .bind(target_user.id)
+            .bind(&tribe)
+            .fetch_optional(&state.db)
+            .await
+            .unwrap_or(None);
+
+    if existing.is_some() {
+        // Update existing entry
+        let result = sqlx::query(
+            "UPDATE user_tribes SET wallet_id = ?, is_admin = TRUE WHERE user_id = ? AND tribe = ?",
+        )
+        .bind(&payload.wallet_id)
+        .bind(target_user.id)
+        .bind(&tribe)
+        .execute(&state.db)
+        .await;
+
+        if result.is_err() {
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to grant admin").into_response();
+        }
+    } else {
+        // Insert new entry
+        let result = sqlx::query(
+            "INSERT INTO user_tribes (user_id, tribe, wallet_id, is_admin) VALUES (?, ?, ?, TRUE)",
+        )
+        .bind(target_user.id)
+        .bind(&tribe)
+        .bind(&payload.wallet_id)
+        .execute(&state.db)
+        .await;
+
+        if result.is_err() {
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to grant admin").into_response();
+        }
+    }
+
+    // Audit log
+    let _ = log_audit(
+        &state.db,
+        AuditAction::AdminGrant,
+        current_user.id,
+        Some(target_user.id),
+        &format!(
+            "Granted admin to {} in tribe {} via wallet {}",
+            target_user.username, tribe, payload.wallet_id
+        ),
+    )
+    .await;
+
+    Json(serde_json::json!({ "message": "Admin granted successfully" })).into_response()
 }

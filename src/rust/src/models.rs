@@ -4,7 +4,7 @@ use sqlx::FromRow;
 
 use utoipa::ToSchema;
 
-mod i64_as_string {
+pub mod i64_as_string {
     use serde::{self, Deserialize, Deserializer, Serializer};
 
     pub fn serialize<S>(value: &i64, serializer: S) -> Result<S::Ok, S::Error>

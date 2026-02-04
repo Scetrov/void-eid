@@ -4,7 +4,7 @@ use tower_http::cors::CorsLayer;
 use void_eid_backend::db::init_db;
 use void_eid_backend::state::AppState;
 
-use void_eid_backend::{auth, models, roster, wallet};
+use void_eid_backend::{auth, models, notes, roster, wallet};
 
 use utoipa::OpenApi;
 use utoipa_scalar::{Scalar, Servable};
@@ -20,7 +20,12 @@ use utoipa_scalar::{Scalar, Servable};
         wallet::unlink_wallet,
 
         roster::get_roster,
-        roster::get_roster_member
+        roster::get_roster_member,
+        roster::grant_admin,
+
+        notes::get_notes,
+        notes::create_note,
+        notes::edit_note
     ),
     components(
         schemas(
@@ -31,12 +36,19 @@ use utoipa_scalar::{Scalar, Servable};
             wallet::VerifyRequest,
             auth::CallbackParams,
             auth::Claims,
-            roster::RosterMember
+            roster::RosterMember,
+            roster::GrantAdminRequest,
+            notes::Note,
+            notes::NoteWithAuthor,
+            notes::CreateNoteRequest,
+            notes::EditNoteRequest
         )
     ),
     tags(
         (name = "auth", description = "Authentication Endpoints"),
-        (name = "wallet", description = "Wallet Management Endpoints")
+        (name = "wallet", description = "Wallet Management Endpoints"),
+        (name = "roster", description = "Roster Management Endpoints"),
+        (name = "notes", description = "Notes Management Endpoints")
     ),
     security(
         ("jwt" = [])

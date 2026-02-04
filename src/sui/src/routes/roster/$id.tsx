@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useAuth } from '../../providers/AuthProvider'
-import { useQuery } from '@tanstack/react-query'
-import { ShieldAlert, ArrowLeft, Copy, ExternalLink, Wallet, ChevronLeft, ChevronRight, LogIn, Link as LinkIcon, Unlink, List, Eye, ShieldPlus, ShieldMinus, UserPlus, UserMinus } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { ShieldAlert, ArrowLeft, Copy, ExternalLink, Wallet, ChevronLeft, ChevronRight, LogIn, Link as LinkIcon, Unlink, List, Eye, ShieldPlus, ShieldMinus, UserPlus, UserMinus, FileText, Edit2, Save, X } from 'lucide-react'
 import { DashboardLayout } from '../../components/DashboardLayout'
 import { useState } from 'react'
 
@@ -38,6 +38,18 @@ interface RosterMember {
         tribes: string[];
     }[];
     audits?: PaginatedAudits;
+}
+
+interface Note {
+    id: string;
+    targetUserId: string;
+    authorId: string;
+    tribe: string;
+    content: string;
+    createdAt: string;
+    updatedAt: string;
+    authorUsername: string;
+    authorDiscriminator: string;
 }
 
 // Helper function to format date as YYYY-MM-DD HH:mm
@@ -86,6 +98,8 @@ function getActionIcon(action: string) {
         case 'ADMIN_REVOKE': return <ShieldMinus {...iconProps} />;
         case 'TRIBE_JOIN': return <UserPlus {...iconProps} />;
         case 'TRIBE_LEAVE': return <UserMinus {...iconProps} />;
+        case 'NOTE_CREATE': return <FileText {...iconProps} />;
+        case 'NOTE_EDIT': return <Edit2 {...iconProps} />;
         default: return <ShieldAlert {...iconProps} />;
     }
 }
@@ -95,6 +109,10 @@ function RosterMemberPage() {
     const { user, token, isAuthenticated, currentTribe } = useAuth()
     const [auditPage, setAuditPage] = useState(1)
     const [expandedDetails, setExpandedDetails] = useState<Set<string>>(new Set())
+    const [newNoteContent, setNewNoteContent] = useState('')
+    const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+    const [editNoteContent, setEditNoteContent] = useState('')
+    const queryClient = useQueryClient()
 
     const { data: member, isLoading, error } = useQuery({
         queryKey: ['rosterMember', id, currentTribe, auditPage],
@@ -120,6 +138,91 @@ function RosterMemberPage() {
         },
         enabled: !!token && !!user?.isAdmin,
         retry: false
+    });
+
+    // Notes query
+    const { data: notes = [] } = useQuery({
+        queryKey: ['notes', id, currentTribe],
+        queryFn: async () => {
+            if (!token || !currentTribe) return [];
+            const params = new URLSearchParams();
+            params.append('tribe', currentTribe);
+            const res = await fetch(`http://localhost:5038/api/roster/${id}/notes?${params.toString()}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) return [];
+            return res.json() as Promise<Note[]>;
+        },
+        enabled: !!token && !!user?.isAdmin && !!currentTribe
+    });
+
+    // Grant admin mutation
+    const grantAdminMutation = useMutation({
+        mutationFn: async (walletId: string) => {
+            if (!token || !currentTribe) throw new Error("Missing token or tribe");
+            const params = new URLSearchParams();
+            params.append('tribe', currentTribe);
+            const res = await fetch(`http://localhost:5038/api/roster/${id}/grant-admin?${params.toString()}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ wallet_id: walletId })
+            });
+            if (!res.ok) throw new Error("Failed to grant admin");
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['rosterMember', id] });
+        }
+    });
+
+    // Create note mutation
+    const createNoteMutation = useMutation({
+        mutationFn: async (content: string) => {
+            if (!token || !currentTribe) throw new Error("Missing token or tribe");
+            const params = new URLSearchParams();
+            params.append('tribe', currentTribe);
+            const res = await fetch(`http://localhost:5038/api/roster/${id}/notes?${params.toString()}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ content })
+            });
+            if (!res.ok) throw new Error("Failed to create note");
+            return res.json();
+        },
+        onSuccess: () => {
+            setNewNoteContent('');
+            queryClient.invalidateQueries({ queryKey: ['notes', id] });
+            queryClient.invalidateQueries({ queryKey: ['rosterMember', id] });
+        }
+    });
+
+    // Edit note mutation
+    const editNoteMutation = useMutation({
+        mutationFn: async ({ noteId, content }: { noteId: string; content: string }) => {
+            if (!token) throw new Error("Missing token");
+            const res = await fetch(`http://localhost:5038/api/notes/${noteId}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ content })
+            });
+            if (!res.ok) throw new Error("Failed to edit note");
+            return res.json();
+        },
+        onSuccess: () => {
+            setEditingNoteId(null);
+            setEditNoteContent('');
+            queryClient.invalidateQueries({ queryKey: ['notes', id] });
+            queryClient.invalidateQueries({ queryKey: ['rosterMember', id] });
+        }
     });
 
     if (!isAuthenticated) {
@@ -235,14 +338,29 @@ function RosterMemberPage() {
                                     display: 'flex',
                                     justifyContent: 'space-between',
                                     alignItems: 'center',
-                                    border: '1px solid var(--glass-border)'
+                                    border: '1px solid var(--glass-border)',
+                                    gap: '1rem'
                                 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                        <code style={{ fontSize: '0.9rem', wordBreak: 'break-all' }}>{wallet.address}</code>
-                                        {wallet.tribes && wallet.tribes.length > 0 && (
-                                            <span style={{ color: 'var(--brand-orange)', fontSize: '0.8rem', fontFamily: 'var(--font-heading)', letterSpacing: '1px' }}>
-                                                [{wallet.tribes.join(', ')}]
-                                            </span>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                            <code style={{ fontSize: '0.9rem', wordBreak: 'break-all' }}>{wallet.address}</code>
+                                            {wallet.tribes && wallet.tribes.length > 0 && (
+                                                <span style={{ color: 'var(--brand-orange)', fontSize: '0.8rem', fontFamily: 'var(--font-heading)', letterSpacing: '1px' }}>
+                                                    [{wallet.tribes.join(', ')}]
+                                                </span>
+                                            )}
+                                        </div>
+                                        {/* Grant Admin button - only show if user is admin of current tribe and wallet doesn't already have this tribe */}
+                                        {currentTribe && user?.adminTribes?.includes(currentTribe) && !wallet.tribes.includes(currentTribe) && (
+                                            <button
+                                                onClick={() => grantAdminMutation.mutate(wallet.id)}
+                                                disabled={grantAdminMutation.isPending}
+                                                className="btn btn-primary"
+                                                style={{ fontSize: '0.75rem', padding: '0.4rem 0.75rem', alignSelf: 'flex-start' }}
+                                            >
+                                                <ShieldPlus size={14} style={{ marginRight: '0.25rem' }} />
+                                                {grantAdminMutation.isPending ? 'Granting...' : `Grant ${currentTribe} Admin`}
+                                            </button>
                                         )}
                                     </div>
                                     <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -263,6 +381,149 @@ function RosterMemberPage() {
                                             <ExternalLink size={16} />
                                         </a>
                                     </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                {/* Notes Panel - Full Width */}
+                <div className="card" style={{ gridColumn: '1 / -1' }}>
+                    <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <FileText size={20} color="var(--accent-primary)" />
+                        Notes
+                    </h3>
+
+                    {/* New Note Form */}
+                    <div style={{ marginTop: '1.5rem', marginBottom: '2rem' }}>
+                        <textarea
+                            value={newNoteContent}
+                            onChange={(e) => setNewNoteContent(e.target.value)}
+                            placeholder="Add a note about this member..."
+                            style={{
+                                width: '100%',
+                                minHeight: '100px',
+                                padding: '0.75rem',
+                                background: 'var(--bg-secondary)',
+                                border: '1px solid var(--glass-border)',
+                                color: 'var(--text-primary)',
+                                fontFamily: 'var(--font-body)',
+                                fontSize: '0.95rem',
+                                resize: 'vertical'
+                            }}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                            <button
+                                onClick={() => createNoteMutation.mutate(newNoteContent)}
+                                disabled={!newNoteContent.trim() || createNoteMutation.isPending}
+                                className="btn btn-primary"
+                                style={{ fontSize: '0.85rem' }}
+                            >
+                                <Save size={14} style={{ marginRight: '0.25rem' }} />
+                                {createNoteMutation.isPending ? 'Adding...' : 'Add Note'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Notes List */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {notes.length === 0 ? (
+                            <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic', textAlign: 'center', padding: '2rem' }}>
+                                No notes yet. Add one above to start tracking information about this member.
+                            </div>
+                        ) : (
+                            notes.map((note) => (
+                                <div key={note.id} style={{
+                                    background: 'var(--bg-secondary)',
+                                    padding: '1rem',
+                                    border: '1px solid var(--glass-border)',
+                                    borderRadius: 'var(--radius-sm)'
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{note.authorUsername}</span>
+                                                {note.authorDiscriminator !== '0' && (
+                                                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>#{note.authorDiscriminator}</span>
+                                                )}
+                                            </div>
+                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                                {formatDateTime(note.createdAt)}
+                                                {note.updatedAt !== note.createdAt && ' (edited)'}
+                                            </div>
+                                        </div>
+                                        {/* Only show edit button if current user is the author */}
+                                        {user?.id === note.authorId && editingNoteId !== note.id && (
+                                            <button
+                                                onClick={() => {
+                                                    setEditingNoteId(note.id);
+                                                    setEditNoteContent(note.content);
+                                                }}
+                                                style={{
+                                                    background: 'transparent',
+                                                    border: 'none',
+                                                    color: 'var(--text-secondary)',
+                                                    cursor: 'pointer',
+                                                    padding: '0.25rem'
+                                                }}
+                                                title="Edit Note"
+                                            >
+                                                <Edit2 size={14} />
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {editingNoteId === note.id ? (
+                                        <div>
+                                            <textarea
+                                                value={editNoteContent}
+                                                onChange={(e) => setEditNoteContent(e.target.value)}
+                                                style={{
+                                                    width: '100%',
+                                                    minHeight: '80px',
+                                                    padding: '0.75rem',
+                                                    background: 'var(--bg-primary)',
+                                                    border: '1px solid var(--glass-border)',
+                                                    color: 'var(--text-primary)',
+                                                    fontFamily: 'var(--font-body)',
+                                                    fontSize: '0.95rem',
+                                                    resize: 'vertical',
+                                                    marginBottom: '0.5rem'
+                                                }}
+                                            />
+                                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                                <button
+                                                    onClick={() => {
+                                                        setEditingNoteId(null);
+                                                        setEditNoteContent('');
+                                                    }}
+                                                    className="btn btn-secondary"
+                                                    style={{ fontSize: '0.75rem', padding: '0.4rem 0.75rem' }}
+                                                >
+                                                    <X size={12} style={{ marginRight: '0.25rem' }} />
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    onClick={() => editNoteMutation.mutate({ noteId: note.id, content: editNoteContent })}
+                                                    disabled={!editNoteContent.trim() || editNoteMutation.isPending}
+                                                    className="btn btn-primary"
+                                                    style={{ fontSize: '0.75rem', padding: '0.4rem 0.75rem' }}
+                                                >
+                                                    <Save size={12} style={{ marginRight: '0.25rem' }} />
+                                                    {editNoteMutation.isPending ? 'Saving...' : 'Save'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <p style={{
+                                            margin: 0,
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word',
+                                            lineHeight: 1.6
+                                        }}>
+                                            {note.content}
+                                        </p>
+                                    )}
                                 </div>
                             ))
                         )}

@@ -15,6 +15,8 @@ pub enum AuditAction {
     AdminRevoke,
     TribeJoin,
     TribeLeave,
+    NoteCreate,
+    NoteEdit,
 }
 
 impl AuditAction {
@@ -29,6 +31,8 @@ impl AuditAction {
             AuditAction::AdminRevoke => "ADMIN_REVOKE",
             AuditAction::TribeJoin => "TRIBE_JOIN",
             AuditAction::TribeLeave => "TRIBE_LEAVE",
+            AuditAction::NoteCreate => "NOTE_CREATE",
+            AuditAction::NoteEdit => "NOTE_EDIT",
         }
     }
 }
@@ -137,5 +141,7 @@ mod tests {
         assert_eq!(AuditAction::AdminRevoke.as_str(), "ADMIN_REVOKE");
         assert_eq!(AuditAction::TribeJoin.as_str(), "TRIBE_JOIN");
         assert_eq!(AuditAction::TribeLeave.as_str(), "TRIBE_LEAVE");
+        assert_eq!(AuditAction::NoteCreate.as_str(), "NOTE_CREATE");
+        assert_eq!(AuditAction::NoteEdit.as_str(), "NOTE_EDIT");
     }
 }
