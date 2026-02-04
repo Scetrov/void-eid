@@ -1,15 +1,27 @@
 import { createNetworkConfig, SuiClientProvider, WalletProvider } from '@mysten/dapp-kit';
-import { getFullnodeUrl } from '@mysten/sui/client';
+import { getJsonRpcFullnodeUrl, JsonRpcHTTPTransport } from '@mysten/sui/jsonRpc';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { AuthProvider } from './AuthProvider';
 import '@mysten/dapp-kit/dist/index.css';
 
 const { networkConfig } = createNetworkConfig({
-	localnet: { url: getFullnodeUrl('localnet') },
-	devnet: { url: getFullnodeUrl('devnet') },
-	testnet: { url: getFullnodeUrl('testnet') },
-	mainnet: { url: getFullnodeUrl('mainnet') },
+	localnet: {
+		transport: new JsonRpcHTTPTransport({ url: getJsonRpcFullnodeUrl('localnet') }),
+		network: 'localnet',
+	},
+	devnet: {
+		transport: new JsonRpcHTTPTransport({ url: getJsonRpcFullnodeUrl('devnet') }),
+		network: 'devnet',
+	},
+	testnet: {
+		transport: new JsonRpcHTTPTransport({ url: getJsonRpcFullnodeUrl('testnet') }),
+		network: 'testnet',
+	},
+	mainnet: {
+		transport: new JsonRpcHTTPTransport({ url: getJsonRpcFullnodeUrl('mainnet') }),
+		network: 'mainnet',
+	},
 });
 
 const queryClient = new QueryClient();
