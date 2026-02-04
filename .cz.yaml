@@ -1,0 +1,9 @@
+---
+commitizen:
+  name: cz_conventional_changelog
+  tag_format: v$version
+  version_files:
+    - "src/rust/Cargo.toml:^version"
+    - 'src/sui/package.json:"version"'
+  update_changelog_on_bump: true
+  bump_message: "chore(release): version $current_version → $new_version"
