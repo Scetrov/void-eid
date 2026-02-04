@@ -1,5 +1,5 @@
 # Builder stage
-FROM docker.io/library/node:20 AS builder
+FROM docker.io/library/node:24 AS builder
 
 WORKDIR /app
 
