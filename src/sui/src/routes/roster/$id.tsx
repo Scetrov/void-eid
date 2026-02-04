@@ -29,7 +29,7 @@ interface PaginatedAudits {
 }
 
 interface RosterMember {
-    discord_id: string;
+    discordId: string;
     username: string;
     avatar: string | null;
     wallets: {
@@ -195,7 +195,7 @@ function RosterMemberPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '1rem', padding: '1rem' }}>
                         {member?.avatar ? (
                             <img
-                                src={`https://cdn.discordapp.com/avatars/${member.discord_id}/${member.avatar}.png?size=256`}
+                                src={`https://cdn.discordapp.com/avatars/${member.discordId}/${member.avatar}.png?size=256`}
                                 alt={member.username}
                                 style={{ width: '128px', height: '128px', borderRadius: '50%', border: '4px solid var(--glass-border)' }}
                             />
@@ -208,7 +208,7 @@ function RosterMemberPage() {
                         <div>
                             <h3 style={{ margin: 0, fontSize: '1.5rem' }}>{member?.username}</h3>
                             <code style={{ color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.5rem', borderRadius: '4px', marginTop: '0.5rem', display: 'inline-block' }}>
-                                {member?.discord_id}
+                                {member?.discordId}
                             </code>
                         </div>
                     </div>

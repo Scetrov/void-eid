@@ -8,7 +8,7 @@ use axum::http::StatusCode;
 pub type ApiResult<T> = Result<T, (StatusCode, &'static str)>;
 
 /// Fetch a user by their internal UUID
-pub async fn get_user_by_id(db: &DbPool, id: &str) -> Result<Option<User>, sqlx::Error> {
+pub async fn get_user_by_id(db: &DbPool, id: i64) -> Result<Option<User>, sqlx::Error> {
     sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ?")
         .bind(id)
         .fetch_optional(db)
@@ -27,7 +27,7 @@ pub async fn get_user_by_discord_id(
 }
 
 /// Fetch all tribes for a user
-pub async fn get_user_tribes(db: &DbPool, user_id: &str) -> Result<Vec<String>, sqlx::Error> {
+pub async fn get_user_tribes(db: &DbPool, user_id: i64) -> Result<Vec<String>, sqlx::Error> {
     let tribes = sqlx::query_as::<_, UserTribe>("SELECT * FROM user_tribes WHERE user_id = ?")
         .bind(user_id)
         .fetch_all(db)
@@ -43,7 +43,7 @@ pub async fn get_user_tribes(db: &DbPool, user_id: &str) -> Result<Vec<String>, 
 /// Returns (User, selected_tribe, all_tribes) on success, or an HTTP error tuple on failure.
 pub async fn require_admin_in_tribe(
     db: &DbPool,
-    user_id: &str,
+    user_id: i64,
     tribe: Option<&str>,
 ) -> ApiResult<(User, String, Vec<String>)> {
     let user = get_user_by_id(db, user_id)
@@ -116,7 +116,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_user_by_id_not_found() {
         let db = setup_db().await;
-        let result = get_user_by_id(&db, "nonexistent").await.unwrap();
+        let result = get_user_by_id(&db, 99999).await.unwrap();
         assert!(result.is_none());
     }
 
@@ -125,7 +125,7 @@ mod tests {
         let db = setup_db().await;
 
         sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, is_admin) VALUES (?, ?, ?, ?, ?)")
-            .bind("test-id")
+            .bind(101_i64)
             .bind("123456")
             .bind("TestUser")
             .bind("0000")
@@ -134,7 +134,7 @@ mod tests {
             .await
             .unwrap();
 
-        let result = get_user_by_id(&db, "test-id").await.unwrap();
+        let result = get_user_by_id(&db, 101).await.unwrap();
         assert!(result.is_some());
         assert_eq!(result.unwrap().username, "TestUser");
     }
@@ -144,7 +144,7 @@ mod tests {
         let db = setup_db().await;
 
         sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, is_admin) VALUES (?, ?, ?, ?, ?)")
-            .bind("user-id")
+            .bind(202_i64)
             .bind("123456")
             .bind("RegularUser")
             .bind("0000")
@@ -155,13 +155,13 @@ mod tests {
 
         // Add user to a tribe
         sqlx::query("INSERT INTO user_tribes (user_id, tribe) VALUES (?, ?)")
-            .bind("user-id")
+            .bind(202_i64)
             .bind("Fire")
             .execute(&db)
             .await
             .unwrap();
 
-        let result = require_admin_in_tribe(&db, "user-id", None).await;
+        let result = require_admin_in_tribe(&db, 202, None).await;
         assert!(result.is_err());
         let (status, _) = result.unwrap_err();
         assert_eq!(status, StatusCode::FORBIDDEN);
@@ -172,7 +172,7 @@ mod tests {
         let db = setup_db().await;
 
         sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, is_admin) VALUES (?, ?, ?, ?, ?)")
-            .bind("admin-id")
+            .bind(303_i64)
             .bind("789")
             .bind("AdminUser")
             .bind("0000")
@@ -183,13 +183,13 @@ mod tests {
 
         // Add user to a tribe
         sqlx::query("INSERT INTO user_tribes (user_id, tribe) VALUES (?, ?)")
-            .bind("admin-id")
+            .bind(303_i64)
             .bind("Fire")
             .execute(&db)
             .await
             .unwrap();
 
-        let result = require_admin_in_tribe(&db, "admin-id", None).await;
+        let result = require_admin_in_tribe(&db, 303, None).await;
         assert!(result.is_ok());
         let (user, tribe, all_tribes) = result.unwrap();
         assert_eq!(user.username, "AdminUser");

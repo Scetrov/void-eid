@@ -13,13 +13,14 @@ def seed_data():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    tribes = ["Fire", "Water"]
+    tribes = ["Fire", "Water", "Earth", "Wind"]
     users_to_generate = 100
 
     print(f"Generating {users_to_generate} users...")
 
     for i in range(users_to_generate):
-        user_id = str(uuid.uuid4())
+        # Generate random 64-bit integer for user_id (SQLite INTEGER is i64)
+        user_id = random.randint(1, 2**62 - 1)  # Keep positive range for SQLite
         discord_id = str(100000000000000000 + i)
         username = f"User_{i}"
         discriminator = f"{random.randint(1000, 9999)}"

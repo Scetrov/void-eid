@@ -10,7 +10,7 @@ export const Route = createFileRoute('/roster/')({
 })
 
 interface RosterMember {
-    discord_id: string;
+    discordId: string;
     username: string;
     avatar: string | null;
     wallets: {
@@ -101,6 +101,9 @@ function RosterPage() {
 
     return (
         <DashboardLayout>
+            <div className="dashboard-header" style={{ marginBottom: '2rem' }}>
+                <h2 style={{ margin: 0 }}>Tribe Roster</h2>
+            </div>
 
             <div className="card">
                 <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -162,16 +165,16 @@ function RosterPage() {
                                 ) : (
                                     roster?.map((member) => (
                                         <tr
-                                            key={member.discord_id}
+                                            key={member.discordId}
                                             style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer' }}
-                                            onClick={() => navigate({ to: '/roster/$id', params: { id: member.discord_id } })}
+                                            onClick={() => navigate({ to: '/roster/$id', params: { id: member.discordId } })}
                                             className="roster-row"
                                         >
                                             <td style={{ padding: '1rem' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                                     {member.avatar ? (
                                                         <img
-                                                            src={`https://cdn.discordapp.com/avatars/${member.discord_id}/${member.avatar}.png`}
+                                                            src={`https://cdn.discordapp.com/avatars/${member.discordId}/${member.avatar}.png`}
                                                             alt={member.username}
                                                             style={{ width: '32px', height: '32px', borderRadius: '50%' }}
                                                         />
@@ -184,7 +187,7 @@ function RosterPage() {
                                                 </div>
                                             </td>
                                             <td style={{ padding: '1rem', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
-                                                {member.discord_id}
+                                                {member.discordId}
                                             </td>
                                             <td style={{ padding: '1rem' }}>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>

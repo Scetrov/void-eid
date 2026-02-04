@@ -37,8 +37,8 @@ impl AuditAction {
 pub async fn log_audit(
     db: &DbPool,
     action: AuditAction,
-    actor_id: &str,
-    target_id: Option<&str>,
+    actor_id: i64,
+    target_id: Option<i64>,
     details: &str,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(
@@ -74,7 +74,7 @@ mod tests {
 
         // Insert a user for foreign key constraint
         sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, is_admin) VALUES (?, ?, ?, ?, ?)")
-            .bind("actor-id")
+            .bind(1001_i64)
             .bind("123456")
             .bind("TestActor")
             .bind("0000")
@@ -90,14 +90,7 @@ mod tests {
     async fn test_log_audit_without_target() {
         let db = setup_db().await;
 
-        let result = log_audit(
-            &db,
-            AuditAction::ViewRoster,
-            "actor-id",
-            None,
-            "Viewed roster",
-        )
-        .await;
+        let result = log_audit(&db, AuditAction::ViewRoster, 1001, None, "Viewed roster").await;
         assert!(result.is_ok());
 
         let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM audit_logs")
@@ -113,7 +106,7 @@ mod tests {
 
         // Insert target user
         sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, is_admin) VALUES (?, ?, ?, ?, ?)")
-            .bind("target-id")
+            .bind(2002_i64)
             .bind("789")
             .bind("TargetUser")
             .bind("0000")
@@ -125,8 +118,8 @@ mod tests {
         let result = log_audit(
             &db,
             AuditAction::ViewMember,
-            "actor-id",
-            Some("target-id"),
+            1001,
+            Some(2002),
             "Viewed member details",
         )
         .await;

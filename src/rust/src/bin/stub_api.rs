@@ -15,7 +15,7 @@ use void_eid_backend::{auth::Claims, db::init_db, state::AppState};
 
 #[derive(Deserialize)]
 struct StubLoginParams {
-    user_id: String,
+    user_id: i64,
 }
 
 async fn stub_login(
@@ -37,14 +37,15 @@ async fn stub_login(
     // Getting the user details would require importing User model and doing a query.
     // Let's do it properly.
 
-    let user = sqlx::query_as::<_, void_eid_backend::models::User>("SELECT * FROM users WHERE id = ?")
-        .bind(&params.user_id)
-        .fetch_one(&_state.db)
-        .await
-        .expect("User not found in stub DB");
+    let user =
+        sqlx::query_as::<_, void_eid_backend::models::User>("SELECT * FROM users WHERE id = ?")
+            .bind(params.user_id)
+            .fetch_one(&_state.db)
+            .await
+            .expect("User not found in stub DB");
 
     let claims = Claims {
-        id: user.id,
+        id: user.id.to_string(), // Serialize i64 ID to string for JWT
         discord_id: user.discord_id,
         username: user.username,
         exp: expiration,
@@ -68,7 +69,7 @@ async fn seed_db(pool: &SqlitePool) {
     let now = Utc::now();
 
     // 1. Admin User
-    let admin_id = "admin-user-id";
+    let admin_id = 1001_i64;
     sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, avatar, is_admin, last_login_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
         .bind(admin_id)
         .bind("admin-discord-id")
@@ -82,7 +83,7 @@ async fn seed_db(pool: &SqlitePool) {
         .expect("Failed to insert admin");
 
     // 2. Regular User
-    let user_id = "regular-user-id";
+    let user_id = 1002_i64;
     sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, avatar, is_admin, last_login_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
         .bind(user_id)
         .bind("regular-discord-id")
@@ -107,14 +108,16 @@ async fn seed_db(pool: &SqlitePool) {
         .expect("Failed to insert wallet");
 
     // 4. Tribe for Admin Wallet
-    sqlx::query("INSERT INTO user_tribes (user_id, wallet_id, tribe, is_admin) VALUES (?, ?, ?, ?)")
-        .bind(admin_id)
-        .bind(&wallet_id)
-        .bind("void_tribe")
-        .bind(true)
-        .execute(pool)
-        .await
-        .expect("Failed to insert tribe");
+    sqlx::query(
+        "INSERT INTO user_tribes (user_id, wallet_id, tribe, is_admin) VALUES (?, ?, ?, ?)",
+    )
+    .bind(admin_id)
+    .bind(&wallet_id)
+    .bind("void_tribe")
+    .bind(true)
+    .execute(pool)
+    .await
+    .expect("Failed to insert tribe");
 }
 
 #[tokio::main]
@@ -149,7 +152,10 @@ async fn main() -> anyhow::Result<()> {
         // Or just let the frontend call stub-login directly if in test mode.
         // Let's redirect /api/auth/discord/login to a page that auto-logs in as admin for convenience?
         // Or better, let the manual usage via Playwright hit the stub-login endpoint.
-        .route("/api/auth/discord/login", get(|| async { "Use /api/auth/stub-login?user_id=... for testing" }))
+        .route(
+            "/api/auth/discord/login",
+            get(|| async { "Use /api/auth/stub-login?user_id=1001 for testing" }),
+        )
         .merge(void_eid_backend::get_common_router())
         .layer(cors)
         .with_state(state);

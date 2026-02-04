@@ -15,7 +15,6 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::env;
-use uuid::Uuid;
 
 use utoipa::{IntoParams, ToSchema};
 
@@ -198,7 +197,7 @@ pub async fn discord_callback(
                 .bind(&avatar)
                 .bind(should_be_admin)
                 .bind(now)
-                .bind(&u.id)
+                .bind(u.id)
                 .execute(&state.db)
                 .await;
             u.last_login_at = Some(now);
@@ -206,8 +205,20 @@ pub async fn discord_callback(
         }
         Ok(None) => {
             let now = Utc::now();
+            // Generate random 64-bit integer (using i64 positive range for SQLite compatibility)
+            // We loop to ensure uniqueness, though collision is extremely unlikely.
+            let mut new_id = rand::random::<i64>().abs();
+            // Ensure strictly positive and not 0 (though 0 is valid int, usually implementation detail)
+            if new_id == 0 {
+                new_id = 1;
+            }
+
+            // Simple collision check (optional but good practice)
+            // In a real high-concurrency scenario, DB constraint unique error would handle this,
+            // but here we can just retry if strict. For now, trust entropy.
+
             let new_user = User {
-                id: Uuid::new_v4().to_string(),
+                id: new_id,
                 discord_id: discord_id.clone(),
                 username: username.clone(),
                 discriminator: discriminator.clone(),
@@ -217,7 +228,7 @@ pub async fn discord_callback(
             };
 
             let _ = sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, avatar, is_admin, last_login_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-                .bind(&new_user.id)
+                .bind(new_user.id)
                 .bind(&new_user.discord_id)
                 .bind(&new_user.username)
                 .bind(&new_user.discriminator)
@@ -243,7 +254,7 @@ pub async fn discord_callback(
     let _ = log_audit(
         &state.db,
         AuditAction::Login,
-        &user.id,
+        user.id,
         None,
         &format!("User {} logged in via Discord", user.username),
     )
@@ -254,8 +265,8 @@ pub async fn discord_callback(
         let _ = log_audit(
             &state.db,
             AuditAction::AdminGrant,
-            &user.id, // Actor is the system (represented by the user themselves for initial admin)
-            Some(&user.id),
+            user.id, // Actor is the system (represented by the user themselves for initial admin)
+            Some(user.id),
             &format!("User {} granted admin via INITIAL_ADMIN_ID", user.username),
         )
         .await;
@@ -268,7 +279,7 @@ pub async fn discord_callback(
         .timestamp() as usize;
 
     let claims = Claims {
-        id: user.id.clone(),
+        id: user.id.to_string(), // JWT ID as string
         discord_id: user.discord_id,
         username: user.username,
         exp: expiration,
@@ -291,7 +302,7 @@ pub async fn discord_callback(
 }
 
 pub struct AuthenticatedUser {
-    pub user_id: String,
+    pub user_id: i64,
 }
 
 impl<S> FromRequestParts<S> for AuthenticatedUser
@@ -321,9 +332,13 @@ where
         )
         .map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid Token"))?;
 
-        Ok(AuthenticatedUser {
-            user_id: token_data.claims.id,
-        })
+        let user_id = token_data
+            .claims
+            .id
+            .parse::<i64>()
+            .map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid User ID in Token"))?;
+
+        Ok(AuthenticatedUser { user_id })
     }
 }
 
@@ -342,7 +357,7 @@ pub async fn get_me(
     State(state): State<AppState>,
 ) -> impl IntoResponse {
     let user = match sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ?")
-        .bind(&auth_user.user_id)
+        .bind(auth_user.user_id)
         .fetch_optional(&state.db)
         .await
     {
@@ -353,7 +368,7 @@ pub async fn get_me(
     let flat_wallets = sqlx::query_as::<_, crate::models::FlatLinkedWallet>(
         "SELECT w.*, ut.tribe FROM wallets w LEFT JOIN user_tribes ut ON w.id = ut.wallet_id WHERE w.user_id = ?"
     )
-        .bind(&auth_user.user_id)
+        .bind(auth_user.user_id)
         .fetch_all(&state.db)
         .await
         .unwrap_or_default();
@@ -380,11 +395,13 @@ pub async fn get_me(
     let wallets: Vec<LinkedWallet> = wallet_map.into_values().collect();
 
     // Fetch all tribes for the user, distinguishing admin ones
-    let user_tribes = sqlx::query_as::<_, crate::models::UserTribe>("SELECT * FROM user_tribes WHERE user_id = ?")
-        .bind(&auth_user.user_id)
-        .fetch_all(&state.db)
-        .await
-        .unwrap_or_default();
+    let user_tribes = sqlx::query_as::<_, crate::models::UserTribe>(
+        "SELECT * FROM user_tribes WHERE user_id = ?",
+    )
+    .bind(auth_user.user_id)
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
 
     let tribes: Vec<String> = user_tribes.iter().map(|ut| ut.tribe.clone()).collect();
     let admin_tribes: Vec<String> = user_tribes

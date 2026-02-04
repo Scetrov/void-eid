@@ -148,7 +148,7 @@ pub async fn link_verify(
     let _ =
         sqlx::query("INSERT INTO wallets (id, user_id, address, verified_at) VALUES (?, ?, ?, ?)")
             .bind(Uuid::new_v4().to_string())
-            .bind(&auth_user.user_id)
+            .bind(auth_user.user_id)
             .bind(&address_str)
             .bind(Utc::now())
             .execute(&state.db)
@@ -159,7 +159,7 @@ pub async fn link_verify(
     let _ = log_audit(
         &state.db,
         AuditAction::LinkWallet,
-        &auth_user.user_id,
+        auth_user.user_id,
         None,
         &format!("Linked wallet {}", address_str),
     )
@@ -193,7 +193,7 @@ pub async fn unlink_wallet(
     let wallet =
         sqlx::query_as::<_, FlatLinkedWallet>("SELECT * FROM wallets WHERE id = ? AND user_id = ?")
             .bind(&wallet_id)
-            .bind(&auth_user.user_id)
+            .bind(auth_user.user_id)
             .fetch_optional(&state.db)
             .await;
 
@@ -204,7 +204,7 @@ pub async fn unlink_wallet(
 
     let result = sqlx::query("DELETE FROM wallets WHERE id = ? AND user_id = ?")
         .bind(&wallet_id)
-        .bind(&auth_user.user_id)
+        .bind(auth_user.user_id)
         .execute(&state.db)
         .await;
 
@@ -214,7 +214,7 @@ pub async fn unlink_wallet(
             let _ = log_audit(
                 &state.db,
                 AuditAction::UnlinkWallet,
-                &auth_user.user_id,
+                auth_user.user_id,
                 None,
                 &format!("Unlinked wallet {}", wallet_address),
             )

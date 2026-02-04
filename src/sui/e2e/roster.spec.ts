@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Roster Page', () => {
   // Mock User Data
   const mockUser = {
-    id: "admin-id",
+    id: "1001",
     discordId: "123",
     username: "AdminUser",
     discriminator: "0000",
@@ -15,14 +15,14 @@ test.describe('Roster Page', () => {
 
   const mockRoster = [
     {
-        discord_id: "1",
+        discordId: "1",
         username: "Alice",
         avatar: null,
         wallets: [
             { id: "w1", address: "0x1234567890abcdef1234567890abcdef56780000", tribes: [] }
         ]
     },
-    { discord_id: "2", username: "Bob", avatar: null, wallets: [] }
+    { discordId: "2", username: "Bob", avatar: null, wallets: [] }
   ];
 
   test.beforeEach(async ({ page }) => {

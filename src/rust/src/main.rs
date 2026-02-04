@@ -1,11 +1,8 @@
-use void_eid_backend::db::init_db;
-use void_eid_backend::state::AppState;
-use axum::{
-    routing::get,
-    Router,
-};
+use axum::{routing::get, Router};
 use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
+use void_eid_backend::db::init_db;
+use void_eid_backend::state::AppState;
 
 use void_eid_backend::{auth, models, roster, wallet};
 

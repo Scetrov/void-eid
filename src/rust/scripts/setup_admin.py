@@ -46,17 +46,20 @@ def setup_admin():
         """, (wallet_id, user_id, address))
         wallets = [(wallet_id, address)]
 
-    for wallet_id, address in wallets:
-        for tribe in ["Fire", "Water"]:
-            print(f"Assigning wallet {address[:10]}... to {tribe} tribe.")
-            cursor.execute("""
-                INSERT OR IGNORE INTO user_tribes (user_id, tribe, wallet_id)
-                VALUES (?, ?, ?)
-            """, (user_id, tribe, wallet_id))
+    # Assign wallets to different tribes (cycling through available tribes)
+    tribes = ["Fire", "Water", "Earth", "Wind"]
+    for i, (wallet_id, address) in enumerate(wallets):
+        tribe = tribes[i % len(tribes)]
+        print(f"Assigning wallet {address[:10]}... to {tribe} tribe (as admin).")
+        cursor.execute("""
+            INSERT OR IGNORE INTO user_tribes (user_id, tribe, wallet_id, is_admin)
+            VALUES (?, ?, ?, 1)
+        """, (user_id, tribe, wallet_id))
 
     conn.commit()
     conn.close()
-    print(f"Successfully set {username} as Admin in Fire and Water tribes.")
+    assigned_tribes = [tribes[i % len(tribes)] for i in range(len(wallets))]
+    print(f"Successfully set {username} as Admin in tribes: {', '.join(set(assigned_tribes))}.")
 
 if __name__ == "__main__":
     setup_admin()

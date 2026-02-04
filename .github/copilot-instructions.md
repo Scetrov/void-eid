@@ -2,12 +2,15 @@
 
 ## Architecture Overview
 
-This is a **Discord-to-Sui Wallet identity verification system** with:
+This is a **Discord-to-Sui Wallet identity verification system** with **tribe-based multi-tenancy**:
 
 - **Backend** (`src/rust/`): Rust/Axum API with SQLite, handling Discord OAuth2 and Sui wallet signature verification
 - **Frontend** (`src/sui/`): React 19/Vite SPA using TanStack Router + Sui dApp Kit for wallet connections
+- **Multi-tenancy**: Users can belong to multiple "tribes" (organizations/groups), with tribe-specific admin permissions and wallet associations
 
-**Core Flow**: User authenticates via Discord → links Sui wallet by signing a nonce → verified wallets stored in DB
+**Core Flow**: User authenticates via Discord → links Sui wallet by signing a nonce → verified wallets stored in DB → can be associated with tribes → admins view tribe-specific rosters
+
+**Critical Pattern**: Tribe isolation is enforced at the DB query level - always filter by tribe when fetching rosters/members
 
 ## Development Commands
 
@@ -22,7 +25,13 @@ npm run lint                 # ESLint check
 
 # Full stack (from root)
 docker compose up            # Run both services with hot-reload
+
+# Test data generation (from src/rust/)
+python3 scripts/seed_test_data.py    # Generate 100 test users with tribes
+python3 scripts/setup_admin.py       # Grant admin to specific Discord ID
 ```
+
+**VS Code Tasks**: Use "Run Backend" and "Run Frontend" tasks for hot-reload during development
 
 API docs available at `http://localhost:5038/docs` (Scalar UI via Utoipa)
 
@@ -33,6 +42,9 @@ API docs available at `http://localhost:5038/docs` (Scalar UI via Utoipa)
 - **Auth extraction**: Use `AuthenticatedUser` extractor for protected routes (see `auth.rs:AuthenticatedUser`)
 - **OpenAPI**: Add `#[utoipa::path(...)]` annotations to all public endpoints, register schemas in `ApiDoc` struct
 - **Migrations**: Auto-run on startup via `sqlx::migrate!("./migrations")`. Add new ones with `sqlx migrate add <name>`
+- **Tribe isolation**: Use `helpers::require_admin_in_tribe()` for admin endpoints - automatically validates user belongs to tribe and handles multi-tribe ambiguity
+- **Audit logging**: Call `audit::log_audit()` after all state-changing operations (see `AuditAction` enum for available actions)
+- **Integer IDs**: User IDs are `i64` but serialized as strings via custom serde module to prevent JS precision loss
 
 ```rust
 // Protected endpoint pattern
@@ -40,6 +52,20 @@ pub async fn my_handler(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,  // JWT validation + user extraction
 ) -> impl IntoResponse { ... }
+
+// Admin-only tribe endpoint pattern
+pub async fn tribe_admin_handler(
+    Query(params): Query<TribeQuery>,
+    State(state): State<AppState>,
+    auth_user: AuthenticatedUser,
+) -> impl IntoResponse {
+    let (user, tribe, _all_tribes) = require_admin_in_tribe(
+        &state.db,
+        auth_user.user_id,
+        params.tribe.as_deref()
+    ).await?;
+    // ... tribe-filtered logic
+}
 ```
 
 ## Frontend Patterns (`src/sui/`)
@@ -70,7 +96,11 @@ DISCORD_CLIENT_ID=xxx
 DISCORD_CLIENT_SECRET=xxx
 DISCORD_REDIRECT_URI=http://localhost:5038/api/auth/discord/callback
 JWT_SECRET=xxx
+FRONTEND_URL=http://localhost:5173           # For CORS
+INITIAL_ADMIN_ID=123456789                    # Discord ID for bootstrap admin
 ```
+
+**Bootstrap Admin**: Set `INITIAL_ADMIN_ID` to your Discord ID before first login to auto-grant global admin privileges
 
 ## Testing
 

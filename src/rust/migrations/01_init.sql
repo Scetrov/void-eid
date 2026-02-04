@@ -1,6 +1,6 @@
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
+    id INTEGER PRIMARY KEY,
     discord_id TEXT NOT NULL,
     username TEXT NOT NULL,
     discriminator TEXT NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- Wallets table
 CREATE TABLE IF NOT EXISTS wallets (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
     address TEXT NOT NULL,
     verified_at DATETIME NOT NULL,
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS wallets (
 
 -- User-Tribe junction table (many-to-many relationship)
 CREATE TABLE IF NOT EXISTS user_tribes (
-    user_id TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
     tribe TEXT NOT NULL,
     wallet_id TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -34,8 +34,8 @@ CREATE TABLE IF NOT EXISTS user_tribes (
 CREATE TABLE IF NOT EXISTS audit_logs (
     id TEXT PRIMARY KEY,
     action TEXT NOT NULL,
-    actor_id TEXT NOT NULL,
-    target_id TEXT,
+    actor_id INTEGER NOT NULL,
+    target_id INTEGER,
     details TEXT,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(actor_id) REFERENCES users(id)
