@@ -4,7 +4,6 @@ use crate::{
     state::AppState,
 };
 use axum::{
-    async_trait,
     extract::{FromRequestParts, Query, State},
     http::{header, request::Parts, StatusCode},
     response::{IntoResponse, Redirect, Response},
@@ -279,7 +278,6 @@ pub struct AuthenticatedUser {
     pub user_id: String,
 }
 
-#[async_trait]
 impl<S> FromRequestParts<S> for AuthenticatedUser
 where
     S: Send + Sync,
