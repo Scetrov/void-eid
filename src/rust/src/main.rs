@@ -108,9 +108,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/me", get(auth::get_me))
         .route("/api/wallets/link-nonce", post(wallet::link_nonce))
         .route("/api/wallets/link-verify", post(wallet::link_verify))
-        .route("/api/wallets/:id", delete(wallet::unlink_wallet))
+        .route("/api/wallets/{id}", delete(wallet::unlink_wallet))
         .route("/api/roster", get(roster::get_roster))
-        .route("/api/roster/:discord_id", get(roster::get_roster_member))
+        .route("/api/roster/{discord_id}", get(roster::get_roster_member))
         .merge(Scalar::with_url("/docs", ApiDoc::openapi()))
         .layer(cors)
         .with_state(state);

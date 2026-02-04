@@ -100,7 +100,23 @@ pub async fn discord_callback(
     };
 
     if !token_res.status().is_success() {
-        return (StatusCode::BAD_REQUEST, "Discord token exchange failed").into_response();
+        let status = token_res.status();
+        let body = token_res
+            .text()
+            .await
+            .unwrap_or_else(|_| "Failed to read error body".to_string());
+        println!(
+            "Discord token exchange failed: Status: {}, Body: {}",
+            status, body
+        );
+        return (
+            StatusCode::BAD_REQUEST,
+            format!(
+                "Discord token exchange failed: Status: {}, Body: {}",
+                status, body
+            ),
+        )
+            .into_response();
     }
 
     let token_data: Value = match token_res.json().await {

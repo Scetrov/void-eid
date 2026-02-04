@@ -4,7 +4,7 @@
     {
       "label": "Run Backend",
       "type": "shell",
-      "command": "cargo run",
+      "command": "cargo watch -x run",
       "options": {
         "cwd": "${workspaceFolder}/src/rust"
       },

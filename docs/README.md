@@ -1,4 +1,4 @@
-# Void eID
+# VoID Electronic Identity (eID)
 
 A modern web application integrating Discord authentication with Sui blockchain wallet verification, featuring a Rust backend and a React frontend.
 
