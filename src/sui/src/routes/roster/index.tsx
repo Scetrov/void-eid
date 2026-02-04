@@ -13,11 +13,15 @@ interface RosterMember {
     discord_id: string;
     username: string;
     avatar: string | null;
-    wallets: string[];
+    wallets: {
+        id: string;
+        address: string;
+        tribes: string[];
+    }[];
 }
 
 function RosterPage() {
-    const { user, token, isAuthenticated } = useAuth()
+    const { user, token, isAuthenticated, currentTribe } = useAuth()
     const [search, setSearch] = useState('')
     const [sort, setSort] = useState<'username' | 'wallet_count'>('username')
     const [order, setOrder] = useState<'asc' | 'desc'>('asc')
@@ -25,11 +29,12 @@ function RosterPage() {
 
     // Fetch Roster
     const { data: roster, isLoading, error } = useQuery({
-        queryKey: ['roster', search, sort, order],
+        queryKey: ['roster', currentTribe, search, sort, order],
         queryFn: async () => {
             if (!token) throw new Error("No token");
 
             const params = new URLSearchParams();
+            if (currentTribe) params.append('tribe', currentTribe);
             if (search) params.append('search', search);
             params.append('sort', sort);
             params.append('order', order);
@@ -40,6 +45,7 @@ function RosterPage() {
 
             if (!res.ok) {
                  if (res.status === 403) throw new Error("Access Denied: You must be an admin to view this page.");
+                 if (res.status === 400) throw new Error("Please select a tribe from the dropdown above.");
                  throw new Error("Failed to fetch roster");
             }
             return res.json() as Promise<RosterMember[]>;
@@ -167,9 +173,16 @@ function RosterPage() {
                                             <td style={{ padding: '1rem' }}>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                                     {member.wallets.map(w => (
-                                                        <code key={w} style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>
-                                                            {w.slice(0, 6)}...{w.slice(-4)}
-                                                        </code>
+                                                        <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                            <code style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>
+                                                                {w.address.slice(0, 6)}...{w.address.slice(-4)}
+                                                            </code>
+                                                            {w.tribes && w.tribes.length > 0 && (
+                                                                <span style={{ color: 'var(--brand-orange)', fontSize: '0.7rem' }}>
+                                                                    [{w.tribes.join(', ')}]
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     ))}
                                                     {member.wallets.length === 0 && <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>None</span>}
                                                 </div>

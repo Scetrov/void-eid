@@ -348,3 +348,32 @@ div[data-radix-popper-content-wrapper] {
     padding-inline: 1rem; /* Explicitly override stricter inline padding */
   }
 }
+/* Secondary Navigation */
+.secondary-nav {
+  display: flex;
+  gap: 2rem;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.secondary-nav-item {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-family: var(--font-heading);
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0.5rem 0.75rem;
+  background: none;
+  border: none;
+}
+
+.secondary-nav-item:hover {
+  color: var(--text-primary);
+}
+
+.secondary-nav-item.active {
+  color: var(--brand-orange);
+}

@@ -197,7 +197,6 @@ pub async fn discord_callback(
                 username: username.clone(),
                 discriminator: discriminator.clone(),
                 avatar: avatar.clone(),
-                tribe: None,
                 is_admin: is_initial_admin,
                 last_login_at: Some(now),
             };
@@ -337,9 +336,37 @@ pub async fn get_me(
         _ => return (StatusCode::UNAUTHORIZED, "User not found").into_response(),
     };
 
-    let wallets = sqlx::query_as::<_, LinkedWallet>("SELECT * FROM wallets WHERE user_id = ?")
+    let flat_wallets = sqlx::query_as::<_, crate::models::FlatLinkedWallet>(
+        "SELECT w.*, ut.tribe FROM wallets w LEFT JOIN user_tribes ut ON w.id = ut.wallet_id WHERE w.user_id = ?"
+    )
         .bind(&auth_user.user_id)
         .fetch_all(&state.db)
+        .await
+        .unwrap_or_default();
+
+    // Group flat results into LinkedWallet with tribes Vec
+    let mut wallet_map: std::collections::BTreeMap<String, LinkedWallet> =
+        std::collections::BTreeMap::new();
+    for flat in flat_wallets {
+        let entry = wallet_map
+            .entry(flat.id.clone())
+            .or_insert_with(|| LinkedWallet {
+                id: flat.id,
+                user_id: flat.user_id,
+                address: flat.address,
+                verified_at: flat.verified_at,
+                tribes: Vec::new(),
+            });
+        if let Some(t) = flat.tribe {
+            if !entry.tribes.contains(&t) {
+                entry.tribes.push(t);
+            }
+        }
+    }
+    let wallets: Vec<LinkedWallet> = wallet_map.into_values().collect();
+
+    // Fetch all tribes for the user
+    let tribes = crate::helpers::get_user_tribes(&state.db, &auth_user.user_id)
         .await
         .unwrap_or_default();
 
@@ -349,7 +376,7 @@ pub async fn get_me(
         "username": user.username,
         "discriminator": user.discriminator,
         "avatar": user.avatar,
-        "tribe": user.tribe,
+        "tribes": tribes,
         "isAdmin": user.is_admin,
         "lastLoginAt": user.last_login_at,
         "wallets": wallets

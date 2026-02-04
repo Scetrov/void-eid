@@ -9,7 +9,7 @@ use std::str::FromStr;
 use crate::auth::AuthenticatedUser;
 use crate::{
     audit::{log_audit, AuditAction},
-    models::LinkedWallet,
+    models::FlatLinkedWallet,
     state::AppState,
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
@@ -133,11 +133,12 @@ pub async fn link_verify(
     }
 
     // Check availability
-    let existing: Option<LinkedWallet> = sqlx::query_as("SELECT * FROM wallets WHERE address = ?")
-        .bind(&address_str)
-        .fetch_optional(&state.db)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let existing: Option<FlatLinkedWallet> =
+        sqlx::query_as("SELECT * FROM wallets WHERE address = ?")
+            .bind(&address_str)
+            .fetch_optional(&state.db)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     if existing.is_some() {
         return Err((StatusCode::BAD_REQUEST, "Wallet already linked".into()));
@@ -190,7 +191,7 @@ pub async fn unlink_wallet(
 ) -> impl IntoResponse {
     // First fetch the wallet to get the address for the audit log
     let wallet =
-        sqlx::query_as::<_, LinkedWallet>("SELECT * FROM wallets WHERE id = ? AND user_id = ?")
+        sqlx::query_as::<_, FlatLinkedWallet>("SELECT * FROM wallets WHERE id = ? AND user_id = ?")
             .bind(&wallet_id)
             .bind(&auth_user.user_id)
             .fetch_optional(&state.db)

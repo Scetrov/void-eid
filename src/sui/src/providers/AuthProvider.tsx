@@ -8,7 +8,7 @@ export interface User {
     username: string;
     discriminator: string;
     avatar: string | null;
-    tribe: string | null;
+    tribes: string[];
     isAdmin: boolean;
     lastLoginAt: string | null;
     wallets: LinkedWallet[];
@@ -18,12 +18,15 @@ export interface LinkedWallet {
     id: string;
     address: string;
     verifiedAt: string;
+    tribes: string[];
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   token: string | null;
+  currentTribe: string | null;
+  setCurrentTribe: (tribe: string) => void;
   login: () => void;
   logout: () => void;
   linkWallet: (address: string) => Promise<void>;
@@ -37,6 +40,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(localStorage.getItem('sui_jwt'));
   const [user, setUser] = useState<User | null>(null);
+  const [currentTribe, setCurrentTribeState] = useState<string | null>(
+    localStorage.getItem('current_tribe')
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,6 +56,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (res.ok) {
               const userData = await res.json();
               setUser(userData);
+
+              // Auto-select tribe if user has exactly one
+              if (userData.tribes && userData.tribes.length === 1) {
+                  setCurrentTribeState(userData.tribes[0]);
+                  localStorage.setItem('current_tribe', userData.tribes[0]);
+              } else if (userData.tribes && userData.tribes.length > 1) {
+                  // If user has multiple tribes, check if saved tribe is still valid
+                  const savedTribe = localStorage.getItem('current_tribe');
+                  if (savedTribe && userData.tribes.includes(savedTribe)) {
+                      setCurrentTribeState(savedTribe);
+                  } else {
+                      // Clear invalid saved tribe
+                      setCurrentTribeState(null);
+                      localStorage.removeItem('current_tribe');
+                  }
+              }
           } else {
               // Token invalid
               localStorage.removeItem('sui_jwt');
@@ -72,10 +94,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = 'http://localhost:5038/api/auth/discord/login';
   };
 
+  const setCurrentTribe = useCallback((tribe: string) => {
+    setCurrentTribeState(tribe);
+    localStorage.setItem('current_tribe', tribe);
+  }, []);
+
   const logout = useCallback(() => {
     localStorage.removeItem('sui_jwt');
+    localStorage.removeItem('current_tribe');
     setToken(null);
     setUser(null);
+    setCurrentTribeState(null);
   }, []);
 
   const linkWallet = async (address: string) => {
@@ -157,7 +186,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated: !!user, user, token, login, logout, linkWallet, unlinkWallet, isLoading, error }}>
+    <AuthContext.Provider value={{
+      isAuthenticated: !!user,
+      user,
+      token,
+      currentTribe,
+      setCurrentTribe,
+      login,
+      logout,
+      linkWallet,
+      unlinkWallet,
+      isLoading,
+      error
+    }}>
       {children}
     </AuthContext.Provider>
   );

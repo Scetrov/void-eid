@@ -38,6 +38,32 @@
             "panel": "new"
         },
         "group": "test"
+    },
+    {
+      "label": "Generate Test Data",
+      "type": "shell",
+      "command": "python3 scripts/seed_test_data.py",
+      "options": {
+        "cwd": "${workspaceFolder}/src/rust"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "group": "test"
+    },
+    {
+      "label": "Setup Admin (Scetrov)",
+      "type": "shell",
+      "command": "python3 scripts/setup_admin.py",
+      "options": {
+        "cwd": "${workspaceFolder}/src/rust"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "group": "test"
     }
   ]
 }

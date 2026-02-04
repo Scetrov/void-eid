@@ -239,7 +239,19 @@ function Dashboard() {
                                             justifyContent: 'space-between',
                                             alignItems: 'center'
                                         }}>
-                                            <code style={{ background: 'transparent', padding: 0 }}>{formatAddress(wallet.address)}</code>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                <code style={{ background: 'transparent', padding: 0 }}>{formatAddress(wallet.address)}</code>
+                                                {wallet.tribes && wallet.tribes.length > 0 && (
+                                                    <span style={{
+                                                        color: 'var(--brand-orange)',
+                                                        fontSize: '0.75rem',
+                                                        fontFamily: 'var(--font-heading)',
+                                                        letterSpacing: '1px'
+                                                    }}>
+                                                        [{wallet.tribes.join(', ')}]
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                                     <Calendar size={14} />

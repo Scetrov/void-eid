@@ -39,22 +39,25 @@ pub struct PaginatedAudits {
 }
 
 #[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct RosterMember {
     pub discord_id: String,
     pub username: String,
     pub avatar: Option<String>,
-    pub wallets: Vec<String>,
+    pub wallets: Vec<LinkedWallet>,
     pub audits: Option<PaginatedAudits>,
 }
 
 #[derive(Deserialize, IntoParams)]
 pub struct MemberQuery {
+    pub tribe: Option<String>,
     pub audit_page: Option<i64>,
     pub audit_per_page: Option<i64>,
 }
 
 #[derive(Deserialize, IntoParams)]
 pub struct RosterQuery {
+    pub tribe: Option<String>,
     pub sort: Option<String>,  // "username", "wallet_count"
     pub order: Option<String>, // "asc", "desc"
     pub search: Option<String>,
@@ -84,10 +87,11 @@ pub async fn get_roster_member(
     State(state): State<AppState>,
 ) -> impl IntoResponse {
     // 1. Verify admin in tribe
-    let (current_user, tribe) = match require_admin_in_tribe(&state.db, &auth_user.user_id).await {
-        Ok(result) => result,
-        Err((status, msg)) => return (status, msg).into_response(),
-    };
+    let (current_user, tribe, _all_tribes) =
+        match require_admin_in_tribe(&state.db, &auth_user.user_id, query.tribe.as_deref()).await {
+            Ok(result) => result,
+            Err((status, msg)) => return (status, msg).into_response(),
+        };
 
     // 2. Fetch Target Member
     let target_member = match get_user_by_discord_id(&state.db, &discord_id).await {
@@ -96,24 +100,49 @@ pub async fn get_roster_member(
         Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response(),
     };
 
-    // 3. Verify Tribe Match
-    match target_member.tribe {
-        Some(ref t) if t == &tribe => {} // OK
-        _ => {
-            return (
-                StatusCode::FORBIDDEN,
-                "Access denied: Member is in a different tribe",
-            )
-                .into_response()
-        }
+    // 3. Verify Tribe Match - check if target member is in the specified tribe
+    let target_tribes = match crate::helpers::get_user_tribes(&state.db, &target_member.id).await {
+        Ok(tribes) => tribes,
+        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response(),
+    };
+
+    if !target_tribes.contains(&tribe) {
+        return (
+            StatusCode::FORBIDDEN,
+            "Access denied: Member is not in the specified tribe",
+        )
+            .into_response();
     }
 
-    // 4. Fetch Wallets
-    let wallets = sqlx::query_as::<_, LinkedWallet>("SELECT * FROM wallets WHERE user_id = ?")
-        .bind(&target_member.id)
-        .fetch_all(&state.db)
-        .await
-        .unwrap_or_default();
+    // 4. Fetch Wallets with Tribe Info
+    let flat_wallets = sqlx::query_as::<_, crate::models::FlatLinkedWallet>(
+        "SELECT w.*, ut.tribe FROM wallets w LEFT JOIN user_tribes ut ON w.id = ut.wallet_id WHERE w.user_id = ?"
+    )
+    .bind(&target_member.id)
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
+
+    // Group flat results into LinkedWallet with tribes Vec
+    let mut wallet_map: std::collections::BTreeMap<String, LinkedWallet> =
+        std::collections::BTreeMap::new();
+    for flat in flat_wallets {
+        let entry = wallet_map
+            .entry(flat.id.clone())
+            .or_insert_with(|| LinkedWallet {
+                id: flat.id,
+                user_id: flat.user_id,
+                address: flat.address,
+                verified_at: flat.verified_at,
+                tribes: Vec::new(),
+            });
+        if let Some(t) = flat.tribe {
+            if !entry.tribes.contains(&t) {
+                entry.tribes.push(t);
+            }
+        }
+    }
+    let wallets: Vec<LinkedWallet> = wallet_map.into_values().collect();
 
     // 5. Fetch Audit Logs with Actor Info (paginated)
     // Include both: actions targeting this user AND self-actions (login, wallet link/unlink)
@@ -171,7 +200,7 @@ pub async fn get_roster_member(
         discord_id: target_member.discord_id,
         username: target_member.username,
         avatar: target_member.avatar,
-        wallets: wallets.into_iter().map(|w| w.address).collect(),
+        wallets,
         audits: Some(PaginatedAudits {
             items: audits,
             total: total.0,
@@ -202,19 +231,22 @@ pub async fn get_roster(
     State(state): State<AppState>,
 ) -> impl IntoResponse {
     // 1. Verify admin in tribe
-    let (current_user, tribe) = match require_admin_in_tribe(&state.db, &auth_user.user_id).await {
-        Ok(result) => result,
-        Err((status, msg)) => {
-            // Special case: if no tribe, return empty roster instead of error
-            if msg == "Access denied: You are not in a tribe" {
-                return Json(Vec::<RosterMember>::new()).into_response();
+    let (current_user, tribe, _all_tribes) =
+        match require_admin_in_tribe(&state.db, &auth_user.user_id, query.tribe.as_deref()).await {
+            Ok(result) => result,
+            Err((status, msg)) => {
+                // Special case: if no tribe, return empty roster instead of error
+                if msg == "Access denied: You are not in any tribe" {
+                    return Json(Vec::<RosterMember>::new()).into_response();
+                }
+                return (status, msg).into_response();
             }
-            return (status, msg).into_response();
-        }
-    };
+        };
 
-    // 2. Build Query
-    let mut sql = "SELECT * FROM users WHERE tribe = ?".to_string();
+    // 2. Build Query - get all users in the specified tribe from user_tribes table
+    let mut sql =
+        "SELECT u.* FROM users u INNER JOIN user_tribes ut ON u.id = ut.user_id WHERE ut.tribe = ?"
+            .to_string();
 
     if let Some(search) = &query.search {
         if !search.is_empty() {
@@ -266,16 +298,16 @@ pub async fn get_roster(
     // 4. Batch fetch all wallets for these members (fixes N+1 query)
     let member_ids: Vec<&str> = members.iter().map(|m| m.id.as_str()).collect();
 
-    let all_wallets: Vec<LinkedWallet> = if !member_ids.is_empty() {
+    let all_wallets: Vec<crate::models::FlatLinkedWallet> = if !member_ids.is_empty() {
         // Build parameterized IN clause
         let placeholders: String = member_ids
             .iter()
             .map(|_| "?")
             .collect::<Vec<_>>()
             .join(", ");
-        let sql = format!("SELECT * FROM wallets WHERE user_id IN ({})", placeholders);
+        let sql = format!("SELECT w.*, ut.tribe FROM wallets w LEFT JOIN user_tribes ut ON w.id = ut.wallet_id WHERE w.user_id IN ({})", placeholders);
 
-        let mut query_builder = sqlx::query_as::<_, LinkedWallet>(&sql);
+        let mut query_builder = sqlx::query_as::<_, crate::models::FlatLinkedWallet>(&sql);
         for id in &member_ids {
             query_builder = query_builder.bind(*id);
         }
@@ -284,26 +316,47 @@ pub async fn get_roster(
         Vec::new()
     };
 
-    // 5. Group wallets by user_id
+    // 5. Group wallets by user_id, and internally group tribes by wallet ID
     use std::collections::HashMap;
-    let mut wallets_by_user: HashMap<String, Vec<String>> = HashMap::new();
-    for wallet in all_wallets {
+    let mut wallets_by_user: HashMap<String, Vec<LinkedWallet>> = HashMap::new();
+
+    // Intermediate map to group tribes by wallet ID first
+    let mut wallet_map: HashMap<String, LinkedWallet> = HashMap::new();
+    for flat in all_wallets {
+        let entry = wallet_map
+            .entry(flat.id.clone())
+            .or_insert_with(|| LinkedWallet {
+                id: flat.id,
+                user_id: flat.user_id,
+                address: flat.address,
+                verified_at: flat.verified_at,
+                tribes: Vec::new(),
+            });
+        if let Some(t) = flat.tribe {
+            if !entry.tribes.contains(&t) {
+                entry.tribes.push(t);
+            }
+        }
+    }
+
+    // Now group the unique wallets by user_id
+    for (_, wallet) in wallet_map {
         wallets_by_user
             .entry(wallet.user_id.clone())
             .or_default()
-            .push(wallet.address);
+            .push(wallet);
     }
 
-    // 6. Build roster
+    // 6. Final Roster Response
     let mut roster: Vec<RosterMember> = members
         .into_iter()
-        .map(|member| {
-            let wallets = wallets_by_user.remove(&member.id).unwrap_or_default();
+        .map(|m| {
+            let user_wallets = wallets_by_user.get(&m.id).cloned().unwrap_or_default();
             RosterMember {
-                discord_id: member.discord_id,
-                username: member.username,
-                avatar: member.avatar,
-                wallets,
+                discord_id: m.discord_id,
+                username: m.username,
+                avatar: m.avatar,
+                wallets: user_wallets,
                 audits: None,
             }
         })
@@ -337,6 +390,7 @@ mod tests {
     #[test]
     fn test_roster_query_struct() {
         let q = RosterQuery {
+            tribe: None,
             sort: Some("username".to_string()),
             order: Some("asc".to_string()),
             search: None,
@@ -379,13 +433,20 @@ mod integration_tests {
             username: "admin".to_string(),
             discriminator: "0000".to_string(),
             avatar: None,
-            tribe: Some("Fire".to_string()),
             is_admin: true,
             last_login_at: None,
         };
-        sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, avatar, tribe, is_admin) VALUES (?, ?, ?, ?, ?, ?, ?)")
-            .bind(&admin.id).bind(&admin.discord_id).bind(&admin.username).bind(&admin.discriminator).bind(&admin.avatar).bind(&admin.tribe).bind(admin.is_admin)
+        sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, avatar, is_admin) VALUES (?, ?, ?, ?, ?, ?)")
+            .bind(&admin.id).bind(&admin.discord_id).bind(&admin.username).bind(&admin.discriminator).bind(&admin.avatar).bind(admin.is_admin)
             .execute(&db).await.unwrap();
+
+        // Add admin to Fire tribe
+        sqlx::query("INSERT INTO user_tribes (user_id, tribe) VALUES (?, ?)")
+            .bind(&admin.id)
+            .bind("Fire")
+            .execute(&db)
+            .await
+            .unwrap();
 
         // 2. Create Normal User in same tribe
         let member = User {
@@ -394,13 +455,20 @@ mod integration_tests {
             username: "member".to_string(),
             discriminator: "1111".to_string(),
             avatar: None,
-            tribe: Some("Fire".to_string()),
             is_admin: false,
             last_login_at: None,
         };
-        sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, avatar, tribe, is_admin) VALUES (?, ?, ?, ?, ?, ?, ?)")
-            .bind(&member.id).bind(&member.discord_id).bind(&member.username).bind(&member.discriminator).bind(&member.avatar).bind(&member.tribe).bind(member.is_admin)
+        sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, avatar, is_admin) VALUES (?, ?, ?, ?, ?, ?)")
+            .bind(&member.id).bind(&member.discord_id).bind(&member.username).bind(&member.discriminator).bind(&member.avatar).bind(member.is_admin)
             .execute(&db).await.unwrap();
+
+        // Add member to Fire tribe
+        sqlx::query("INSERT INTO user_tribes (user_id, tribe) VALUES (?, ?)")
+            .bind(&member.id)
+            .bind("Fire")
+            .execute(&db)
+            .await
+            .unwrap();
 
         // 3. Create User in different tribe
         let alien = User {
@@ -409,19 +477,27 @@ mod integration_tests {
             username: "alien".to_string(),
             discriminator: "2222".to_string(),
             avatar: None,
-            tribe: Some("Water".to_string()),
             is_admin: false,
             last_login_at: None,
         };
-        sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, avatar, tribe, is_admin) VALUES (?, ?, ?, ?, ?, ?, ?)")
-            .bind(&alien.id).bind(&alien.discord_id).bind(&alien.username).bind(&alien.discriminator).bind(&alien.avatar).bind(&alien.tribe).bind(alien.is_admin)
+        sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, avatar, is_admin) VALUES (?, ?, ?, ?, ?, ?)")
+            .bind(&alien.id).bind(&alien.discord_id).bind(&alien.username).bind(&alien.discriminator).bind(&alien.avatar).bind(alien.is_admin)
             .execute(&db).await.unwrap();
+
+        // Add alien to Water tribe
+        sqlx::query("INSERT INTO user_tribes (user_id, tribe) VALUES (?, ?)")
+            .bind(&alien.id)
+            .bind("Water")
+            .execute(&db)
+            .await
+            .unwrap();
 
         // 4. Test as Admin
         let auth_user = AuthenticatedUser {
             user_id: admin.id.clone(),
         };
         let query = RosterQuery {
+            tribe: None,
             sort: None,
             order: None,
             search: None,
@@ -446,18 +522,26 @@ mod integration_tests {
             username: "user".to_string(),
             discriminator: "0000".to_string(),
             avatar: None,
-            tribe: Some("Fire".to_string()),
             is_admin: false,
             last_login_at: None,
         };
-        sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, avatar, tribe, is_admin) VALUES (?, ?, ?, ?, ?, ?, ?)")
-            .bind(&user.id).bind(&user.discord_id).bind(&user.username).bind(&user.discriminator).bind(&user.avatar).bind(&user.tribe).bind(user.is_admin)
+        sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, avatar, is_admin) VALUES (?, ?, ?, ?, ?, ?)")
+            .bind(&user.id).bind(&user.discord_id).bind(&user.username).bind(&user.discriminator).bind(&user.avatar).bind(user.is_admin)
             .execute(&db).await.unwrap();
+
+        // Add user to Fire tribe
+        sqlx::query("INSERT INTO user_tribes (user_id, tribe) VALUES (?, ?)")
+            .bind(&user.id)
+            .bind("Fire")
+            .execute(&db)
+            .await
+            .unwrap();
 
         let auth_user = AuthenticatedUser {
             user_id: user.id.clone(),
         };
         let query = RosterQuery {
+            tribe: None,
             sort: None,
             order: None,
             search: None,
