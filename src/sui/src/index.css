@@ -377,3 +377,31 @@ div[data-radix-popper-content-wrapper] {
 .secondary-nav-item.active {
   color: var(--brand-orange);
 }
+
+/* Table Enhancements */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+tbody tr:hover {
+  background-color: rgba(255, 116, 0, 0.05) !important;
+}
+
+/* Specifically for dark mode to be more visible */
+html[data-theme="dark"] tbody tr:hover {
+  background-color: rgba(255, 116, 0, 0.1) !important;
+}
+
+/* Ensure roster-row class doesn't interfere */
+.roster-row {
+  transition: background-color 0.15s ease !important;
+}
+
+.roster-row:hover {
+  background-color: rgba(255, 116, 0, 0.1) !important;
+}
