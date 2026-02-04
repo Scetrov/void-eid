@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS user_tribes (
     tribe TEXT NOT NULL,
     wallet_id TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    is_admin BOOLEAN DEFAULT FALSE,
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY(wallet_id) REFERENCES wallets(id) ON DELETE SET NULL,
     UNIQUE(user_id, tribe)

@@ -39,7 +39,8 @@ function RosterPage() {
             params.append('sort', sort);
             params.append('order', order);
 
-            const res = await fetch(`http://localhost:5038/api/roster?${params.toString()}`, {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5038';
+            const res = await fetch(`${apiUrl}/api/roster?${params.toString()}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
@@ -50,7 +51,7 @@ function RosterPage() {
             }
             return res.json() as Promise<RosterMember[]>;
         },
-        enabled: !!token && !!user?.isAdmin,
+        enabled: !!token && (!!user?.isAdmin || (user?.adminTribes?.length ?? 0) > 0),
         retry: false
     });
 
@@ -63,12 +64,27 @@ function RosterPage() {
         )
     }
 
-    if (user && !user.isAdmin) {
+    const hasAdminAccess = user && (user.isAdmin || (user.adminTribes && user.adminTribes.length > 0));
+    // If a specific tribe is selected, verify admin status for that tribe
+    const isTribeAdmin = currentTribe ? user?.adminTribes?.includes(currentTribe) : true; // If no tribe selected, we might default or show error, but layout handles selection.
+
+    if (user && !hasAdminAccess) {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', flexDirection: 'column', gap: '1rem', textAlign: 'center' }}>
                 <ShieldAlert size={64} style={{ color: '#ef4444' }} />
                 <h2>Access Denied</h2>
                 <p>Only users with the 'Admin' role can view the Tribe Roster.</p>
+                <Link to="/dashboard" className="btn btn-secondary">Back to Dashboard</Link>
+            </div>
+        )
+    }
+
+    if (currentTribe && !isTribeAdmin && !user?.isAdmin) {
+         return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', flexDirection: 'column', gap: '1rem', textAlign: 'center' }}>
+                <ShieldAlert size={64} style={{ color: '#ef4444' }} />
+                <h2>Access Denied</h2>
+                <p>You are not an Admin of the <strong>{currentTribe}</strong> tribe.</p>
                 <Link to="/dashboard" className="btn btn-secondary">Back to Dashboard</Link>
             </div>
         )

@@ -22,6 +22,8 @@ pub struct UserTribe {
     pub tribe: String,
     pub wallet_id: Option<String>,
     pub created_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub is_admin: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]

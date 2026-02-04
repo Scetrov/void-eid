@@ -366,12 +366,30 @@ div[data-radix-popper-content-wrapper] {
   cursor: pointer;
   transition: all 0.2s ease;
   padding: 0.5rem 0.75rem;
-  background: none;
-  border: none;
+  background: none !important;
+  border: none !important;
+  position: relative;
+}
+
+.secondary-nav-item::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: var(--brand-orange);
+  transition: width 0.3s ease;
+}
+
+.secondary-nav-item:hover::after {
+  width: 100%;
 }
 
 .secondary-nav-item:hover {
   color: var(--text-primary);
+  background: none !important;
+  box-shadow: none !important;
 }
 
 .secondary-nav-item.active {

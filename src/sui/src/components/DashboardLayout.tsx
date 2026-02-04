@@ -1,17 +1,14 @@
 import { Link, useLocation } from '@tanstack/react-router'
 import { LogOut } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
-import { TribeSelector } from './TribeSelector'
+import { AdminTribeNav } from './AdminTribeNav'
 import { useAuth } from '../providers/AuthProvider'
 import type { ReactNode } from 'react'
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
-    const { user, logout, currentTribe, setCurrentTribe } = useAuth()
+    const { user, logout } = useAuth()
     const location = useLocation()
-
-    // Check if we are on a roster-related page
     const isRosterPage = location.pathname.startsWith('/roster')
-    const showSecondaryNav = user?.isAdmin && user.tribes && user.tribes.length > 1 && isRosterPage
 
     return (
         <div className="dashboard-container">
@@ -24,7 +21,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                     >
                         Dashboard
                     </Link>
-                    {user?.isAdmin && (
+                    {(user?.adminTribes?.length ?? 0) > 0 && (
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                             <Link
                                 to="/roster"
@@ -33,24 +30,12 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                             >
                                 Tribe Roster
                             </Link>
-                            {showSecondaryNav && (
-                                <div className="secondary-nav" style={{ marginTop: '0.75rem' }}>
-                                    {user.tribes.map((tribe) => (
-                                        <button
-                                            key={tribe}
-                                            onClick={() => setCurrentTribe(tribe)}
-                                            className={`secondary-nav-item ${currentTribe === tribe ? 'active' : ''}`}
-                                        >
-                                            {tribe}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
+                            {/* Secondary Nav for Multi-Tribe Admins */}
+                            {isRosterPage && <AdminTribeNav />}
                         </div>
                     )}
                 </nav>
                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingTop: '0.25rem' }}>
-                    {!showSecondaryNav && <TribeSelector />}
                     <ThemeToggle />
                     <button onClick={logout} className="btn btn-secondary" title="Logout">
                         <LogOut size={18} />

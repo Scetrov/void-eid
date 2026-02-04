@@ -379,10 +379,26 @@ pub async fn get_me(
     }
     let wallets: Vec<LinkedWallet> = wallet_map.into_values().collect();
 
-    // Fetch all tribes for the user
-    let tribes = crate::helpers::get_user_tribes(&state.db, &auth_user.user_id)
+    // Fetch all tribes for the user, distinguishing admin ones
+    let user_tribes = sqlx::query_as::<_, crate::models::UserTribe>("SELECT * FROM user_tribes WHERE user_id = ?")
+        .bind(&auth_user.user_id)
+        .fetch_all(&state.db)
         .await
         .unwrap_or_default();
+
+    let tribes: Vec<String> = user_tribes.iter().map(|ut| ut.tribe.clone()).collect();
+    let admin_tribes: Vec<String> = user_tribes
+        .iter()
+        .filter(|ut| ut.is_admin || user.is_admin) // Include global admin for now or deprecated? Let's obey strict logic: only if is_admin on tribe. But wait, we might have global override.
+        // The user said "associated with a wallet", so let's stick to the tribe record.
+        // However, if we migrated global admins to have is_admin=true on all tribes, this simplistic check is fine.
+        // Let's assume global admin implies admin everywhere for backward compat/initial admin?
+        // User said "admin in more than two tribes... associated with a wallet".
+        // Let's assume user.is_admin is STRICTLY global super-admin (or deprecated).
+        // For safety, let's include user.is_admin as a valid check for "is admin of this tribe" OR check the tribe record.
+        .filter(|ut| ut.is_admin || user.is_admin)
+        .map(|ut| ut.tribe.clone())
+        .collect();
 
     Json(serde_json::json!({
         "id": user.id,
@@ -391,7 +407,8 @@ pub async fn get_me(
         "discriminator": user.discriminator,
         "avatar": user.avatar,
         "tribes": tribes,
-        "isAdmin": user.is_admin,
+        "adminTribes": admin_tribes,
+        "isAdmin": user.is_admin, // Keep for legacy/global support if valid
         "lastLoginAt": user.last_login_at,
         "wallets": wallets
     }))

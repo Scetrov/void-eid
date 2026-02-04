@@ -1,20 +1,13 @@
-use crate::db::init_db;
-use crate::state::AppState;
+use void_eid_backend::db::init_db;
+use void_eid_backend::state::AppState;
 use axum::{
-    routing::{delete, get, post},
+    routing::get,
     Router,
 };
 use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
 
-mod audit;
-mod auth;
-mod db;
-mod helpers;
-mod models;
-mod roster;
-mod state;
-mod wallet;
+use void_eid_backend::{auth, models, roster, wallet};
 
 use utoipa::OpenApi;
 use utoipa_scalar::{Scalar, Servable};
@@ -105,12 +98,7 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/api/auth/discord/login", get(auth::discord_login))
         .route("/api/auth/discord/callback", get(auth::discord_callback))
-        .route("/api/me", get(auth::get_me))
-        .route("/api/wallets/link-nonce", post(wallet::link_nonce))
-        .route("/api/wallets/link-verify", post(wallet::link_verify))
-        .route("/api/wallets/{id}", delete(wallet::unlink_wallet))
-        .route("/api/roster", get(roster::get_roster))
-        .route("/api/roster/{discord_id}", get(roster::get_roster_member))
+        .merge(void_eid_backend::get_common_router())
         .merge(Scalar::with_url("/docs", ApiDoc::openapi()))
         .layer(cors)
         .with_state(state);

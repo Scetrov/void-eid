@@ -14,13 +14,20 @@ test.describe('Roster Page', () => {
   };
 
   const mockRoster = [
-    { discord_id: "1", username: "Alice", avatar: null, wallets: ["0x1234567890abcdef1234567890abcdef56780000"] },
+    {
+        discord_id: "1",
+        username: "Alice",
+        avatar: null,
+        wallets: [
+            { id: "w1", address: "0x1234567890abcdef1234567890abcdef56780000", tribes: [] }
+        ]
+    },
     { discord_id: "2", username: "Bob", avatar: null, wallets: [] }
   ];
 
   test.beforeEach(async ({ page }) => {
     // Mock /api/me to return admin user
-    await page.route('http://localhost:5038/api/me', async route => {
+    await page.route('**/api/me', async route => {
         // Only return admin if Authorization header is present (simulated)
         const headers = route.request().headers();
         if (headers['authorization']) {
@@ -31,7 +38,7 @@ test.describe('Roster Page', () => {
     });
 
     // Mock /api/roster
-    await page.route('http://localhost:5038/api/roster*', async route => {
+    await page.route('**/api/roster*', async route => {
         await route.fulfill({ json: mockRoster });
     });
 
@@ -44,6 +51,7 @@ test.describe('Roster Page', () => {
 
   test('should display roster table for admin', async ({ page }) => {
     await page.goto('/roster');
+    await page.waitForSelector('table');
 
     // Expect to see title/nav
     await expect(page.getByText('Tribe Roster')).toBeVisible();
@@ -59,13 +67,18 @@ test.describe('Roster Page', () => {
       // We can intercept the request and check params.
 
       let searchParam = '';
-      await page.route('http://localhost:5038/api/roster*', async route => {
+      await page.route('**/api/roster*', async route => {
           const url = new URL(route.request().url());
           searchParam = url.searchParams.get('search') || '';
-          await route.fulfill({ json: [mockRoster[0]] }); // Return only Alice
+          // Return valid structure here too
+          await route.fulfill({ json: [mockRoster[0]] });
       });
 
       await page.goto('/roster');
+
+      // Wait for table to load to ensure page is stable
+      await page.waitForSelector('table');
+
       const searchBox = page.getByPlaceholder('Search by username');
       await searchBox.fill('Alice');
 

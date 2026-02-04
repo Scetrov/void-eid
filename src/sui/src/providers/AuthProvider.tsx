@@ -9,6 +9,7 @@ export interface User {
     discriminator: string;
     avatar: string | null;
     tribes: string[];
+    adminTribes: string[];
     isAdmin: boolean;
     lastLoginAt: string | null;
     wallets: LinkedWallet[];
@@ -57,8 +58,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const userData = await res.json();
               setUser(userData);
 
-              // Auto-select tribe if user has exactly one
-              if (userData.tribes && userData.tribes.length === 1) {
+              // Auto-select tribe strategy:
+              // 1. If user is admin of exactly one tribe, select it (prioritize admin context)
+              if (userData.adminTribes && userData.adminTribes.length === 1) {
+                  const adminTribe = userData.adminTribes[0];
+                  setCurrentTribeState(adminTribe);
+                  localStorage.setItem('current_tribe', adminTribe);
+              }
+              // 2. Fallback: If not an admin (or admin of 0), check regular tribes
+              else if (userData.tribes && userData.tribes.length === 1) {
                   setCurrentTribeState(userData.tribes[0]);
                   localStorage.setItem('current_tribe', userData.tribes[0]);
               } else if (userData.tribes && userData.tribes.length > 1) {
