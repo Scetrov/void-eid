@@ -516,4 +516,3 @@ mod tests {
         assert_eq!(notes[0].content, "Note with author join");
     }
 }
-

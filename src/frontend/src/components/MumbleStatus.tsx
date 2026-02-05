@@ -44,11 +44,11 @@ export function MumbleStatus() {
         setLoading(true);
         setError(null);
         setNewAccount(null);
-        
+
         try {
             const res = await fetch(`${API_URL}/api/mumble/account`, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
@@ -63,7 +63,7 @@ export function MumbleStatus() {
                 const err = await res.json();
                 setError(err.error || 'Failed to create account');
             }
-        } catch (e) {
+        } catch {
             setError('Network error');
         } finally {
             setLoading(false);
@@ -74,28 +74,23 @@ export function MumbleStatus() {
 
     return (
         <div style={{ maxWidth: '600px', margin: '0 auto', padding: '2rem' }}>
-            <div className="card" style={{ 
-                background: 'rgba(255, 255, 255, 0.05)', 
-                padding: '2rem', 
-                borderRadius: '8px', 
-                border: '1px solid rgba(255, 255, 255, 0.1)' 
-            }}>
+            <div className="card">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-                    <Mic size={32} style={{ color: 'var(--accent-color, #4ade80)' }} />
+                    <Mic size={32} style={{ color: 'var(--brand-orange)' }} />
                     <h2 style={{ margin: 0 }}>Voice Chat (Mumble)</h2>
                 </div>
-                
+
                 <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
                     Connect to the tribe voice server. You need to be a member of the <strong>Fire</strong> tribe to access voice.
                 </p>
 
                 {error && (
-                    <div style={{ 
-                        padding: '1rem', 
-                        background: 'rgba(239, 68, 68, 0.1)', 
-                        border: '1px solid rgba(239, 68, 68, 0.2)', 
-                        color: '#fca5a5', 
-                        borderRadius: '4px',
+                    <div style={{
+                        padding: '1rem',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        color: '#ef4444',
+                        borderRadius: 'var(--radius-sm)',
                         marginBottom: '1rem'
                     }}>
                         {error}
@@ -106,30 +101,28 @@ export function MumbleStatus() {
                     <div>
                         <div style={{ marginBottom: '1.5rem' }}>
                             <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Username</label>
-                            <div style={{ 
-                                padding: '0.75rem', 
-                                background: 'rgba(0,0,0,0.2)', 
-                                borderRadius: '4px', 
-                                fontFamily: 'monospace',
-                                fontSize: '1.25rem'
+                            <div style={{
+                                padding: '0.75rem',
+                                background: 'var(--bg-secondary)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: 'var(--radius-sm)',
+                                fontFamily: 'var(--font-heading)',
+                                fontSize: '1.25rem',
+                                color: 'var(--text-primary)'
                             }}>
                                 {status.username}
                             </div>
                         </div>
 
-                        <button 
+                        <button
                             onClick={handleCreateOrReset}
                             disabled={loading}
-                            className="btn"
-                            style={{ 
-                                display: 'inline-flex', 
-                                alignItems: 'center', 
+                            className="btn btn-secondary"
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
                                 gap: '0.5rem',
-                                padding: '0.75rem 1.5rem',
-                                background: 'transparent',
-                                border: '1px solid var(--text-secondary)',
-                                color: 'var(--text-primary)',
-                                cursor: 'pointer'
+                                width: '100%'
                             }}
                         >
                             <RefreshCw size={18} />
@@ -138,22 +131,16 @@ export function MumbleStatus() {
                     </div>
                 ) : (
                     <div>
-                         <button 
+                         <button
                             onClick={handleCreateOrReset}
                             disabled={loading}
                             className="btn btn-primary"
-                            style={{ 
-                                display: 'inline-flex', 
-                                alignItems: 'center', 
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
                                 gap: '0.5rem',
-                                padding: '0.75rem 1.5rem',
-                                background: '#4ade80',
-                                color: '#000',
-                                border: 'none',
-                                borderRadius: '4px',
-                                fontWeight: 'bold',
-                                cursor: 'pointer',
-                                fontSize: '1rem'
+                                width: '100%',
+                                justifyContent: 'center'
                             }}
                         >
                             <UserPlus size={20} />
@@ -163,20 +150,28 @@ export function MumbleStatus() {
                 )}
 
                 {newAccount && (
-                    <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(74, 222, 128, 0.1)', border: '1px solid #4ade80', borderRadius: '8px' }}>
+                    <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(74, 222, 128, 0.1)', border: '1px solid #4ade80', borderRadius: 'var(--radius-sm)' }}>
                         <h3 style={{ marginTop: 0, color: '#4ade80' }}>Account Credentials</h3>
-                        <p style={{ fontSize: '0.9rem', color: '#fff' }}>
+                        <p style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
                             <strong>Important:</strong> This password is shown only once. Save it now.
                         </p>
-                        
+
                         <div style={{ display: 'grid', gap: '1rem', marginTop: '1rem' }}>
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.8rem', opacity: 0.7 }}>Username</label>
-                                <div style={{ fontFamily: 'monospace', fontSize: '1.1rem' }}>{newAccount.username}</div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', opacity: 0.7, color: 'var(--text-secondary)' }}>Username</label>
+                                <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', color: 'var(--text-primary)' }}>{newAccount.username}</div>
                             </div>
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.8rem', opacity: 0.7 }}>Password</label>
-                                <div style={{ fontFamily: 'monospace', fontSize: '1.1rem', background: 'rgba(0,0,0,0.3)', padding: '0.5rem', borderRadius: '4px', wordBreak: 'break-all' }}>
+                                <label style={{ display: 'block', fontSize: '0.8rem', opacity: 0.7, color: 'var(--text-secondary)' }}>Password</label>
+                                <div style={{
+                                    fontFamily: 'var(--font-heading)',
+                                    fontSize: '1.1rem',
+                                    background: 'var(--bg-secondary)',
+                                    padding: '0.5rem',
+                                    borderRadius: 'var(--radius-sm)',
+                                    wordBreak: 'break-all',
+                                    color: 'var(--text-primary)'
+                                }}>
                                     {newAccount.password}
                                 </div>
                             </div>

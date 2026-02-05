@@ -455,7 +455,8 @@ mod tests {
 
     #[test]
     fn test_claims_deserialization() {
-        let json = r#"{"id":"12345","discordId":"discord123","username":"TestUser","exp":1234567890}"#;
+        let json =
+            r#"{"id":"12345","discordId":"discord123","username":"TestUser","exp":1234567890}"#;
         let claims: Claims = serde_json::from_str(json).expect("Failed to deserialize");
 
         assert_eq!(claims.id, "12345");
@@ -628,7 +629,8 @@ where
             .get("X-Internal-Secret")
             .and_then(|h| h.to_str().ok());
 
-        let configured_secret = env::var("INTERNAL_SECRET").unwrap_or_else(|_| "secret".to_string());
+        let configured_secret =
+            env::var("INTERNAL_SECRET").unwrap_or_else(|_| "secret".to_string());
 
         match secret_header {
             Some(s) if s == configured_secret => Ok(InternalSecret(s.to_string())),

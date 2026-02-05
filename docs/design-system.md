@@ -14,27 +14,21 @@
 
 ## Color Palette
 
-### Light Mode (Stone / Warm Gray)
+### Theme Usage Guidance
 
-| Variable           | Value                      | Description |
-| ------------------ | -------------------------- | ----------- |
-| `--bg-primary`     | `#fafaf9`                  | Stone 50    |
-| `--bg-secondary`   | `#e7e5e4`                  | Stone 200   |
-| `--text-primary`   | `#1c1917`                  | Stone 900   |
-| `--text-secondary` | `#57534e`                  | Stone 600   |
-| `--card-bg`        | `rgba(250, 250, 229, 0.9)` | Cream tint  |
+> [!TIP]
+> **Always** use usage-based variables (e.g., `--bg-primary`, `--text-primary`) instead of hardcoded colors. These variables automatically switch values based on the active theme (Light/Dark).
 
-### Dark Mode (Red/Orange Nebula)
+| Variable           | Light Mode (Stone/Warm)    | Dark Mode (Red/Nebula)   | Usage Meaning               |
+| ------------------ | -------------------------- | ------------------------ | --------------------------- |
+| `--bg-primary`     | `#fafaf9` (Stone 50)       | `#1a0a0a` (Deep Dark)    | Main page background        |
+| `--bg-secondary`   | `#e7e5e4` (Stone 200)      | `#2d1515` (Dark Red)     | Inputs, code blocks, panels |
+| `--text-primary`   | `#1c1917` (Stone 900)      | `#fafae5` (Cream White)  | Main headings, body text    |
+| `--text-secondary` | `#57534e` (Stone 600)      | `#c7b8b3` (Light Stone)  | Subtitles, meta-data        |
+| `--card-bg`        | `rgba(250, 250, 229, 0.9)` | `rgba(45, 21, 21, 0.85)` | Card backgrounds            |
+| `--border-color`   | `#a8a29e` (Stone 400)      | `#6b6b5e` (Stone 500)    | Borders, dividers           |
 
-| Variable           | Value                    | Description         |
-| ------------------ | ------------------------ | ------------------- |
-| `--bg-primary`     | `#1a0a0a`                | Deep Dark Red/Black |
-| `--bg-secondary`   | `#2d1515`                | Dark Red/Brown      |
-| `--text-primary`   | `#fafae5`                | Cream White         |
-| `--text-secondary` | `#c7b8b3`                | Light Stone         |
-| `--card-bg`        | `rgba(45, 21, 21, 0.85)` | Dark Translucent    |
-
-### Brand Colors
+### Brand Colors (Universal)
 
 | Variable         | Value     | Usage                       |
 | ---------------- | --------- | --------------------------- |

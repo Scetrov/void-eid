@@ -29,32 +29,41 @@ test.describe('Roster Member Detail Page', () => {
 
   // Mock Member Detail
   const mockMember = {
-    discord_id: "789",
+    discordId: "789",
     username: "MemberToView",
     avatar: null,
-    wallets: ["0xabcdef1234567890abcdef1234567890abcdef12", "0x1111222233334444555566667777888899990000"],
-    audits: [
-      {
-        id: "audit-1",
-        action: "LINK_WALLET",
-        actorId: "789",
-        targetId: null,
-        details: "Linked wallet 0xabcd...",
-        createdAt: "2026-01-20T15:30:00Z",
-        actorUsername: "MemberToView",
-        actorDiscriminator: "2222"
-      },
-      {
-        id: "audit-2",
-        action: "LOGIN",
-        actorId: "789",
-        targetId: null,
-        details: "User logged in via Discord",
-        createdAt: "2026-01-20T10:00:00Z",
-        actorUsername: "MemberToView",
-        actorDiscriminator: "2222"
-      }
-    ]
+    wallets: [
+        { id: "w1", address: "0xabcdef1234567890abcdef1234567890abcdef12", tribes: ["Fire"] },
+        { id: "w2", address: "0x1111222233334444555566667777888899990000", tribes: [] }
+    ],
+    audits: {
+      items: [
+        {
+          id: "audit-1",
+          action: "LINK_WALLET",
+          actorId: "789",
+          targetId: null,
+          details: "Linked wallet 0xabcd...",
+          createdAt: "2026-01-20T15:30:00Z",
+          actorUsername: "MemberToView",
+          actorDiscriminator: "2222"
+        },
+        {
+          id: "audit-2",
+          action: "LOGIN",
+          actorId: "789",
+          targetId: null,
+          details: "User logged in via Discord",
+          createdAt: "2026-01-20T10:00:00Z",
+          actorUsername: "MemberToView",
+          actorDiscriminator: "2222"
+        }
+      ],
+      total: 2,
+      page: 1,
+      perPage: 10,
+      totalPages: 1
+    }
   };
 
   test.beforeEach(async ({ page }) => {
@@ -66,12 +75,12 @@ test.describe('Roster Member Detail Page', () => {
 
   test('should display member details for admin', async ({ page }) => {
     // Mock /api/me to return admin user
-    await page.route('http://localhost:5038/api/me', async route => {
+    await page.route('**/api/me', async route => {
       await route.fulfill({ json: mockAdminUser });
     });
 
     // Mock member detail endpoint
-    await page.route('http://localhost:5038/api/roster/789', async route => {
+    await page.route('**/api/roster/789*', async route => {
       await route.fulfill({ json: mockMember });
     });
 
@@ -84,11 +93,11 @@ test.describe('Roster Member Detail Page', () => {
   });
 
   test('should show linked wallets', async ({ page }) => {
-    await page.route('http://localhost:5038/api/me', async route => {
+    await page.route('**/api/me', async route => {
       await route.fulfill({ json: mockAdminUser });
     });
 
-    await page.route('http://localhost:5038/api/roster/789', async route => {
+    await page.route('**/api/roster/789*', async route => {
       await route.fulfill({ json: mockMember });
     });
 
@@ -101,11 +110,11 @@ test.describe('Roster Member Detail Page', () => {
   });
 
   test('should display audit history', async ({ page }) => {
-    await page.route('http://localhost:5038/api/me', async route => {
+    await page.route('**/api/me', async route => {
       await route.fulfill({ json: mockAdminUser });
     });
 
-    await page.route('http://localhost:5038/api/roster/789', async route => {
+    await page.route('**/api/roster/789*', async route => {
       await route.fulfill({ json: mockMember });
     });
 
@@ -119,7 +128,7 @@ test.describe('Roster Member Detail Page', () => {
   });
 
   test('should deny access for non-admin', async ({ page }) => {
-    await page.route('http://localhost:5038/api/me', async route => {
+    await page.route('**/api/me', async route => {
       await route.fulfill({ json: mockRegularUser });
     });
 

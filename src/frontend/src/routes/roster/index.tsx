@@ -73,8 +73,8 @@ function RosterPage() {
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', flexDirection: 'column', gap: '1rem', textAlign: 'center' }}>
                 <ShieldAlert size={64} style={{ color: '#ef4444' }} />
                 <h2>Access Denied</h2>
-                <p>Only users with the 'Admin' role can view the Tribe Roster.</p>
-                <Link to="/dashboard" className="btn btn-secondary">Back to Dashboard</Link>
+                <p>Only users with the 'Admin' role can view the Roster.</p>
+                <Link to="/home" className="btn btn-secondary">Back to Home</Link>
             </div>
         )
     }
@@ -85,7 +85,7 @@ function RosterPage() {
                 <ShieldAlert size={64} style={{ color: '#ef4444' }} />
                 <h2>Access Denied</h2>
                 <p>You are not an Admin of the <strong>{currentTribe}</strong> tribe.</p>
-                <Link to="/dashboard" className="btn btn-secondary">Back to Dashboard</Link>
+                <Link to="/home" className="btn btn-secondary">Back to Home</Link>
             </div>
         )
     }
@@ -102,7 +102,7 @@ function RosterPage() {
     return (
         <DashboardLayout>
             <div className="dashboard-header" style={{ marginBottom: '2rem' }}>
-                <h2 style={{ margin: 0 }}>Tribe Roster</h2>
+                <h2 style={{ margin: 0 }}>Roster</h2>
             </div>
 
             <div className="card">

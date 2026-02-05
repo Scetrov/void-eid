@@ -51,15 +51,17 @@ pub async fn require_admin_in_tribe(
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database error"))?
         .ok_or((StatusCode::UNAUTHORIZED, "User not found"))?;
 
-    if !user.is_admin {
-        return Err((StatusCode::FORBIDDEN, "Access denied: Admins only"));
-    }
+    // Fetch full UserTribe info to check is_admin per tribe
+    let user_tribes_full =
+        sqlx::query_as::<_, UserTribe>("SELECT * FROM user_tribes WHERE user_id = ?")
+            .bind(user_id)
+            .fetch_all(db)
+            .await
+            .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database error"))?;
 
-    let user_tribes = get_user_tribes(db, user_id)
-        .await
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database error"))?;
+    let all_tribe_names: Vec<String> = user_tribes_full.iter().map(|ut| ut.tribe.clone()).collect();
 
-    if user_tribes.is_empty() {
+    if user_tribes_full.is_empty() {
         return Err((
             StatusCode::FORBIDDEN,
             "Access denied: You are not in any tribe",
@@ -68,30 +70,54 @@ pub async fn require_admin_in_tribe(
 
     let selected_tribe = match tribe {
         Some(t) => {
-            // Verify user belongs to the specified tribe
-            if !user_tribes.contains(&t.to_string()) {
-                return Err((
-                    StatusCode::FORBIDDEN,
-                    "Access denied: You are not in the specified tribe",
-                ));
+            // Find the tribe entry
+            let tribe_entry = user_tribes_full.iter().find(|ut| ut.tribe == t);
+
+            match tribe_entry {
+                Some(ut) => {
+                    // Check Admin Permission: Global Admin OR Tribe Admin
+                    if !user.is_admin && !ut.is_admin {
+                        return Err((
+                            StatusCode::FORBIDDEN,
+                            "Access denied: You are not an admin of this tribe",
+                        ));
+                    }
+                    t.to_string()
+                }
+                None => {
+                    return Err((
+                        StatusCode::FORBIDDEN,
+                        "Access denied: You are not in the specified tribe",
+                    ));
+                }
             }
-            t.to_string()
         }
         None => {
-            // If user has exactly one tribe, use it
-            if user_tribes.len() == 1 {
-                user_tribes[0].clone()
+            // Filter to tribes where the user IS an admin (Global or Tribe)
+            let admin_tribes: Vec<&UserTribe> = user_tribes_full
+                .iter()
+                .filter(|ut| user.is_admin || ut.is_admin)
+                .collect();
+
+            if admin_tribes.is_empty() {
+                // User is in tribes, but admin of none
+                return Err((
+                    StatusCode::FORBIDDEN,
+                    "Access denied: You are not an admin of any tribe",
+                ));
+            } else if admin_tribes.len() == 1 {
+                admin_tribes[0].tribe.clone()
             } else {
-                // User has multiple tribes but didn't specify which one
+                // Admin of multiple tribes -> Require specification
                 return Err((
                     StatusCode::BAD_REQUEST,
-                    "Please specify a tribe - you belong to multiple tribes",
+                    "Please specify a tribe - you manage multiple tribes",
                 ));
             }
         }
     };
 
-    Ok((user, selected_tribe, user_tribes))
+    Ok((user, selected_tribe, all_tribe_names))
 }
 
 #[cfg(test)]
@@ -195,5 +221,98 @@ mod tests {
         assert_eq!(user.username, "AdminUser");
         assert_eq!(tribe, "Fire");
         assert_eq!(all_tribes, vec!["Fire"]);
+    }
+
+    #[tokio::test]
+    async fn test_require_admin_in_tribe_specific_success() {
+        let db = setup_db().await;
+
+        // User Not Global Admin
+        sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, is_admin) VALUES (?, ?, ?, ?, ?)")
+            .bind(404_i64)
+            .bind("101")
+            .bind("TribeAdmin")
+            .bind("0000")
+            .bind(false)
+            .execute(&db)
+            .await
+            .unwrap();
+
+        // Admin of Earth
+        sqlx::query("INSERT INTO user_tribes (user_id, tribe, is_admin) VALUES (?, ?, ?)")
+            .bind(404_i64)
+            .bind("Earth")
+            .bind(true)
+            .execute(&db)
+            .await
+            .unwrap();
+
+        // Member of Wind (Not Admin)
+        sqlx::query("INSERT INTO user_tribes (user_id, tribe, is_admin) VALUES (?, ?, ?)")
+            .bind(404_i64)
+            .bind("Wind")
+            .bind(false)
+            .execute(&db)
+            .await
+            .unwrap();
+
+        // Case A: Access Earth (Admin) -> OK
+        let result = require_admin_in_tribe(&db, 404, Some("Earth")).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().1, "Earth");
+
+        // Case B: Access Wind (Member) -> Fail
+        let result = require_admin_in_tribe(&db, 404, Some("Wind")).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().0, StatusCode::FORBIDDEN);
+
+        // Case C: No tribe specified -> Default to Earth (only admin tribe)
+        let result = require_admin_in_tribe(&db, 404, None).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().1, "Earth");
+    }
+
+    #[tokio::test]
+    async fn test_require_admin_in_tribe_multi_admin() {
+        let db = setup_db().await;
+
+        // User Not Global Admin
+        sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, is_admin) VALUES (?, ?, ?, ?, ?)")
+            .bind(505_i64)
+            .bind("202")
+            .bind("MultiTribeAdmin")
+            .bind("0000")
+            .bind(false)
+            .execute(&db)
+            .await
+            .unwrap();
+
+        // Admin of Earth
+        sqlx::query("INSERT INTO user_tribes (user_id, tribe, is_admin) VALUES (?, ?, ?)")
+            .bind(505_i64)
+            .bind("Earth")
+            .bind(true)
+            .execute(&db)
+            .await
+            .unwrap();
+
+        // Admin of Water
+        sqlx::query("INSERT INTO user_tribes (user_id, tribe, is_admin) VALUES (?, ?, ?)")
+            .bind(505_i64)
+            .bind("Water")
+            .bind(true)
+            .execute(&db)
+            .await
+            .unwrap();
+
+        // Case A: No tribe specified -> Fail (Ambiguous)
+        let result = require_admin_in_tribe(&db, 505, None).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().0, StatusCode::BAD_REQUEST);
+
+        // Case B: Specify Earth -> OK
+        let result = require_admin_in_tribe(&db, 505, Some("Earth")).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().1, "Earth");
     }
 }

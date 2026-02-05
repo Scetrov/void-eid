@@ -262,7 +262,10 @@ mod tests {
     fn test_nonce_request_deserialization() {
         let json = r#"{"address":"0x1234567890abcdef1234567890abcdef12345678"}"#;
         let request: NonceRequest = serde_json::from_str(json).expect("Deserialize failed");
-        assert_eq!(request.address, "0x1234567890abcdef1234567890abcdef12345678");
+        assert_eq!(
+            request.address,
+            "0x1234567890abcdef1234567890abcdef12345678"
+        );
     }
 
     #[test]
@@ -343,7 +346,7 @@ mod tests {
 
         // Query wallet
         let wallet: Option<crate::models::FlatLinkedWallet> =
-            sqlx::query_as("SELECT * FROM wallets WHERE address = ?")
+            sqlx::query_as("SELECT *, NULL as tribe FROM wallets WHERE address = ?")
                 .bind(address)
                 .fetch_optional(&db)
                 .await
@@ -372,13 +375,15 @@ mod tests {
             .unwrap();
 
         // Try to insert duplicate - should fail due to UNIQUE constraint
-        let result = sqlx::query("INSERT INTO wallets (id, user_id, address, verified_at) VALUES (?, ?, ?, ?)")
-            .bind(Uuid::new_v4().to_string())
-            .bind(1001_i64)
-            .bind(address)
-            .bind(now)
-            .execute(&db)
-            .await;
+        let result = sqlx::query(
+            "INSERT INTO wallets (id, user_id, address, verified_at) VALUES (?, ?, ?, ?)",
+        )
+        .bind(Uuid::new_v4().to_string())
+        .bind(1001_i64)
+        .bind(address)
+        .bind(now)
+        .execute(&db)
+        .await;
 
         assert!(result.is_err());
     }
@@ -399,7 +404,7 @@ mod tests {
 
         // Check ownership with correct user
         let wallet: Option<crate::models::FlatLinkedWallet> =
-            sqlx::query_as("SELECT * FROM wallets WHERE id = ? AND user_id = ?")
+            sqlx::query_as("SELECT *, NULL as tribe FROM wallets WHERE id = ? AND user_id = ?")
                 .bind(&wallet_id)
                 .bind(1001_i64)
                 .fetch_optional(&db)
@@ -410,7 +415,7 @@ mod tests {
 
         // Check with wrong user
         let wallet_wrong_user: Option<crate::models::FlatLinkedWallet> =
-            sqlx::query_as("SELECT * FROM wallets WHERE id = ? AND user_id = ?")
+            sqlx::query_as("SELECT *, NULL as tribe FROM wallets WHERE id = ? AND user_id = ?")
                 .bind(&wallet_id)
                 .bind(9999_i64)
                 .fetch_optional(&db)
@@ -446,7 +451,7 @@ mod tests {
 
         // Verify deleted
         let wallet: Option<crate::models::FlatLinkedWallet> =
-            sqlx::query_as("SELECT * FROM wallets WHERE id = ?")
+            sqlx::query_as("SELECT *, NULL as tribe FROM wallets WHERE id = ?")
                 .bind(&wallet_id)
                 .fetch_optional(&db)
                 .await
@@ -455,4 +460,3 @@ mod tests {
         assert!(wallet.is_none());
     }
 }
-

@@ -16,7 +16,7 @@ def get_db_path():
 
     env_path = os.path.join(root, '.env')
     db_relative_url = "../../data/void-eid.db"
-    
+
     try:
         with open(env_path, 'r') as f:
             for line in f:

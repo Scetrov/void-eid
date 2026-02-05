@@ -5,15 +5,10 @@ services:
       dockerfile: Dockerfile.dev
     ports:
       - "5038:5038"
+    env_file: .env
     environment:
       - DATABASE_URL=sqlite:///data/void-eid.db?mode=rwc
       - PORT=5038
-      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
-      - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
-      - DISCORD_REDIRECT_URI=${DISCORD_REDIRECT_URI:-http://localhost:5038/api/auth/discord/callback}
-      - JWT_SECRET=${JWT_SECRET}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
-      - INITIAL_ADMIN_ID=${INITIAL_ADMIN_ID:-}
     volumes:
       - ./data:/data
       - ./src/backend:/usr/src/app
@@ -27,9 +22,9 @@ services:
     ports:
       - "64738:64738/tcp"
       - "64738:64738/udp"
+    env_file: .env
     environment:
       - BACKEND_URL=http://backend:5038/api/internal/mumble
-      - INTERNAL_SECRET=changeme
     volumes:
       - ./data/murmur:/data
     restart: unless-stopped
@@ -40,6 +35,7 @@ services:
       dockerfile: Dockerfile.dev
     ports:
       - "5173:5173"
+    env_file: .env
     environment:
       - VITE_API_URL=http://localhost:5038
     volumes:

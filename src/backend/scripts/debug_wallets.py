@@ -17,7 +17,7 @@ def get_db_path():
     # Load .env manually to avoid dependencies
     env_path = os.path.join(root, '.env')
     db_relative_url = "../../data/void-eid.db" # Default fallback
-    
+
     try:
         with open(env_path, 'r') as f:
             for line in f:
@@ -31,7 +31,7 @@ def get_db_path():
     # The DATABASE_URL in .env is relative to src/backend (../../data/...)
     # We need to reconstruct the absolute path.
     # root/src/backend + db_relative_url
-    
+
     # However, a cleaner way might be to resolve it from the root if we know the .env intent.
     # Given the .env has "../../data/void-eid.db", it assumes a specific CWD.
     # Let's resolve it relative to the 'src/backend' location which is where .env is effectively targeting?
@@ -44,7 +44,7 @@ def get_db_path():
     # If the database is at `data/void-eid.db` (as seen in list_dir Step 16), then `../../data/void-eid.db` from ROOT is definitely wrong if taken literally from root.
     # It implies the variable is intended for use by something deep in `src/backend`.
     # So we should treat it as relative to `src/backend`.
-    
+
     src_backend_path = os.path.join(root, 'src', 'backend')
     return os.path.normpath(os.path.join(src_backend_path, db_relative_url))
 

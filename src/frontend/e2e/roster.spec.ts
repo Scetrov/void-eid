@@ -54,7 +54,7 @@ test.describe('Roster Page', () => {
     await page.waitForSelector('table');
 
     // Expect to see title/nav
-    await expect(page.getByText('Tribe Roster')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Roster' })).toBeVisible();
 
     // Expect items
     await expect(page.getByText('Alice')).toBeVisible();

@@ -18,6 +18,7 @@ pub enum AuditAction {
     NoteCreate,
     NoteEdit,
     MumbleCreateAccount,
+    MumbleLogin,
 }
 
 impl AuditAction {
@@ -35,6 +36,7 @@ impl AuditAction {
             AuditAction::NoteCreate => "NOTE_CREATE",
             AuditAction::NoteEdit => "NOTE_EDIT",
             AuditAction::MumbleCreateAccount => "MUMBLE_CREATE_ACCOUNT",
+            AuditAction::MumbleLogin => "MUMBLE_LOGIN",
         }
     }
 }

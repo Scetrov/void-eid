@@ -9,17 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as MumbleRouteImport } from './routes/mumble'
+import { Route as VoiceRouteImport } from './routes/voice'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as HomeRouteImport } from './routes/home'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RosterIndexRouteImport } from './routes/roster/index'
 import { Route as RosterIdRouteImport } from './routes/roster/$id'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 
-const MumbleRoute = MumbleRouteImport.update({
-  id: '/mumble',
-  path: '/mumble',
+const VoiceRoute = VoiceRouteImport.update({
+  id: '/voice',
+  path: '/voice',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -27,9 +27,9 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const HomeRoute = HomeRouteImport.update({
+  id: '/home',
+  path: '/home',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -55,18 +55,18 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/dashboard': typeof DashboardRoute
+  '/home': typeof HomeRoute
   '/login': typeof LoginRoute
-  '/mumble': typeof MumbleRoute
+  '/voice': typeof VoiceRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/roster/$id': typeof RosterIdRoute
   '/roster/': typeof RosterIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/dashboard': typeof DashboardRoute
+  '/home': typeof HomeRoute
   '/login': typeof LoginRoute
-  '/mumble': typeof MumbleRoute
+  '/voice': typeof VoiceRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/roster/$id': typeof RosterIdRoute
   '/roster': typeof RosterIndexRoute
@@ -74,9 +74,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/dashboard': typeof DashboardRoute
+  '/home': typeof HomeRoute
   '/login': typeof LoginRoute
-  '/mumble': typeof MumbleRoute
+  '/voice': typeof VoiceRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/roster/$id': typeof RosterIdRoute
   '/roster/': typeof RosterIndexRoute
@@ -85,27 +85,27 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/dashboard'
+    | '/home'
     | '/login'
-    | '/mumble'
+    | '/voice'
     | '/auth/callback'
     | '/roster/$id'
     | '/roster/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/dashboard'
+    | '/home'
     | '/login'
-    | '/mumble'
+    | '/voice'
     | '/auth/callback'
     | '/roster/$id'
     | '/roster'
   id:
     | '__root__'
     | '/'
-    | '/dashboard'
+    | '/home'
     | '/login'
-    | '/mumble'
+    | '/voice'
     | '/auth/callback'
     | '/roster/$id'
     | '/roster/'
@@ -113,9 +113,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  DashboardRoute: typeof DashboardRoute
+  HomeRoute: typeof HomeRoute
   LoginRoute: typeof LoginRoute
-  MumbleRoute: typeof MumbleRoute
+  VoiceRoute: typeof VoiceRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   RosterIdRoute: typeof RosterIdRoute
   RosterIndexRoute: typeof RosterIndexRoute
@@ -123,11 +123,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/mumble': {
-      id: '/mumble'
-      path: '/mumble'
-      fullPath: '/mumble'
-      preLoaderRoute: typeof MumbleRouteImport
+    '/voice': {
+      id: '/voice'
+      path: '/voice'
+      fullPath: '/voice'
+      preLoaderRoute: typeof VoiceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -137,11 +137,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
+    '/home': {
+      id: '/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof HomeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -177,9 +177,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  DashboardRoute: DashboardRoute,
+  HomeRoute: HomeRoute,
   LoginRoute: LoginRoute,
-  MumbleRoute: MumbleRoute,
+  VoiceRoute: VoiceRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   RosterIdRoute: RosterIdRoute,
   RosterIndexRoute: RosterIndexRoute,

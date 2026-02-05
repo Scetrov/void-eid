@@ -1,15 +1,15 @@
+use crate::auth::{self, InternalSecret};
+use crate::state::AppState;
 use axum::{
-    extract::{State, Json},
+    extract::{Json, State},
     http::StatusCode,
     response::IntoResponse,
 };
+use bcrypt::{hash, verify, DEFAULT_COST};
+use rand::{distr::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::Row;
-use rand::{distr::Alphanumeric, Rng};
-use bcrypt::{hash, verify, DEFAULT_COST};
-use crate::auth::{self, InternalSecret};
-use crate::state::AppState;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateAccountRequest {
@@ -42,51 +42,72 @@ pub async fn create_account(
     // user_id is already i64 from AuthenticatedUser extractor
 
     // 1. Check if user exists and is in the required tribe
-    let user_valid = sqlx::query(
-        "SELECT 1 FROM user_tribes WHERE user_id = ? AND tribe = ?"
-    )
-    .bind(user_id)
-    .bind(&state.mumble_required_tribe)
-    .fetch_optional(&state.db)
-    .await;
+    let user_valid = sqlx::query("SELECT 1 FROM user_tribes WHERE user_id = ? AND tribe = ?")
+        .bind(user_id)
+        .bind(&state.mumble_required_tribe)
+        .fetch_optional(&state.db)
+        .await;
 
     match user_valid {
-        Ok(Some(_)) => {},
-        Ok(None) => return (StatusCode::FORBIDDEN, Json(json!({"error": "User not in required tribe"}))).into_response(),
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database error"}))).into_response(),
+        Ok(Some(_)) => {}
+        Ok(None) => {
+            return (
+                StatusCode::FORBIDDEN,
+                Json(json!({"error": "User not in required tribe"})),
+            )
+                .into_response()
+        }
+        Err(_) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "Database error"})),
+            )
+                .into_response()
+        }
     };
 
     // 2. Get username (based on rider name/wallet from tribe) - simplified: using database username for now or custom logic
     // Requirement: "create a username based upon their rider name (the wallet that is in the Fire tribe)"
     // We need to fetch the wallet/rider name associated with the tribe.
-    
+
     // Assuming `user_tribes` has `wallet_id` which might be the rider name or linked to wallets table.
     // Let's check `user_tribes` table: `wallet_id` TEXT.
     // If wallet_id IS the rider name (which seems implied by "rider name (the wallet...)"), we use that.
-    
-    let rider_name_query = sqlx::query(
-        "SELECT wallet_id FROM user_tribes WHERE user_id = ? AND tribe = ?"
-    )
-    .bind(user_id)
-    .bind(&state.mumble_required_tribe)
-    .fetch_one(&state.db)
-    .await;
+
+    let rider_name_query =
+        sqlx::query("SELECT wallet_id FROM user_tribes WHERE user_id = ? AND tribe = ?")
+            .bind(user_id)
+            .bind(&state.mumble_required_tribe)
+            .fetch_one(&state.db)
+            .await;
 
     let username = match rider_name_query {
         Ok(row) => {
-             let w: Option<String> = row.get("wallet_id");
-             match w {
-                 Some(name) => name,
-                 None => return (StatusCode::BAD_REQUEST, Json(json!({"error": "No rider name/wallet found for tribe membership"}))).into_response(),
-             }
-        },
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Failed to fetch rider name"}))).into_response(),
+            let w: Option<String> = row.get("wallet_id");
+            match w {
+                Some(name) => name,
+                None => {
+                    return (
+                        StatusCode::BAD_REQUEST,
+                        Json(json!({"error": "No rider name/wallet found for tribe membership"})),
+                    )
+                        .into_response()
+                }
+            }
+        }
+        Err(_) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "Failed to fetch rider name"})),
+            )
+                .into_response()
+        }
     };
 
     // Sanitize username for Mumble (alphanumeric only ideally, but Murmur is flexible)
     // Replacing spaces with underscores
     let mumble_username = username.replace(" ", "_");
-    
+
     // 3. Generate Password
     let password: String = rand::rng()
         .sample_iter(&Alphanumeric)
@@ -97,17 +118,23 @@ pub async fn create_account(
     // 4. Hash Password
     let hashed = match hash(&password, DEFAULT_COST) {
         Ok(h) => h,
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Failed to hash password"}))).into_response(),
+        Err(_) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "Failed to hash password"})),
+            )
+                .into_response()
+        }
     };
 
     // 5. Store in DB (Upsert)
     let result = sqlx::query(
-        "INSERT INTO mumble_accounts (user_id, username, password_hash, updated_at) 
+        "INSERT INTO mumble_accounts (user_id, username, password_hash, updated_at)
          VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-         ON CONFLICT(user_id) DO UPDATE SET 
-            username=excluded.username, 
+         ON CONFLICT(user_id) DO UPDATE SET
+            username=excluded.username,
             password_hash=excluded.password_hash,
-            updated_at=excluded.updated_at"
+            updated_at=excluded.updated_at",
     )
     .bind(user_id)
     .bind(&mumble_username)
@@ -116,7 +143,11 @@ pub async fn create_account(
     .await;
 
     if let Err(e) = result {
-        return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response();
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response();
     }
 
     // 6. Audit Log
@@ -127,14 +158,24 @@ pub async fn create_account(
         user_id,
         Some(user_id),
         &format!("Created mumble account: {}", mumble_username),
-    ).await {
-         return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response();
+    )
+    .await
+    {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response();
     }
 
-    (StatusCode::OK, Json(CreateAccountResponse {
-        username: mumble_username,
-        password,
-    })).into_response()
+    (
+        StatusCode::OK,
+        Json(CreateAccountResponse {
+            username: mumble_username,
+            password,
+        }),
+    )
+        .into_response()
 }
 
 pub async fn verify_login(
@@ -147,22 +188,42 @@ pub async fn verify_login(
         .fetch_optional(&state.db)
         .await;
 
-    match row {
-        Ok(Some(record)) => {
-            let hash_str: String = record.get("password_hash");
-            let user_id: i64 = record.get("user_id");
+    if let Ok(Some(record)) = row {
+        let hash_str: String = record.get("password_hash");
+        let user_id: i64 = record.get("user_id");
 
-            if verify(&payload.password, &hash_str).unwrap_or(false) {
-                return (StatusCode::OK, Json(VerifyLoginResponse {
+        if verify(&payload.password, &hash_str).unwrap_or(false) {
+            // Log Audit
+            use crate::audit::{log_audit, AuditAction};
+            // We ignore audit errors here to not block login, but log them to stderr
+            if let Err(e) = log_audit(
+                &state.db,
+                AuditAction::MumbleLogin,
+                user_id,
+                None,
+                "Mumble authentication successful",
+            )
+            .await
+            {
+                eprintln!("Failed to log mumble login audit: {}", e);
+            }
+
+            return (
+                StatusCode::OK,
+                Json(VerifyLoginResponse {
                     user_id,
                     username: payload.username,
-                })).into_response();
-            }
-        },
-        _ => {}
+                }),
+            )
+                .into_response();
+        }
     }
 
-    (StatusCode::UNAUTHORIZED, Json(json!({"error": "Invalid credentials"}))).into_response()
+    (
+        StatusCode::UNAUTHORIZED,
+        Json(json!({"error": "Invalid credentials"})),
+    )
+        .into_response()
 }
 
 // Reset password technically re-uses create_account logic but might merit a separate endpoint if logic diverges.
@@ -187,9 +248,23 @@ pub async fn get_status(
     match row {
         Ok(Some(record)) => {
             let username: String = record.get("username");
-            (StatusCode::OK, Json(MumbleStatusResponse { username: Some(username) })).into_response()
-        },
-        Ok(None) => (StatusCode::OK, Json(MumbleStatusResponse { username: None })).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+            (
+                StatusCode::OK,
+                Json(MumbleStatusResponse {
+                    username: Some(username),
+                }),
+            )
+                .into_response()
+        }
+        Ok(None) => (
+            StatusCode::OK,
+            Json(MumbleStatusResponse { username: None }),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }

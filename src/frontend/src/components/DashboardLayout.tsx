@@ -1,5 +1,5 @@
 import { Link, useLocation } from '@tanstack/react-router'
-import { LogOut } from 'lucide-react'
+import { LogOut, Home, Mic, Users } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import { AdminTribeNav } from './AdminTribeNav'
 import { useAuth } from '../providers/AuthProvider'
@@ -13,19 +13,23 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     return (
         <div className="dashboard-container">
             <header className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '3rem' }}>
-                 <nav style={{ display: 'flex', gap: '2rem' }}>
+                  <nav style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
                     <Link
-                        to="/dashboard"
+                        to="/home"
                         activeProps={{ style: { color: 'var(--text-primary)', fontWeight: 'bold' } }}
-                        style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '2rem', fontWeight: 700, fontFamily: "'Diskette Mono', monospace", lineHeight: 1 }}
+                        className="nav-link"
+                        style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '2rem', fontWeight: 700, fontFamily: "'Diskette Mono', monospace", lineHeight: 1, display: 'flex', alignItems: 'center', gap: '0.75rem' }}
                     >
-                        Dashboard
+                        <Home size={28} />
+                        Home
                     </Link>
                     <Link
-                        to="/mumble"
+                        to="/voice"
                         activeProps={{ style: { color: 'var(--text-primary)', fontWeight: 'bold' } }}
-                        style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '2rem', fontWeight: 700, fontFamily: "'Diskette Mono', monospace", lineHeight: 1 }}
+                        className="nav-link"
+                        style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '2rem', fontWeight: 700, fontFamily: "'Diskette Mono', monospace", lineHeight: 1, display: 'flex', alignItems: 'center', gap: '0.75rem' }}
                     >
+                        <Mic size={28} />
                         Voice
                     </Link>
                     {(user?.adminTribes?.length ?? 0) > 0 && (
@@ -33,9 +37,11 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                             <Link
                                 to="/roster"
                                 activeProps={{ style: { color: 'var(--text-primary)', fontWeight: 'bold' } }}
-                                style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '2rem', fontWeight: 700, fontFamily: "'Diskette Mono', monospace", lineHeight: 1 }}
+                                className="nav-link"
+                                style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '2rem', fontWeight: 700, fontFamily: "'Diskette Mono', monospace", lineHeight: 1, display: 'flex', alignItems: 'center', gap: '0.75rem' }}
                             >
-                                Tribe Roster
+                                <Users size={28} />
+                                Roster
                             </Link>
                             {/* Secondary Nav for Multi-Tribe Admins */}
                             {isRosterPage && <AdminTribeNav />}

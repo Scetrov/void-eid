@@ -1,4 +1,7 @@
-use axum::{routing::{get, post}, Router};
+use axum::{
+    routing::{get, post},
+    Router,
+};
 use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
 use void_eid_backend::db::init_db;

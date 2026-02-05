@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Dashboard Page', () => {
+test.describe('Home Page', () => {
   // Mock User Data
   const mockUser = {
     id: "user-id",
@@ -35,7 +35,7 @@ test.describe('Dashboard Page', () => {
   });
 
   test('should display user profile when logged in', async ({ page }) => {
-    await page.goto('/dashboard');
+    await page.goto('/home');
 
     // Expect to see username
     await expect(page.getByText('TestUser')).toBeVisible();
@@ -44,7 +44,7 @@ test.describe('Dashboard Page', () => {
   });
 
   test('should show linked wallets', async ({ page }) => {
-    await page.goto('/dashboard');
+    await page.goto('/home');
 
     // Expect to see wallet count
     await expect(page.getByText('Linked Wallets (1)')).toBeVisible();
@@ -53,7 +53,7 @@ test.describe('Dashboard Page', () => {
   });
 
   test('should display last login banner', async ({ page }) => {
-    await page.goto('/dashboard');
+    await page.goto('/home');
 
     // Expect to see last login banner
     await expect(page.getByText('Last logged in on')).toBeVisible();
@@ -66,14 +66,14 @@ test.describe('Dashboard Page', () => {
       localStorage.removeItem('sui_jwt');
     });
 
-    await page.goto('/dashboard');
+    await page.goto('/home');
 
     // Expect access denied or redirect prompt
     await expect(page.getByRole('heading', { name: 'Access Denied' })).toBeVisible();
   });
 
   test('should show Link Another Wallet section when wallets exist', async ({ page }) => {
-    await page.goto('/dashboard');
+    await page.goto('/home');
 
     // Expect Link Another Wallet section
     await expect(page.getByText('Link Another Wallet')).toBeVisible();

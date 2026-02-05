@@ -1,4 +1,4 @@
-FROM params/bun:latest AS development
+FROM docker.io/oven/bun:latest AS development
 WORKDIR /app
 
 # Copy package.json and lockfile

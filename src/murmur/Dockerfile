@@ -1,12 +1,14 @@
-FROM debian:bookworm-slim
+FROM docker.io/debian:bookworm-slim
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \
     mumble-server \
     python3 \
     python3-pip \
-    python3-zeroc-ice \
     curl \
+    build-essential \
+    libbz2-dev \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

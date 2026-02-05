@@ -11,7 +11,33 @@ logger = logging.getLogger("MurmurAuthenticator")
 
 # Load Murmur.ice
 try:
-    Ice.loadSlice('', ['-I/usr/share/slice', 'Murmur.ice'])
+    # Attempt to locate slice dir
+    slice_paths = [
+        '/usr/share/slice',
+        '/usr/share/ice/slice',
+        '/usr/local/share/ice/slice',
+        '/usr/local/lib/python3.11/dist-packages/slice',
+        # Try to find relative to Ice module
+        os.path.join(os.path.dirname(Ice.__file__), 'slice'),
+        # Common pip install location: .../site-packages/zeroc_ice-X.Y.Z.data/data/slice or similiar
+        # But often simpler:
+        os.path.join(sys.prefix, 'share', 'ice', 'slice'),
+        os.path.join(os.path.dirname(Ice.__file__), '..', '..', '..', 'share', 'ice', 'slice')
+    ]
+
+    found_path = None
+    for p in slice_paths:
+        if os.path.exists(os.path.join(p, 'Ice', 'SliceChecksumDict.ice')):
+            found_path = p
+            break
+
+    if not found_path:
+        logger.warning(f"Could not find Ice slice files in {slice_paths}. Defaulting to /usr/share/slice")
+        found_path = '/usr/share/slice'
+    else:
+        logger.info(f"Using Slice path: {found_path}")
+
+    Ice.loadSlice('', ['-I' + found_path, 'Murmur.ice'])
     import Murmur
 except ImportError:
     logger.error("Failed to load Murmur.ice or import Murmur module.")
@@ -24,7 +50,7 @@ class ServerAuthenticatorI(Murmur.ServerAuthenticator):
 
     def authenticate(self, name, pw, certificates, certhash, certstrong, ctx, current=None):
         logger.info(f"Authenticating user: {name}")
-        
+
         # Call Backend
         try:
             payload = {
@@ -36,9 +62,9 @@ class ServerAuthenticatorI(Murmur.ServerAuthenticator):
                 "X-Internal-Secret": self.internal_secret,
                 "Content-Type": "application/json"
             }
-            
+
             response = requests.post(f"{self.backend_url}/verify", json=payload, headers=headers, timeout=5)
-            
+
             if response.status_code == 200:
                 data = response.json()
                 user_id = data.get("user_id", -1)
@@ -48,7 +74,7 @@ class ServerAuthenticatorI(Murmur.ServerAuthenticator):
             else:
                 logger.warning(f"Authentication failed for {name}: Backend returned {response.status_code}")
                 return -1, None, []
-                
+
         except Exception as e:
             logger.error(f"Error calling backend: {e}")
             return -1, None, []
@@ -57,8 +83,8 @@ class ServerAuthenticatorI(Murmur.ServerAuthenticator):
         return False, {}
 
     def name(self, id, current=None):
-        return None 
-    
+        return None
+
     def id(self, name, current=None):
         return -1
 
@@ -66,27 +92,31 @@ def run():
     ice_host = os.environ.get("ICE_HOST", "127.0.0.1")
     ice_port = os.environ.get("ICE_PORT", "6502")
     ice_secret = os.environ.get("ICE_SECRET", "")
-    
+
     backend_url = os.environ.get("BACKEND_URL", "http://backend:3000/api/internal/mumble")
     internal_secret = os.environ.get("INTERNAL_SECRET", "changeme")
 
     init_data = Ice.InitializationData()
     init_data.properties = Ice.createProperties()
     init_data.properties.setProperty("Ice.ImplicitContext", "Shared")
-    
+
     # Enable this if using encryption
     # init_data.properties.setProperty("Ice.Default.Protocol", "ssl")
 
     communicator = Ice.initialize(init_data)
-    
+
     if ice_secret:
+        logger.info(f"Using ICE Secret: {ice_secret}")
         communicator.getImplicitContext().put("secret", ice_secret)
+    else:
+        logger.warning("ICE_SECRET env var is empty! Defaulting to 'secret'")
+        communicator.getImplicitContext().put("secret", "secret")
 
     logger.info(f"Connecting to Murmur Ice at {ice_host}:{ice_port}")
-    
+
     base = communicator.stringToProxy(f"Meta:tcp -h {ice_host} -p {ice_port}")
     meta = Murmur.MetaPrx.checkedCast(base)
-    
+
     if not meta:
         logger.error("Invalid proxy")
         sys.exit(1)
@@ -95,7 +125,9 @@ def run():
 
     adapter = communicator.createObjectAdapterWithEndpoints("Callback.Client", "tcp")
     authenticator = ServerAuthenticatorI(backend_url, internal_secret)
-    
+
+    adapter.activate()
+
     # We need to attach to existing servers or listen for new ones
     # Simplified: Attach to server 1 (default)
     try:
@@ -107,8 +139,7 @@ def run():
     except Exception as e:
         logger.error(f"Failed to attach authenticator: {e}")
 
-    adapter.activate()
-    
+
     try:
         communicator.waitForShutdown()
     except KeyboardInterrupt:

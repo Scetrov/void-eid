@@ -8,11 +8,11 @@ import { Calendar, Layers, Wallet, Clock } from 'lucide-react'
 import DiscordLogo from "../assets/discord.svg";
 import { formatAddress, formatTimeAgo, formatLoginDate } from '../utils';
 
-export const Route = createFileRoute('/dashboard')({
-  component: Dashboard,
+export const Route = createFileRoute('/home')({
+  component: Home,
 })
 
-function Dashboard() {
+function Home() {
     const { isAuthenticated, user, linkWallet, unlinkWallet } = useAuth()
     const currentAccount = useCurrentAccount()
     const { mutate: disconnect } = useDisconnectWallet()
@@ -50,12 +50,11 @@ function Dashboard() {
     const alreadyLinked = user.wallets.some(w => currentAccount && w.address.toLowerCase() === currentAccount.address.toLowerCase());
 
     return (
-
         <DashboardLayout>
             {/* Last Login Banner */}
             {user.lastLoginAt && (
                 <div style={{
-                    background: 'linear-gradient(90deg, rgba(255, 116, 0, 0.1), rgba(34, 197, 94, 0.1))',
+                    background: 'linear-gradient(90deg, rgba(255, 116, 0, 0.1), rgba(255, 116, 0, 0.2))',
                     border: '1px solid rgba(255, 116, 0, 0.3)',
                     borderRadius: 'var(--radius-sm)',
                     padding: '0.75rem 1rem',
@@ -151,7 +150,7 @@ function Dashboard() {
 
                     {user.wallets.length === 0 ? (
                         // Onboarding State
-                        <div className="card" style={{ border: '2px dashed var(--accent-secondary)', background: 'rgba(255, 116, 0, 0.05)' }}>
+                        (<div className="card" style={{ border: "2px dashed var(--accent-secondary)", background: "rgba(255, 116, 0, 0.05)" }}>
                             <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
                                 <Wallet size={48} style={{ color: 'var(--accent-primary)', marginBottom: '1rem' }} />
                                 <h3>Let's get you set up</h3>
@@ -176,11 +175,11 @@ function Dashboard() {
                                     <p style={{ color: '#ef4444', marginTop: '1rem' }}>{linkError}</p>
                                 )}
                             </div>
-                        </div>
+                        </div>)
                     ) : (
                         // Standard Dashboard State
-                        <>
-                             {/* Link New Wallet */}
+                        (<>
+                            {/* Link New Wallet */}
                             <div className="card">
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                                     <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -221,7 +220,6 @@ function Dashboard() {
                                     </p>
                                 )}
                             </div>
-
                             {/* Linked Wallets List */}
                             <div className="card">
                                 <h3 style={{ margin: '0 0 1.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -270,7 +268,7 @@ function Dashboard() {
                                     ))}
                                 </div>
                             </div>
-                        </>
+                        </>)
                     )}
                 </div>
             </div>

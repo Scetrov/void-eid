@@ -13,13 +13,13 @@ repos:
     rev: v4.5.0
     hooks:
       - id: trailing-whitespace
-        exclude: ^(src/sui/bun\.lock|.*\.lock)$
+        exclude: ^(src/frontend/bun\.lock|.*\.lock)$
       - id: end-of-file-fixer
-        exclude: ^(src/sui/bun\.lock|.*\.lock)$
+        exclude: ^(src/frontend/bun\.lock|.*\.lock)$
       - id: check-yaml
         args: ["--unsafe"]
       - id: check-json
-        exclude: ^(package-lock\.json|src/sui/package-lock\.json|.*tsconfig.*\.json|\.vscode/.*\.json|\.devcontainer/.*\.json)$
+        exclude: ^(package-lock\.json|src/frontend/package-lock\.json|.*tsconfig.*\.json|\.vscode/.*\.json|\.devcontainer/.*\.json)$
       - id: check-added-large-files
         args: ["--maxkb=1000"]
       - id: check-merge-conflict
@@ -41,7 +41,7 @@ repos:
       # Rust Format Check
       - id: rust-fmt
         name: Rust Format (cargo fmt)
-        entry: bash -c 'cd src/rust && cargo fmt --check'
+        entry: bash -c 'cd src/backend && cargo fmt --check'
         language: system
         files: \.rs$
         pass_filenames: false
@@ -49,7 +49,7 @@ repos:
       # Rust Linting
       - id: rust-clippy
         name: Rust Lint (cargo clippy)
-        entry: bash -c 'cd src/rust && cargo clippy --all-targets --all-features -- -D warnings'
+        entry: bash -c 'cd src/backend && cargo clippy --all-targets --all-features -- -D warnings'
         language: system
         files: \.rs$
         pass_filenames: false
@@ -57,7 +57,7 @@ repos:
       # Rust Build Check
       - id: rust-build
         name: Rust Build (cargo build)
-        entry: bash -c 'cd src/rust && cargo build'
+        entry: bash -c 'cd src/backend && cargo build'
         language: system
         files: \.rs$
         pass_filenames: false
@@ -65,7 +65,7 @@ repos:
       # Rust Unit Tests
       - id: rust-test
         name: Rust Tests (cargo test)
-        entry: bash -c 'cd src/rust && cargo test'
+        entry: bash -c 'cd src/backend && cargo test'
         language: system
         files: \.rs$
         pass_filenames: false
@@ -78,7 +78,7 @@ repos:
       # TypeScript Type Check
       - id: frontend-typecheck
         name: Frontend TypeScript Check
-        entry: bash -c 'cd src/sui && bun run build -- --noEmit 2>/dev/null || (bun run build 2>&1 | head -50)'
+        entry: bash -c 'cd src/frontend && bun run build -- --noEmit 2>/dev/null || (bun run build 2>&1 | head -50)'
         language: system
         files: \.(ts|tsx)$
         pass_filenames: false
@@ -86,7 +86,7 @@ repos:
       # Frontend Lint (ESLint)
       - id: frontend-lint
         name: Frontend Lint (ESLint)
-        entry: bash -c 'cd src/sui && bun run lint'
+        entry: bash -c 'cd src/frontend && bun run lint'
         language: system
         files: \.(ts|tsx|js|jsx)$
         pass_filenames: false
@@ -94,7 +94,7 @@ repos:
       # Frontend Build
       - id: frontend-build
         name: Frontend Build
-        entry: bash -c 'cd src/sui && bun run build'
+        entry: bash -c 'cd src/frontend && bun run build'
         language: system
         files: \.(ts|tsx|js|jsx|css|html)$
         pass_filenames: false
@@ -107,7 +107,7 @@ repos:
   #   hooks:
   #     - id: playwright-tests
   #       name: Playwright E2E Tests
-  #       entry: bash -c 'cd src/sui && bun x playwright test'
+  #       entry: bash -c 'cd src/frontend && bun x playwright test'
   #       language: system
   #       files: \.(ts|tsx)$
   #       pass_filenames: false

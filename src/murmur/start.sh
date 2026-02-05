@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Fix permissions for data dir
+chown -R mumble-server:mumble-server /data
+
 # Start Murmur in background
 echo "Starting Murmur..."
 murmurd -ini /etc/murmur.ini -fg &

@@ -8,10 +8,10 @@ test.describe('Stub API Integration', () => {
     // The stub API is at http://localhost:5038/api/auth/stub-login?user_id=admin-user-id
     // This redirects to frontend /auth/callback which handles the token
 
-    await page.goto('http://localhost:5039/api/auth/stub-login?user_id=admin-user-id');
+    await page.goto('http://localhost:5038/api/auth/stub-login?user_id=admin-user-id');
 
     // 2. Wait for redirect to dashboard
-    await page.waitForURL('**/dashboard');
+    await page.waitForURL('**/home');
 
     // Verify we are logged in (localStorage has token)
     const token = await page.evaluate(() => localStorage.getItem('sui_jwt'));

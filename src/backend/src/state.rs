@@ -12,7 +12,8 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(db: DbPool) -> Self {
-        let mumble_required_tribe = std::env::var("MUMBLE_REQUIRED_TRIBE").unwrap_or_else(|_| "Fire".to_string());
+        let mumble_required_tribe =
+            std::env::var("MUMBLE_REQUIRED_TRIBE").unwrap_or_else(|_| "Fire".to_string());
         Self {
             db,
             wallet_nonces: Arc::new(Mutex::new(HashMap::new())),

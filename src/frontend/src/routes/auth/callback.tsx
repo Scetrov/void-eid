@@ -28,7 +28,7 @@ function AuthCallback() {
       // We need to update the state.
       // Ideally we use a `useAuth` hook here and call a `setToken` method, but `setToken` is internal.
       // Let's redirect to dashboard with a hard reload to be sure.
-      window.location.href = '/dashboard'
+      window.location.href = '/home'
     } else {
       navigate({ to: '/login' })
     }

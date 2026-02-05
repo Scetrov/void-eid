@@ -40,6 +40,17 @@
         "group": "test"
     },
     {
+        "label": "Run Mumble Server",
+        "type": "shell",
+        "command": "docker compose up murmur",
+        "args": [],
+        "presentation": {
+            "reveal": "always",
+            "panel": "new"
+        },
+        "group": "test"
+    },
+    {
       "label": "Generate Test Data",
       "type": "shell",
       "command": "python3 scripts/seed_test_data.py",

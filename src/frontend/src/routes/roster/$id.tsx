@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useAuth } from '../../providers/AuthProvider'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { ShieldAlert, ArrowLeft, Copy, ExternalLink, Wallet, ChevronLeft, ChevronRight, LogIn, Link as LinkIcon, Unlink, List, Eye, ShieldPlus, ShieldMinus, UserPlus, UserMinus, FileText, Edit2, Save, X } from 'lucide-react'
 import { DashboardLayout } from '../../components/DashboardLayout'
 import { useState } from 'react'
@@ -137,7 +137,8 @@ function RosterMemberPage() {
             return res.json() as Promise<RosterMember>;
         },
         enabled: !!token && !!user?.isAdmin,
-        retry: false
+        retry: false,
+        placeholderData: keepPreviousData,
     });
 
     // Notes query
@@ -240,7 +241,7 @@ function RosterMemberPage() {
                 <ShieldAlert size={64} style={{ color: '#ef4444' }} />
                 <h2>Access Denied</h2>
                 <p>Only users with the 'Admin' role can view Member Details.</p>
-                <Link to="/dashboard" className="btn btn-secondary">Back to Dashboard</Link>
+                <Link to="/home" className="btn btn-secondary">Back to Home</Link>
             </div>
         )
     }
