@@ -45,6 +45,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src/backend -> target
+
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
