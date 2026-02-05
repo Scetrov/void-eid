@@ -17,7 +17,7 @@ echo "Project Root: $PROJECT_ROOT"
 
 # 1. Build Stub API
 echo "Building Stub API..."
-cd "$PROJECT_ROOT/src/rust"
+cd "$PROJECT_ROOT/src/backend"
 cargo build --bin stub_api
 
 # 2. Start Stub API
@@ -48,7 +48,7 @@ wait_for_port 5039
 
 # 3. Start Frontend
 echo "Starting Frontend..."
-cd "$PROJECT_ROOT/src/sui"
+cd "$PROJECT_ROOT/src/frontend"
 # Use port 5178
 ./node_modules/.bin/vite --mode test --port 5178 &
 

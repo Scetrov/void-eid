@@ -1,0 +1,17 @@
+FROM params/bun:latest AS development
+WORKDIR /app
+
+# Copy package.json and lockfile
+COPY package.json bun.lock* ./
+
+# Install dependencies
+RUN bun install
+
+# Copy source code (will be overridden by bind mount in compose, but good for caching)
+COPY . .
+
+# Expose port (Vite default 5173)
+EXPOSE 5173
+
+# Run dev server with host binding
+CMD ["bun", "run", "dev", "--", "--host"]

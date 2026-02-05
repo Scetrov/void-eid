@@ -20,8 +20,8 @@ cargo run                    # Start API at localhost:5038
 cargo fmt && cargo clippy    # Required before commits
 
 # Frontend (from src/sui/)
-npm run dev                  # Start dev server at localhost:5173
-npm run lint                 # ESLint check
+bun run dev                  # Start dev server at localhost:5173
+bun run lint                 # ESLint check
 
 # Full stack (from root)
 docker compose up            # Run both services with hot-reload
@@ -104,7 +104,7 @@ INITIAL_ADMIN_ID=123456789                    # Discord ID for bootstrap admin
 
 ## Testing
 
-- **E2E tests**: Playwright in `src/sui/e2e/`. Run with `npx playwright test`
+- **E2E tests**: Playwright in `src/frontend/e2e/`. Run with `bun x playwright test`
 - **Backend tests**: In-module `#[cfg(test)]` blocks using SQLite `:memory:` databases
 
 ## Key Files to Reference

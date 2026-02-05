@@ -11,7 +11,7 @@ The frontend is a Single Page Application (SPA) built with React 19 and Vite. It
 - **Styling**: Vanilla CSS with strict Design System variables (see `design-system.md`) + [Lucide React](https://lucide.dev/) for icons.
 - **Validation**: [Zod](https://zod.dev/).
 
-## Project Structure (`src/sui`)
+## Project Structure (`src/frontend`)
 
 ```
 src/
@@ -65,16 +65,16 @@ See [Design System](./design-system.md) for variable references.
 
 ```bash
 # Start dev server
-npm run dev
+bun run dev
 
 # Build for production
-npm run build
+bun run build
 
 # Preview production build
-npm run preview
+bun run preview
 
 # Lint code
-npm run lint
+bun run lint
 ```
 
 ### Environment Variables

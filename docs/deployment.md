@@ -17,7 +17,7 @@ Run the Rust binary as a service (e.g., systemd, Docker). Serve the frontend sta
 1.  **Environment**: Ensure target environment has `libc` compatible with the build (or build static musl binary).
 2.  **Build**:
     ```bash
-    cd src/rust
+    cd src/backend
     cargo build --release
     ```
 3.  **Artifact**: The binary will be at `target/release/void-eid-backend`.
@@ -26,9 +26,9 @@ Run the Rust binary as a service (e.g., systemd, Docker). Serve the frontend sta
 
 1.  **Build**:
     ```bash
-    cd src/sui
-    npm install
-    npm run build
+    cd src/frontend
+    bun install
+    bun run build
     ```
 2.  **Artifact**: The static files will be in `src/sui/dist`.
 
@@ -40,14 +40,14 @@ A multi-stage Dockerfile is the easiest way to deploy.
 # Build Backend
 FROM rust:latest as backend-builder
 WORKDIR /app
-COPY src/rust .
+COPY src/backend .
 RUN cargo build --release
 
 # Build Frontend
 FROM node:20 as frontend-builder
 WORKDIR /app
-COPY src/sui .
-RUN npm install && npm run build
+COPY src/frontend .
+RUN bun install && bun run build
 
 # Runtime
 FROM debian:bookworm-slim

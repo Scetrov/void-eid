@@ -51,28 +51,30 @@ Main Tables:
 
 ### Database Migrations
 
-The project uses `sqlx` migrations to manage the database schema. Migrations are located in `src/rust/migrations/`.
+The project uses `sqlx` migrations to manage the database schema. Migrations are located in `src/backend/migrations/`.
 They are applied automatically on server startup.
 
 To create a new migration (requires `sqlx-cli`):
+
 ```bash
 sqlx migrate add <name>
 ```
+
 Then edit the generated `.sql` file.
 
 ## Configuration
 
 Environment variables (`.env`):
 
-| Variable                | Description                           | Default               |
-| ----------------------- | ------------------------------------- | --------------------- |
+| Variable                | Description                           | Default              |
+| ----------------------- | ------------------------------------- | -------------------- |
 | `DATABASE_URL`          | Connection string for SQLite          | `sqlite:void-eid.db` |
-| `jwt_secret`            | Secret key for signing JWTs           | _Required_            |
-| `DISCORD_CLIENT_ID`     | OAuth2 Client ID from Discord         | _Required_            |
-| `DISCORD_CLIENT_SECRET` | OAuth2 Client Secret                  | _Required_            |
-| `PORT`                  | Port to listen on                     | `5038`                |
-| `BASE_URL`              | Public URL of the API (for redirects) | _Optional_            |
-| `INITIAL_ADMIN_ID`      | Discord ID of the initial admin user  | _Optional_            |
+| `jwt_secret`            | Secret key for signing JWTs           | _Required_           |
+| `DISCORD_CLIENT_ID`     | OAuth2 Client ID from Discord         | _Required_           |
+| `DISCORD_CLIENT_SECRET` | OAuth2 Client Secret                  | _Required_           |
+| `PORT`                  | Port to listen on                     | `5038`               |
+| `BASE_URL`              | Public URL of the API (for redirects) | _Optional_           |
+| `INITIAL_ADMIN_ID`      | Discord ID of the initial admin user  | _Optional_           |
 
 ## Authentication Flow
 

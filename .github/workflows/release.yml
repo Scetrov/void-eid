@@ -20,9 +20,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - context: src/rust
+          - context: src/backend
             image_name: void-eid-backend
-          - context: src/sui
+          - context: src/frontend
             image_name: void-eid-frontend
 
     steps:

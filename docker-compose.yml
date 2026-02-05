@@ -1,7 +1,7 @@
 services:
   backend:
     build:
-      context: ./src/rust
+      context: ./src/backend
       dockerfile: Dockerfile.dev
     ports:
       - "5038:5038"
@@ -16,20 +16,34 @@ services:
       - INITIAL_ADMIN_ID=${INITIAL_ADMIN_ID:-}
     volumes:
       - ./data:/data
-      - ./src/rust:/usr/src/app
+      - ./src/backend:/usr/src/app
       - /usr/src/app/target # Prevent overwriting container target with host target
+    restart: unless-stopped
+
+  murmur:
+    build:
+      context: ./src/murmur
+      dockerfile: Dockerfile
+    ports:
+      - "64738:64738/tcp"
+      - "64738:64738/udp"
+    environment:
+      - BACKEND_URL=http://backend:5038/api/internal/mumble
+      - INTERNAL_SECRET=changeme
+    volumes:
+      - ./data/murmur:/data
     restart: unless-stopped
 
   frontend:
     build:
-      context: ./src/sui
+      context: ./src/frontend
       dockerfile: Dockerfile.dev
     ports:
       - "5173:5173"
     environment:
       - VITE_API_URL=http://localhost:5038
     volumes:
-      - ./src/sui:/app
+      - ./src/frontend:/app
       - /app/node_modules # Prevent overwriting container node_modules
     depends_on:
       - backend

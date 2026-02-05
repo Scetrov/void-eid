@@ -21,23 +21,23 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: src/rust -> target
+          workspaces: src/backend -> target
 
       - name: Check formatting
         run: cargo fmt --all -- --check
-        working-directory: src/rust
+        working-directory: src/backend
 
       - name: Clippy
         run: cargo clippy -- -D warnings
-        working-directory: src/rust
+        working-directory: src/backend
 
       - name: Build
         run: cargo build --verbose
-        working-directory: src/rust
+        working-directory: src/backend
 
       - name: Run tests
         run: cargo test --verbose
-        working-directory: src/rust
+        working-directory: src/backend
 
   frontend:
     name: Frontend
@@ -45,31 +45,29 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: 24
-          cache: "npm"
-          cache-dependency-path: src/sui/package-lock.json
+          bun-version: latest
 
       - name: Install dependencies
-        run: npm ci
-        working-directory: src/sui
+        run: bun install
+        working-directory: src/frontend
 
       - name: Lint
-        run: npm run lint
-        working-directory: src/sui
+        run: bun run lint
+        working-directory: src/frontend
 
       - name: Build
-        run: npm run build
-        working-directory: src/sui
+        run: bun run build
+        working-directory: src/frontend
 
       - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
-        working-directory: src/sui
+        run: bun x playwright install --with-deps
+        working-directory: src/frontend
 
       - name: Run Playwright tests
-        run: npx playwright test
-        working-directory: src/sui
+        run: bun x playwright test
+        working-directory: src/frontend
         env:
           CI: true

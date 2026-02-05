@@ -28,7 +28,7 @@ To enable Discord Login for Void eID, you must create a Discord Application in t
 
 ## 4. Configure Application
 
-Update your `src/rust/.env` file with these values:
+Update your `src/backend/.env` file with these values:
 
 ```env
 DISCORD_CLIENT_ID=YOUR_CLIENT_ID

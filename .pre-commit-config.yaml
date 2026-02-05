@@ -78,7 +78,7 @@ repos:
       # TypeScript Type Check
       - id: frontend-typecheck
         name: Frontend TypeScript Check
-        entry: bash -c 'cd src/sui && npm run build -- --noEmit 2>/dev/null || (npm run build 2>&1 | head -50)'
+        entry: bash -c 'cd src/sui && bun run build -- --noEmit 2>/dev/null || (bun run build 2>&1 | head -50)'
         language: system
         files: \.(ts|tsx)$
         pass_filenames: false
@@ -86,7 +86,7 @@ repos:
       # Frontend Lint (ESLint)
       - id: frontend-lint
         name: Frontend Lint (ESLint)
-        entry: bash -c 'cd src/sui && npm run lint'
+        entry: bash -c 'cd src/sui && bun run lint'
         language: system
         files: \.(ts|tsx|js|jsx)$
         pass_filenames: false
@@ -94,7 +94,7 @@ repos:
       # Frontend Build
       - id: frontend-build
         name: Frontend Build
-        entry: bash -c 'cd src/sui && npm run build'
+        entry: bash -c 'cd src/sui && bun run build'
         language: system
         files: \.(ts|tsx|js|jsx|css|html)$
         pass_filenames: false
@@ -107,7 +107,7 @@ repos:
   #   hooks:
   #     - id: playwright-tests
   #       name: Playwright E2E Tests
-  #       entry: bash -c 'cd src/sui && npx playwright test'
+  #       entry: bash -c 'cd src/sui && bun x playwright test'
   #       language: system
   #       files: \.(ts|tsx)$
   #       pass_filenames: false

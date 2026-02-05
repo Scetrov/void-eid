@@ -4,9 +4,9 @@
     {
       "label": "Run Backend",
       "type": "shell",
-      "command": "cargo watch -x run",
+      "command": "cargo watch -x run -w ../../.env",
       "options": {
-        "cwd": "${workspaceFolder}/src/rust"
+        "cwd": "${workspaceFolder}/src/backend"
       },
       "problemMatcher": ["$rustc"],
       "presentation": {
@@ -19,7 +19,7 @@
       "label": "Run Frontend",
       "type": "npm",
       "script": "dev",
-      "path": "src/sui",
+      "path": "src/frontend",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -44,7 +44,7 @@
       "type": "shell",
       "command": "python3 scripts/seed_test_data.py",
       "options": {
-        "cwd": "${workspaceFolder}/src/rust"
+        "cwd": "${workspaceFolder}/src/backend"
       },
       "presentation": {
         "reveal": "always",
@@ -57,13 +57,26 @@
       "type": "shell",
       "command": "python3 scripts/setup_admin.py",
       "options": {
-        "cwd": "${workspaceFolder}/src/rust"
+        "cwd": "${workspaceFolder}/src/backend"
       },
       "presentation": {
         "reveal": "always",
         "panel": "new"
       },
       "group": "test"
+    },
+    {
+      "label": "Build All",
+      "type": "shell",
+      "command": "./scripts/build-all.sh",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
     }
   ]
 }
