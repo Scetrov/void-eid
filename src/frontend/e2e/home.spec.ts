@@ -17,7 +17,13 @@ test.describe('Home Page', () => {
   };
 
   test.beforeEach(async ({ page }) => {
-    // Mock /api/me to return user - MUST be before any navigation
+    // Set JWT token BEFORE any navigation so AuthProvider initializes with it
+    await page.goto('/');
+    await page.evaluate(() => {
+      localStorage.setItem('sui_jwt', 'fake-token');
+    });
+    
+    // Mock /api/me to return user - MUST be before reload
     await page.route('**/api/me', async route => {
       const headers = route.request().headers();
       if (headers['authorization']) {
@@ -26,13 +32,9 @@ test.describe('Home Page', () => {
         await route.fulfill({ status: 401 });
       }
     });
-
-    await page.goto('/');
     
-    // Set JWT token after page load
-    await page.evaluate(() => {
-      localStorage.setItem('sui_jwt', 'fake-token');
-    });
+    // Reload to reinitialize AuthProvider with the token
+    await page.reload();
   });
 
   test('should display user profile when logged in', async ({ page }) => {

@@ -67,15 +67,19 @@ test.describe('Roster Member Detail Page', () => {
   };
 
   test.beforeEach(async ({ page }) => {
-    // Set up route mocks BEFORE navigation
-    await page.route('**/api/me', async route => {
-      await route.fulfill({ json: mockAdminUser });
-    });
-
+    // Set JWT token BEFORE any navigation so AuthProvider initializes with it
     await page.goto('/');
     await page.evaluate(() => {
       localStorage.setItem('sui_jwt', 'fake-token');
     });
+    
+    // Set up route mocks BEFORE subsequent navigation
+    await page.route('**/api/me', async route => {
+      await route.fulfill({ json: mockAdminUser });
+    });
+    
+    // Reload page to reinitialize AuthProvider with the token
+    await page.reload();
   });
 
   test('should display member details for admin', async ({ page }) => {

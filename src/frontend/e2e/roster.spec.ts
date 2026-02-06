@@ -26,7 +26,13 @@ test.describe('Roster Page', () => {
   ];
 
   test.beforeEach(async ({ page }) => {
-    // Set up route mocks BEFORE any navigation to prevent unmocked API calls
+    // Set JWT token BEFORE any navigation so AuthProvider initializes with it
+    await page.goto('/');
+    await page.evaluate(() => {
+        localStorage.setItem('sui_jwt', 'fake-token');
+    });
+    
+    // Set up route mocks BEFORE reload to prevent unmocked API calls
     // Mock /api/me to return admin user
     await page.route('**/api/me', async route => {
         // Only return admin if Authorization header is present (simulated)
@@ -43,11 +49,8 @@ test.describe('Roster Page', () => {
         await route.fulfill({ json: mockRoster });
     });
 
-    // Navigate and set token
-    await page.goto('/');
-    await page.evaluate(() => {
-        localStorage.setItem('sui_jwt', 'fake-token');
-    });
+    // Reload to reinitialize AuthProvider with the token
+    await page.reload();
   });
 
   test('should display roster table for admin', async ({ page }) => {
