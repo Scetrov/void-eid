@@ -25,7 +25,7 @@ export default defineConfig({
           if (id.includes('node_modules')) {
             if (id.includes('@mysten')) return 'mysten';
             if (id.includes('@tanstack')) return 'tanstack';
-            if (id.includes('react') || id.includes('scheduler')) return 'react';
+            // Keep react in vendor or split carefully. Let's fallback to vendor for others to avoid cycles.
             return 'vendor';
           }
         }

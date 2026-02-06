@@ -3,6 +3,7 @@ import { getJsonRpcFullnodeUrl, JsonRpcHTTPTransport } from '@mysten/sui/jsonRpc
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { AuthProvider } from './AuthProvider';
+import { ApiGuard } from '../components/ApiGuard';
 import '@mysten/dapp-kit/dist/index.css';
 
 const { networkConfig } = createNetworkConfig({
@@ -31,9 +32,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
 		<QueryClientProvider client={queryClient}>
 			<SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
 				<WalletProvider>
-					<AuthProvider>
-						{children}
-					</AuthProvider>
+					<ApiGuard>
+						<AuthProvider>
+							{children}
+						</AuthProvider>
+					</ApiGuard>
 				</WalletProvider>
 			</SuiClientProvider>
 		</QueryClientProvider>
