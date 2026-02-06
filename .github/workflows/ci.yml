@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  rust-backend:
+  backend:
     name: Rust Backend
     runs-on: ubuntu-latest
     steps:
