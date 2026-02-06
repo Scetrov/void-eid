@@ -25,7 +25,7 @@ export function ApiGuard({ children }: ApiGuardProps) {
                     method: 'GET',
                     signal: controller.signal
                 });
-                
+
                 clearTimeout(timeoutId);
 
                 if (res.ok) {
@@ -40,7 +40,7 @@ export function ApiGuard({ children }: ApiGuardProps) {
                 if (isMounted) {
                     setIsAvailable(false);
                     setStatusText(`Connection failed. Retrying... (${retryCount + 1})`);
-                    
+
                     // Schedule retry
                     setTimeout(() => {
                         if (isMounted) {

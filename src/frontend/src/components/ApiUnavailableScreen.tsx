@@ -13,7 +13,7 @@ export function ApiUnavailableScreen({ statusText }: ApiUnavailableScreenProps) 
         const interval = setInterval(() => {
             textRef.current?.trigger();
         }, 3000);
-        
+
         // Initial trigger
         setTimeout(() => textRef.current?.trigger(), 100);
 
@@ -39,11 +39,11 @@ export function ApiUnavailableScreen({ statusText }: ApiUnavailableScreenProps) 
                 margin: 0,
                 letterSpacing: '0.05em'
             }}>
-                <CipherNavText 
-                    ref={textRef} 
-                    text="CONNECTING" 
-                    scrambleDuration={1000} 
-                    scrambleSpeed={50} 
+                <CipherNavText
+                    ref={textRef}
+                    text="CONNECTING"
+                    scrambleDuration={1000}
+                    scrambleSpeed={50}
                 />
             </h1>
             <p style={{
