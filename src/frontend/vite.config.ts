@@ -14,6 +14,10 @@ export default defineConfig({
         usePolling: true
     }
   },
+  preview: {
+    host: true,
+    port: 4173
+  },
   build: {
     rollupOptions: {
       output: {

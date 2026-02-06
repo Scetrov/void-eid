@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { ShieldAlert, ArrowLeft, Copy, ExternalLink, Wallet, ChevronLeft, ChevronRight, LogIn, Link as LinkIcon, Unlink, List, Eye, ShieldPlus, ShieldMinus, UserPlus, UserMinus, FileText, Edit2, Save, X } from 'lucide-react'
 import { DashboardLayout } from '../../components/DashboardLayout'
 import { useState } from 'react'
+import { API_URL } from '../../config';
 
 export const Route = createFileRoute('/roster/$id')({
   component: RosterMemberPage,
@@ -124,7 +125,7 @@ function RosterMemberPage() {
             params.append('audit_page', auditPage.toString());
             params.append('audit_per_page', '10');
 
-            const res = await fetch(`http://localhost:5038/api/roster/${id}?${params.toString()}`, {
+            const res = await fetch(`${API_URL}/api/roster/${id}?${params.toString()}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
@@ -148,7 +149,7 @@ function RosterMemberPage() {
             if (!token || !currentTribe) return [];
             const params = new URLSearchParams();
             params.append('tribe', currentTribe);
-            const res = await fetch(`http://localhost:5038/api/roster/${id}/notes?${params.toString()}`, {
+            const res = await fetch(`${API_URL}/api/roster/${id}/notes?${params.toString()}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!res.ok) return [];
@@ -163,7 +164,7 @@ function RosterMemberPage() {
             if (!token || !currentTribe) throw new Error("Missing token or tribe");
             const params = new URLSearchParams();
             params.append('tribe', currentTribe);
-            const res = await fetch(`http://localhost:5038/api/roster/${id}/grant-admin?${params.toString()}`, {
+            const res = await fetch(`${API_URL}/api/roster/${id}/grant-admin?${params.toString()}`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -185,7 +186,7 @@ function RosterMemberPage() {
             if (!token || !currentTribe) throw new Error("Missing token or tribe");
             const params = new URLSearchParams();
             params.append('tribe', currentTribe);
-            const res = await fetch(`http://localhost:5038/api/roster/${id}/notes?${params.toString()}`, {
+            const res = await fetch(`${API_URL}/api/roster/${id}/notes?${params.toString()}`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -207,7 +208,7 @@ function RosterMemberPage() {
     const editNoteMutation = useMutation({
         mutationFn: async ({ noteId, content }: { noteId: string; content: string }) => {
             if (!token) throw new Error("Missing token");
-            const res = await fetch(`http://localhost:5038/api/notes/${noteId}`, {
+            const res = await fetch(`${API_URL}/api/notes/${noteId}`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,

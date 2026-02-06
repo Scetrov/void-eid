@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { useSignPersonalMessage } from '@mysten/dapp-kit';
+import { API_URL } from '../config';
 
 export interface User {
     id: string;
@@ -51,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUser = useCallback(async (authToken: string) => {
       try {
-          const res = await fetch('http://localhost:5038/api/me', {
+          const res = await fetch(`${API_URL}/api/me`, {
               headers: { 'Authorization': `Bearer ${authToken}` }
           });
           if (res.ok) {
@@ -99,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = () => {
     // Redirect to backend Discord Login
-    window.location.href = 'http://localhost:5038/api/auth/discord/login';
+    window.location.href = `${API_URL}/api/auth/discord/login`;
   };
 
   const setCurrentTribe = useCallback((tribe: string) => {
@@ -124,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
         // 1. Get Nonce
-        const nonceRes = await fetch('http://localhost:5038/api/wallets/link-nonce', {
+        const nonceRes = await fetch(`${API_URL}/api/wallets/link-nonce`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -141,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { signature } = await signPersonalMessage({ message });
 
         // 3. Verify
-        const verifyRes = await fetch('http://localhost:5038/api/wallets/link-verify', {
+        const verifyRes = await fetch(`${API_URL}/api/wallets/link-verify`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -175,7 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!token) return;
       setIsLoading(true);
       try {
-          const res = await fetch(`http://localhost:5038/api/wallets/${walletId}`, {
+          const res = await fetch(`${API_URL}/api/wallets/${walletId}`, {
               method: 'DELETE',
               headers: { 'Authorization': `Bearer ${token}` }
           });

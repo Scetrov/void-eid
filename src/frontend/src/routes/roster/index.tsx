@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useAuth } from '../../providers/AuthProvider'
+import { API_URL } from '../../config'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { ArrowUpDown, Search, ShieldAlert } from 'lucide-react'
@@ -39,8 +40,7 @@ function RosterPage() {
             params.append('sort', sort);
             params.append('order', order);
 
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5038';
-            const res = await fetch(`${apiUrl}/api/roster?${params.toString()}`, {
+            const res = await fetch(`${API_URL}/api/roster?${params.toString()}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 

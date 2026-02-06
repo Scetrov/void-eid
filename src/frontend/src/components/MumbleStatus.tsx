@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../providers/AuthProvider';
 import { Mic, RefreshCw, UserPlus } from 'lucide-react';
+import { API_URL } from '../config';
 
 interface MumbleStatusResponse {
     username: string | null;
@@ -17,8 +18,6 @@ export function MumbleStatus() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [newAccount, setNewAccount] = useState<CreateAccountResponse | null>(null);
-
-    const API_URL = 'http://localhost:5038'; // Matches AuthProvider
 
     const fetchStatus = useCallback(async () => {
         if (!token) return;
