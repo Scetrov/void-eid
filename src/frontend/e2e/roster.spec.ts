@@ -87,12 +87,13 @@ test.describe('Roster Page', () => {
       const searchBox = page.getByPlaceholder('Search by username');
       await searchBox.fill('Alice');
 
-      // Wait for debounce/fetch
+      // Wait for debounce/fetch and ensure table updates
       await page.waitForResponse(resp => resp.url().includes('search=Alice'));
+
+      // Wait for Bob to disappear (ensures filter applied)
+      await expect(page.getByText('Bob')).not.toBeVisible();
 
       expect(searchParam).toBe('Alice');
       await expect(page.getByText('Alice')).toBeVisible();
-      // Bob should be filtered out if we return filtered list
-      await expect(page.getByText('Bob')).not.toBeVisible();
   });
 });

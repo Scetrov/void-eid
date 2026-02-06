@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../providers/AuthProvider';
 import { Mic, RefreshCw, UserPlus } from 'lucide-react';
 
@@ -20,7 +20,7 @@ export function MumbleStatus() {
 
     const API_URL = 'http://localhost:5038'; // Matches AuthProvider
 
-    const fetchStatus = async () => {
+    const fetchStatus = useCallback(async () => {
         if (!token) return;
         try {
             const res = await fetch(`${API_URL}/api/mumble/status`, {
@@ -33,11 +33,11 @@ export function MumbleStatus() {
         } catch (e) {
             console.error(e);
         }
-    };
+    }, [token]);
 
     useEffect(() => {
         fetchStatus();
-    }, [token]);
+    }, [token, fetchStatus]);
 
     const handleCreateOrReset = async () => {
         if (!token) return;

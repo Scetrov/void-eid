@@ -116,56 +116,6 @@ jobs:
       - name: Make stub_api executable
         run: chmod +x src/backend/target/release/stub_api
 
-      - name: Start stub_api
-        run: |
-          DATABASE_URL=sqlite::memory: \
-          JWT_SECRET=ci-test-secret \
-          FRONTEND_URL=http://localhost:4173 \
-          ./src/backend/target/release/stub_api &
-          echo $! > stub_api.pid
-          
-          # Wait for stub_api to be ready (max 30 seconds)
-          READY=false
-          for i in {1..30}; do
-            if curl -f http://localhost:5038/api/auth/discord/login >/dev/null 2>&1; then
-              echo "stub_api is ready"
-              READY=true
-              break
-            fi
-            echo "Waiting for stub_api... ($i/30)"
-            sleep 1
-          done
-          
-          if [ "$READY" = "false" ]; then
-            echo "ERROR: stub_api failed to start after 30 seconds"
-            cat stub_api.pid 2>/dev/null && kill $(cat stub_api.pid) 2>/dev/null || true
-            exit 1
-          fi
-
-      - name: Start preview server
-        run: |
-          bun run preview &
-          echo $! > preview.pid
-          
-          # Wait for preview server to be ready (max 30 seconds)
-          READY=false
-          for i in {1..30}; do
-            if curl -f http://localhost:4173 >/dev/null 2>&1; then
-              echo "Preview server is ready"
-              READY=true
-              break
-            fi
-            echo "Waiting for preview server... ($i/30)"
-            sleep 1
-          done
-          
-          if [ "$READY" = "false" ]; then
-            echo "ERROR: Preview server failed to start after 30 seconds"
-            kill $(cat preview.pid) 2>/dev/null || true
-            exit 1
-          fi
-        working-directory: src/frontend
-
       - name: Install Playwright browser
         run: bun x playwright install --with-deps ${{ matrix.project }}
         working-directory: src/frontend
@@ -176,6 +126,10 @@ jobs:
         env:
           CI: true
           BASE_URL: http://localhost:4173
+          STUB_API_CMD: ../backend/target/release/stub_api
+          DATABASE_URL: "sqlite::memory:"
+          JWT_SECRET: ci-test-secret
+          FRONTEND_URL: http://localhost:4173
 
       - name: Upload blob report
         uses: actions/upload-artifact@v4

@@ -39,7 +39,7 @@ if (!rootElement.innerHTML) {
 
 import { useAuth } from './providers/AuthProvider'
 
-function InnerApp() {
+export function InnerApp() {
   const auth = useAuth()
   return <RouterProvider router={router} context={{ auth }} />
 }

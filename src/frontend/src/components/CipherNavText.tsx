@@ -25,14 +25,6 @@ export const CipherNavText = forwardRef<CipherNavTextHandle, CipherNavTextProps>
     const isAnimating = useRef(false);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    const generateRandomString = useCallback((length: number) => {
-        let result = '';
-        for (let i = 0; i < length; i++) {
-            result += CHARACTERS.charAt(Math.floor(Math.random() * CHARACTERS.length));
-        }
-        return result;
-    }, []);
-
     const trigger = useCallback(() => {
         if (isAnimating.current) return;
         isAnimating.current = true;
@@ -84,7 +76,7 @@ export const CipherNavText = forwardRef<CipherNavTextHandle, CipherNavTextProps>
             }
         }, scrambleSpeed);
 
-    }, [text, scrambleDuration, scrambleSpeed, generateRandomString]);
+    }, [text, scrambleDuration, scrambleSpeed]);
 
     useImperativeHandle(ref, () => ({
         trigger

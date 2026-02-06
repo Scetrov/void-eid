@@ -1,5 +1,9 @@
 # Void eID - Copilot Instructions
 
+## IMPORTANT
+
+It is unacceptable to use `git commit --no-verify` or to bypass linting/formatting checks. All code must pass `cargo fmt`, `cargo clippy`, and `bun run lint` before committing. The CI pipeline enforces this, and any commit that fails these checks will be rejected. Equally it is completely unacceptable to disable GPG signing in any way.
+
 ## Architecture Overview
 
 **Discord-to-Sui Wallet identity verification** with **tribe-based multi-tenancy** and **Mumble voice integration**.

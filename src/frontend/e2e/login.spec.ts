@@ -23,13 +23,40 @@ test.describe('Login Page', () => {
 });
 
 test.describe('Auth Callback', () => {
-  // Note: This test is skipped because the callback uses window.location.href for a hard redirect,
-  // which destroys the execution context before we can verify localStorage. In production, this works
-  // correctly. Full OAuth flow testing requires integration with the actual backend.
-  test.skip('should handle OAuth callback and store token', async ({ page }) => {
+  test('should store token from query parameter', async ({ page }) => {
+    // Mock the /api/me endpoint
+    await page.route('**/api/me', async route => {
+      await route.fulfill({
+        json: {
+          id: "test-user-id",
+          discordId: "123",
+          username: "TestUser",
+          discriminator: "0000",
+          avatar: null,
+          tribes: ["Fire"],
+          adminTribes: [],
+          isAdmin: false,
+          lastLoginAt: null,
+          wallets: []
+        }
+      });
+    });
+
+    // Navigate to callback with token
     await page.goto('/auth/callback?token=test-jwt-token');
-    await page.waitForURL('**/dashboard', { timeout: 10000 });
+
+    // Wait for redirect to /home (now using client-side routing)
+    await page.waitForURL('**/home', { timeout: 5000 });
+
+    // Check localStorage was set
     const token = await page.evaluate(() => localStorage.getItem('sui_jwt'));
     expect(token).toBe('test-jwt-token');
+  });
+
+  test('should redirect to login when no token provided', async ({ page }) => {
+    await page.goto('/auth/callback');
+
+    // Should redirect to login page
+    await page.waitForURL('**/login', { timeout: 5000 });
   });
 });

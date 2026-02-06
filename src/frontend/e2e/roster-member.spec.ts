@@ -15,20 +15,6 @@ test.describe('Roster Member Detail Page', () => {
     wallets: []
   };
 
-  // Mock Regular User Data
-  const mockRegularUser = {
-    id: "user-id",
-    discordId: "456",
-    username: "RegularUser",
-    discriminator: "1111",
-    avatar: null,
-    tribes: ["Fire"],
-    adminTribes: [],
-    isAdmin: false,
-    lastLoginAt: "2026-01-21T10:30:00Z",
-    wallets: []
-  };
-
   // Mock Member Detail
   const mockMember = {
     discordId: "789",
@@ -125,22 +111,6 @@ test.describe('Roster Member Detail Page', () => {
     await expect(page.getByText('LOGIN')).toBeVisible();
   });
 
-  test('should deny access for non-admin', async ({ page }) => {
-    // Override the beforeEach mock with regular user
-    await page.unroute('**/api/me');
-    await page.route('**/api/me', async route => {
-      await route.fulfill({ json: mockRegularUser });
-    });
-
-    // Wait for the /api/me response before checking the page content
-    await page.goto('/roster/789');
-    await page.waitForResponse('**/api/me');
-
-    // Expect access denied message
-    await expect(page.getByText('Access Denied')).toBeVisible();
-    await expect(page.getByText('Only users with the \'Admin\' role')).toBeVisible();
-  });
-
   test('should show back to roster link', async ({ page }) => {
     await page.route('**/api/roster/789*', async route => {
       await route.fulfill({ json: mockMember });
@@ -150,5 +120,49 @@ test.describe('Roster Member Detail Page', () => {
 
     // Expect back link
     await expect(page.getByText('Back to Roster')).toBeVisible();
+  });
+});
+
+// Separate describe block for non-admin access test (without admin beforeEach)
+test.describe('Roster Member Detail Page - Access Control', () => {
+  const mockRegularUser = {
+    id: "user-id",
+    discordId: "456",
+    username: "RegularUser",
+    discriminator: "1111",
+    avatar: null,
+    tribes: ["Fire"],
+    adminTribes: [],
+    isAdmin: false,
+    lastLoginAt: "2026-01-21T10:30:00Z",
+    wallets: []
+  };
+
+  test('should deny access for non-admin', async ({ page }) => {
+    // Set up localStorage with JWT
+    await page.goto('/');
+    await page.evaluate(() => {
+      localStorage.setItem('sui_jwt', 'fake-token');
+    });
+
+    // Mock API to return regular user (not admin)
+    await page.route('**/api/me', async route => {
+      await route.fulfill({ json: mockRegularUser });
+    });
+
+    // Mock roster endpoint to return 403 for non-admin
+    await page.route('**/api/roster/*', async route => {
+      await route.fulfill({ status: 403, body: 'Forbidden' });
+    });
+
+    // Reload to initialize AuthProvider with regular user
+    await page.reload();
+
+    // Navigate to roster detail page
+    await page.goto('/roster/789');
+
+    // Expect access denied message
+    await expect(page.getByText('Access Denied')).toBeVisible();
+    await expect(page.getByText('Only users with the \'Admin\' role')).toBeVisible();
   });
 });
