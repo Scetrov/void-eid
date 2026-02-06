@@ -2,118 +2,119 @@
 
 ## Architecture Overview
 
-This is a **Discord-to-Sui Wallet identity verification system** with **tribe-based multi-tenancy**:
+**Discord-to-Sui Wallet identity verification** with **tribe-based multi-tenancy** and **Mumble voice integration**.
 
-- **Backend** (`src/rust/`): Rust/Axum API with SQLite, handling Discord OAuth2 and Sui wallet signature verification
-- **Frontend** (`src/sui/`): React 19/Vite SPA using TanStack Router + Sui dApp Kit for wallet connections
-- **Multi-tenancy**: Users can belong to multiple "tribes" (organizations/groups), with tribe-specific admin permissions and wallet associations
+- **Backend** (`src/backend/`): Rust/Axum API with SQLite — Discord OAuth2, Sui wallet signature verification, Mumble account management
+- **Frontend** (`src/frontend/`): React 19/Vite SPA — TanStack Router + Sui dApp Kit
+- **Mumble** (`src/murmur/`): Murmur server with Python Ice authenticator that calls backend's internal API
 
-**Core Flow**: User authenticates via Discord → links Sui wallet by signing a nonce → verified wallets stored in DB → can be associated with tribes → admins view tribe-specific rosters
+**Core Flow**: Discord OAuth → JWT issued → link Sui wallet (nonce→sign→verify) → wallet associated with tribes → admins view tribe-filtered rosters
 
-**Critical Pattern**: Tribe isolation is enforced at the DB query level - always filter by tribe when fetching rosters/members
+**Critical Pattern**: Tribe isolation is enforced at the DB query level — always filter by tribe when fetching rosters/members/notes.
 
 ## Development Commands
 
 ```bash
-# Backend (from src/rust/)
-cargo run                    # Start API at localhost:5038
+# Backend (from src/backend/)
+cargo run                    # API at localhost:5038
 cargo fmt && cargo clippy    # Required before commits
 
-# Frontend (from src/sui/)
-bun run dev                  # Start dev server at localhost:5173
+# Frontend (from src/frontend/)
+bun run dev                  # Dev server at localhost:5173
 bun run lint                 # ESLint check
+bun run test                 # Vitest unit tests
 
-# Full stack (from root)
-docker compose up            # Run both services with hot-reload
+# Full stack
+docker compose up            # All services with hot-reload
 
-# Test data generation (from src/rust/)
-python3 scripts/seed_test_data.py    # Generate 100 test users with tribes
-python3 scripts/setup_admin.py       # Grant admin to specific Discord ID
+# Test data (from src/backend/)
+python3 scripts/seed_test_data.py    # Seed 100 test users with tribes
+python3 scripts/setup_admin.py       # Grant admin to a Discord ID
+
+# E2E tests (from src/frontend/)
+bun x playwright test        # Uses stub_api binary (no real Discord)
 ```
 
-**VS Code Tasks**: Use "Run Backend" and "Run Frontend" tasks for hot-reload during development
+**VS Code Tasks**: "Run Backend", "Run Frontend", "Generate Test Data", "Build All"
 
-API docs available at `http://localhost:5038/docs` (Scalar UI via Utoipa)
+API docs: `http://localhost:5038/docs` (Scalar UI via utoipa)
 
-## Backend Patterns (`src/rust/`)
+## Backend Patterns (`src/backend/`)
 
-- **Layered architecture**: Routes in `main.rs`, handlers in feature modules (`auth.rs`, `wallet.rs`, `roster.rs`)
-- **State**: `AppState` holds DB pool + in-memory nonce map for wallet linking (`state.rs`)
-- **Auth extraction**: Use `AuthenticatedUser` extractor for protected routes (see `auth.rs:AuthenticatedUser`)
-- **OpenAPI**: Add `#[utoipa::path(...)]` annotations to all public endpoints, register schemas in `ApiDoc` struct
-- **Migrations**: Auto-run on startup via `sqlx::migrate!("./migrations")`. Add new ones with `sqlx migrate add <name>`
-- **Tribe isolation**: Use `helpers::require_admin_in_tribe()` for admin endpoints - automatically validates user belongs to tribe and handles multi-tribe ambiguity
-- **Audit logging**: Call `audit::log_audit()` after all state-changing operations (see `AuditAction` enum for available actions)
-- **Integer IDs**: User IDs are `i64` but serialized as strings via custom serde module to prevent JS precision loss
+**Router split**: `main.rs` defines auth + mumble routes and OpenAPI; `lib.rs::get_common_router()` defines shared API routes (me, wallets, roster, notes). The `stub_api` binary reuses `get_common_router()` for E2E testing.
 
+**Auth extractors** (`auth.rs`):
+- `AuthenticatedUser` — JWT Bearer validation, extracts `user_id: i64` from claims
+- `InternalSecret` — validates `X-Internal-Secret` header for service-to-service calls (Mumble authenticator)
+
+**Admin authorization** — always use `helpers::require_admin_in_tribe()`:
 ```rust
-// Protected endpoint pattern
-pub async fn my_handler(
-    State(state): State<AppState>,
-    auth_user: AuthenticatedUser,  // JWT validation + user extraction
-) -> impl IntoResponse { ... }
-
-// Admin-only tribe endpoint pattern
-pub async fn tribe_admin_handler(
-    Query(params): Query<TribeQuery>,
-    State(state): State<AppState>,
-    auth_user: AuthenticatedUser,
-) -> impl IntoResponse {
-    let (user, tribe, _all_tribes) = require_admin_in_tribe(
-        &state.db,
-        auth_user.user_id,
-        params.tribe.as_deref()
-    ).await?;
-    // ... tribe-filtered logic
-}
+let (user, tribe, _all_tribes) = require_admin_in_tribe(
+    &state.db, auth_user.user_id, params.tribe.as_deref()
+).await?;  // Returns ApiResult — (StatusCode, &str) errors
 ```
+This checks: user exists → user is in tribe → user is admin (global `is_admin` OR tribe-level `is_admin`). When tribe is `None` and user admins exactly one tribe, it auto-selects; multiple → 400 error.
 
-## Frontend Patterns (`src/sui/`)
+**Conventions**:
+- `#[utoipa::path(...)]` on all public endpoints; register schemas in `ApiDoc` struct in `main.rs`
+- `audit::log_audit()` after all state-changing operations (see `AuditAction` enum)
+- User IDs: `i64` serialized as strings via `models::i64_as_string` serde module (prevents JS precision loss)
+- Wallet-to-tribe mapping via `FlatLinkedWallet` → grouped into `LinkedWallet { tribes: Vec<String> }` using BTreeMap
+- Migrations auto-run on startup via `sqlx::migrate!("./migrations")`
+- DB type alias: `db::DbPool` = `Pool<Sqlite>`
 
-- **File-based routing**: TanStack Router with routes in `src/routes/`. Route tree auto-generated to `routeTree.gen.ts`
-- **Provider hierarchy**: `ThemeProvider` → `AppProviders` (QueryClient + SuiClientProvider + WalletProvider + AuthProvider)
-- **Auth state**: Via `AuthProvider` context - use `useAuth()` hook for `user`, `token`, `login()`, `logout()`, `linkWallet()`
-- **Wallet integration**: `@mysten/dapp-kit` handles wallet connections. Default network: `testnet`
+**Mumble integration** (`mumble.rs`): Users in the required tribe (env `MUMBLE_REQUIRED_TRIBE`, default "Fire") can create Mumble accounts. Username derived from `wallet_id` in `user_tribes`. Password generated, bcrypt-hashed, stored in `mumble_accounts`. Login verified via `/api/internal/mumble/verify` (protected by `InternalSecret`).
 
-## Strict Design System
+## Frontend Patterns (`src/frontend/`)
 
-The UI follows an **EVE Frontier-inspired industrial sci-fi aesthetic**:
+- **File-based routing**: TanStack Router — routes in `src/routes/`, auto-generated `routeTree.gen.ts` (do not edit manually)
+- **Provider hierarchy**: `ThemeProvider` → `QueryClient` → `SuiClientProvider` → `WalletProvider` → `AuthProvider` → `RouterProvider`
+- **Auth**: `useAuth()` hook provides `user`, `token`, `currentTribe`, `login()`, `logout()`, `linkWallet()`, `unlinkWallet()`
+- **API base URL**: Currently hardcoded to `http://localhost:5038` in `AuthProvider.tsx`
+- **Wallet**: `@mysten/dapp-kit` with `testnet` default network
+- **Routes**: `/login`, `/home` (dashboard), `/roster` (admin), `/roster/$id` (member detail), `/voice` (Mumble), `/auth/callback` (OAuth redirect)
 
-- **ZERO border-radius**: All elements use `0px` radius - enforced via `!important` in CSS
-- **Fonts**: `Diskette Mono` for headings/buttons, `Inter` for body text
-- **Colors**: Stone palette (light) / deep red-black nebula (dark), `--brand-orange: #ff7400` for accents
-- **Buttons**: Uppercase, monospace, angular with 1px borders
+## Design System (STRICT)
 
-Reference [design-system.md](docs/design-system.md) and [index.css](src/sui/src/index.css) for exact values.
+EVE Frontier-inspired industrial sci-fi aesthetic — reference `docs/design-system.md` and `src/frontend/src/index.css`:
+
+- **ZERO border-radius**: All `--radius-*` vars are `0px !important`
+- **Fonts**: `Diskette Mono` (headings/buttons, uppercase), `Inter` (body)
+- **Colors**: Use CSS variables (`--bg-primary`, `--text-primary`, etc.) — they auto-switch for light/dark. Brand accent: `--brand-orange: #ff4700`
+- **No box shadows on cards** — use 1px borders with `--border-color`
+- Theme toggled via `html[data-theme]` attribute (managed by `ThemeProvider`)
 
 ## Environment Variables
 
-Backend requires in `.env`:
-
+Backend `.env`:
 ```
 DATABASE_URL=sqlite:void-eid.db
 DISCORD_CLIENT_ID=xxx
 DISCORD_CLIENT_SECRET=xxx
 DISCORD_REDIRECT_URI=http://localhost:5038/api/auth/discord/callback
 JWT_SECRET=xxx
-FRONTEND_URL=http://localhost:5173           # For CORS
-INITIAL_ADMIN_ID=123456789                    # Discord ID for bootstrap admin
+FRONTEND_URL=http://localhost:5173
+INITIAL_ADMIN_ID=123456789        # Discord ID → auto-grant global admin on login
+INTERNAL_SECRET=xxx               # For Mumble authenticator service calls
+MUMBLE_REQUIRED_TRIBE=Fire        # Tribe required for Mumble account creation
 ```
-
-**Bootstrap Admin**: Set `INITIAL_ADMIN_ID` to your Discord ID before first login to auto-grant global admin privileges
 
 ## Testing
 
-- **E2E tests**: Playwright in `src/frontend/e2e/`. Run with `bun x playwright test`
-- **Backend tests**: In-module `#[cfg(test)]` blocks using SQLite `:memory:` databases
+- **Backend unit tests**: `#[cfg(test)]` blocks using `sqlite::memory:` — run with `cargo test` from `src/backend/`
+- **Frontend unit tests**: Vitest — `bun run test` from `src/frontend/`
+- **E2E tests**: Playwright in `src/frontend/e2e/`. Uses `stub_api` binary (`src/backend/src/bin/stub_api.rs`) — seeds an in-memory DB and provides `/api/auth/stub-login?user_id=N` for Discord-free auth
 
-## Key Files to Reference
+## Key Files
 
-| Concern           | Files                                                                                             |
-| ----------------- | ------------------------------------------------------------------------------------------------- |
-| API routes        | [main.rs](../src/rust/src/main.rs)                                                                |
-| Auth flow         | [auth.rs](../src/rust/src/auth.rs), [AuthProvider.tsx](../src/sui/src/providers/AuthProvider.tsx) |
-| Wallet linking    | [wallet.rs](../src/rust/src/wallet.rs) - nonce/signature verification using `sui-sdk`             |
-| Database schema   | [migrations/](../src/rust/migrations/)                                                            |
-| CSS variables     | [index.css](../src/sui/src/index.css)                                                             |
-| Route definitions | [src/routes/](../src/sui/src/routes/)                                                             |
+| Concern             | Files                                                      |
+| ------------------- | ---------------------------------------------------------- |
+| Route registration  | `src/backend/src/main.rs`, `src/backend/src/lib.rs`        |
+| Auth + JWT          | `src/backend/src/auth.rs` (extractors: `AuthenticatedUser`, `InternalSecret`) |
+| Admin helpers       | `src/backend/src/helpers.rs` (`require_admin_in_tribe`)    |
+| Wallet verification | `src/backend/src/wallet.rs` (sui-sdk signature verify)     |
+| Mumble accounts     | `src/backend/src/mumble.rs`, `src/murmur/authenticator.py` |
+| DB schema           | `src/backend/migrations/01_init.sql` through `04_*`        |
+| Frontend auth       | `src/frontend/src/providers/AuthProvider.tsx`               |
+| Design tokens       | `src/frontend/src/index.css`, `docs/design-system.md`      |
+| E2E stub server     | `src/backend/src/bin/stub_api.rs`                          |
