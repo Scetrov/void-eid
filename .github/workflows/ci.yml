@@ -8,7 +8,7 @@ on:
 
 jobs:
   backend:
-    name: Rust Backend
+    name: Backend
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -123,13 +123,31 @@ jobs:
           FRONTEND_URL=http://localhost:4173 \
           ./src/backend/target/release/stub_api &
           echo $! > stub_api.pid
-          sleep 2
+          
+          # Wait for stub_api to be ready (max 30 seconds)
+          for i in {1..30}; do
+            if curl -f http://localhost:5038/api/auth/discord/login >/dev/null 2>&1; then
+              echo "stub_api is ready"
+              break
+            fi
+            echo "Waiting for stub_api... ($i/30)"
+            sleep 1
+          done
 
       - name: Start preview server
         run: |
           bun run preview &
           echo $! > preview.pid
-          sleep 2
+          
+          # Wait for preview server to be ready (max 30 seconds)
+          for i in {1..30}; do
+            if curl -f http://localhost:4173 >/dev/null 2>&1; then
+              echo "Preview server is ready"
+              break
+            fi
+            echo "Waiting for preview server... ($i/30)"
+            sleep 1
+          done
         working-directory: src/frontend
 
       - name: Install Playwright browser

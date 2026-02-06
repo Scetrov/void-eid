@@ -17,7 +17,7 @@ test.describe('Home Page', () => {
   };
 
   test.beforeEach(async ({ page }) => {
-    // Mock /api/me to return user
+    // Mock /api/me to return user - MUST be before any navigation
     await page.route('**/api/me', async route => {
       const headers = route.request().headers();
       if (headers['authorization']) {
@@ -27,8 +27,9 @@ test.describe('Home Page', () => {
       }
     });
 
-    // Set JWT token
     await page.goto('/');
+    
+    // Set JWT token after page load
     await page.evaluate(() => {
       localStorage.setItem('sui_jwt', 'fake-token');
     });

@@ -67,6 +67,11 @@ test.describe('Roster Member Detail Page', () => {
   };
 
   test.beforeEach(async ({ page }) => {
+    // Set up route mocks BEFORE navigation
+    await page.route('**/api/me', async route => {
+      await route.fulfill({ json: mockAdminUser });
+    });
+
     await page.goto('/');
     await page.evaluate(() => {
       localStorage.setItem('sui_jwt', 'fake-token');
@@ -74,11 +79,6 @@ test.describe('Roster Member Detail Page', () => {
   });
 
   test('should display member details for admin', async ({ page }) => {
-    // Mock /api/me to return admin user
-    await page.route('**/api/me', async route => {
-      await route.fulfill({ json: mockAdminUser });
-    });
-
     // Mock member detail endpoint
     await page.route('**/api/roster/789*', async route => {
       await route.fulfill({ json: mockMember });
@@ -93,10 +93,6 @@ test.describe('Roster Member Detail Page', () => {
   });
 
   test('should show linked wallets', async ({ page }) => {
-    await page.route('**/api/me', async route => {
-      await route.fulfill({ json: mockAdminUser });
-    });
-
     await page.route('**/api/roster/789*', async route => {
       await route.fulfill({ json: mockMember });
     });
@@ -110,10 +106,6 @@ test.describe('Roster Member Detail Page', () => {
   });
 
   test('should display audit history', async ({ page }) => {
-    await page.route('**/api/me', async route => {
-      await route.fulfill({ json: mockAdminUser });
-    });
-
     await page.route('**/api/roster/789*', async route => {
       await route.fulfill({ json: mockMember });
     });
@@ -128,6 +120,8 @@ test.describe('Roster Member Detail Page', () => {
   });
 
   test('should deny access for non-admin', async ({ page }) => {
+    // Override the beforeEach mock with regular user
+    await page.unroute('**/api/me');
     await page.route('**/api/me', async route => {
       await route.fulfill({ json: mockRegularUser });
     });
@@ -140,10 +134,6 @@ test.describe('Roster Member Detail Page', () => {
   });
 
   test('should show back to roster link', async ({ page }) => {
-    await page.route('**/api/me', async route => {
-      await route.fulfill({ json: mockAdminUser });
-    });
-
     await page.route('**/api/roster/789*', async route => {
       await route.fulfill({ json: mockMember });
     });

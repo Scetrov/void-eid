@@ -26,6 +26,7 @@ test.describe('Roster Page', () => {
   ];
 
   test.beforeEach(async ({ page }) => {
+    // Set up route mocks BEFORE any navigation to prevent unmocked API calls
     // Mock /api/me to return admin user
     await page.route('**/api/me', async route => {
         // Only return admin if Authorization header is present (simulated)
@@ -42,7 +43,7 @@ test.describe('Roster Page', () => {
         await route.fulfill({ json: mockRoster });
     });
 
-    // Mock Login (simulate setting token loalstorage)
+    // Navigate and set token
     await page.goto('/');
     await page.evaluate(() => {
         localStorage.setItem('sui_jwt', 'fake-token');
