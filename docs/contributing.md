@@ -7,7 +7,7 @@ We welcome contributions to Void eID!
 ### Code Style
 
 - **Rust**: Follow standard Rust idioms. Run `cargo fmt` and `cargo clippy` before pushing.
-- **TypeScript**: Use ESLint. Run `npm run lint` in the frontend directory.
+- **TypeScript**: Use ESLint. Run `bun run lint` in the frontend directory.
 - **Commits**: Use conventional commits (e.g., `feat: added wallet support`, `fix: token validation`).
 
 ### Workflow

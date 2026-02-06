@@ -50,13 +50,13 @@ wait_for_port 5039
 echo "Starting Frontend..."
 cd "$PROJECT_ROOT/src/frontend"
 # Use port 5178
-./node_modules/.bin/vite --mode test --port 5178 &
+bun run vite -- --mode test --port 5178 &
 
 wait_for_port 5178
 
 # 4. Run Tests
 echo "Running Playwright Tests..."
 export BASE_URL="http://localhost:5178"
-npx playwright test "$@"
+bun x playwright test "$@"
 
 echo "Tests completed successfully."

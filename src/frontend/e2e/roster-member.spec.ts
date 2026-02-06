@@ -140,11 +140,11 @@ test.describe('Roster Member Detail Page', () => {
   });
 
   test('should show back to roster link', async ({ page }) => {
-    await page.route('http://localhost:5038/api/me', async route => {
+    await page.route('**/api/me', async route => {
       await route.fulfill({ json: mockAdminUser });
     });
 
-    await page.route('http://localhost:5038/api/roster/789', async route => {
+    await page.route('**/api/roster/789*', async route => {
       await route.fulfill({ json: mockMember });
     });
 

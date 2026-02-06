@@ -14,7 +14,7 @@ test.describe('Login Page', () => {
 
     // Intercept navigation to Discord
     const [request] = await Promise.all([
-      page.waitForRequest(request => request.url().includes('localhost:5038/api/auth/discord/login')),
+      page.waitForRequest(request => request.url().includes('/api/auth/discord/login')),
       page.getByText('Login with Discord').click()
     ]);
 

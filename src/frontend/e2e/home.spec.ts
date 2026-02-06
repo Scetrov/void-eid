@@ -18,7 +18,7 @@ test.describe('Home Page', () => {
 
   test.beforeEach(async ({ page }) => {
     // Mock /api/me to return user
-    await page.route('http://localhost:5038/api/me', async route => {
+    await page.route('**/api/me', async route => {
       const headers = route.request().headers();
       if (headers['authorization']) {
         await route.fulfill({ json: mockUser });

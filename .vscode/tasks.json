@@ -17,9 +17,11 @@
     },
     {
       "label": "Run Frontend",
-      "type": "npm",
-      "script": "dev",
-      "path": "src/frontend",
+      "type": "shell",
+      "command": "bun run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/src/frontend"
+      },
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -87,6 +89,59 @@
       "group": {
         "kind": "build",
         "isDefault": true
+      }
+    },
+    {
+      "label": "Run Stub API",
+      "type": "shell",
+      "command": "cargo watch -x 'run --bin stub_api'",
+      "options": {
+        "cwd": "${workspaceFolder}/src/backend",
+        "env": {
+          "DATABASE_URL": "sqlite::memory:",
+          "JWT_SECRET": "stub-jwt-secret",
+          "FRONTEND_URL": "http://localhost:4173"
+        }
+      },
+      "problemMatcher": ["$rustc"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "group": "test"
+    },
+    {
+      "label": "Run Preview",
+      "type": "shell",
+      "command": "bun run preview",
+      "options": {
+        "cwd": "${workspaceFolder}/src/frontend"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "group": "test"
+    },
+    {
+      "label": "Dev",
+      "dependsOn": ["Run Backend", "Run Frontend"],
+      "dependsOrder": "parallel",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "E2E Dev",
+      "dependsOn": ["Run Stub API", "Run Preview"],
+      "dependsOrder": "parallel",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
       }
     }
   ]

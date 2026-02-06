@@ -6,9 +6,9 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  reporter: process.env.CI ? 'blob' : 'html',
   use: {
-    baseURL: process.env.BASE_URL || 'http://localhost:5173',
+    baseURL: process.env.BASE_URL || 'http://localhost:4173',
     trace: 'on-first-retry',
   },
   projects: [
@@ -21,18 +21,26 @@ export default defineConfig({
         }
       },
     },
-  ],
-  webServer: [
     {
-      command: 'npm run dev',
-      url: 'http://localhost:5173',
-      reuseExistingServer: !process.env.CI,
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+    },
+  ],
+  webServer: process.env.CI ? [] : [
+    {
+      command: 'bun run preview',
+      url: 'http://localhost:4173',
+      reuseExistingServer: true,
     },
     {
       command: 'cargo run --bin stub_api',
       url: 'http://localhost:5038/api/auth/discord/login',
       cwd: '../backend',
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: true,
       stdout: 'ignore',
       stderr: 'pipe',
     },
