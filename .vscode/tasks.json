@@ -143,6 +143,19 @@
         "reveal": "always",
         "panel": "shared"
       }
+    },
+    {
+      "label": "Run Playwright Tests",
+      "type": "shell",
+      "command": "bun run test:e2e",
+      "options": {
+        "cwd": "${workspaceFolder}/src/frontend"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "group": "test"
     }
   ]
 }

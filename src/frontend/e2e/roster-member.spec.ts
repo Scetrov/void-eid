@@ -8,7 +8,8 @@ test.describe('Roster Member Detail Page', () => {
     username: "AdminUser",
     discriminator: "0000",
     avatar: null,
-    tribe: "Fire",
+    tribes: ["Fire"],
+    adminTribes: ["Fire"],
     isAdmin: true,
     lastLoginAt: "2026-01-21T10:30:00Z",
     wallets: []
@@ -21,7 +22,8 @@ test.describe('Roster Member Detail Page', () => {
     username: "RegularUser",
     discriminator: "1111",
     avatar: null,
-    tribe: "Fire",
+    tribes: ["Fire"],
+    adminTribes: [],
     isAdmin: false,
     lastLoginAt: "2026-01-21T10:30:00Z",
     wallets: []
@@ -72,12 +74,12 @@ test.describe('Roster Member Detail Page', () => {
     await page.evaluate(() => {
       localStorage.setItem('sui_jwt', 'fake-token');
     });
-    
+
     // Set up route mocks BEFORE subsequent navigation
     await page.route('**/api/me', async route => {
       await route.fulfill({ json: mockAdminUser });
     });
-    
+
     // Reload page to reinitialize AuthProvider with the token
     await page.reload();
   });
@@ -130,7 +132,9 @@ test.describe('Roster Member Detail Page', () => {
       await route.fulfill({ json: mockRegularUser });
     });
 
+    // Wait for the /api/me response before checking the page content
     await page.goto('/roster/789');
+    await page.waitForResponse('**/api/me');
 
     // Expect access denied message
     await expect(page.getByText('Access Denied')).toBeVisible();

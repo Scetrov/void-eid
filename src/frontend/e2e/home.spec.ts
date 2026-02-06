@@ -8,7 +8,8 @@ test.describe('Home Page', () => {
     username: "TestUser",
     discriminator: "0000",
     avatar: null,
-    tribe: "Fire",
+    tribes: ["Fire"],
+    adminTribes: [],
     isAdmin: false,
     lastLoginAt: "2026-01-21T10:30:00Z",
     wallets: [
@@ -22,7 +23,7 @@ test.describe('Home Page', () => {
     await page.evaluate(() => {
       localStorage.setItem('sui_jwt', 'fake-token');
     });
-    
+
     // Mock /api/me to return user - MUST be before reload
     await page.route('**/api/me', async route => {
       const headers = route.request().headers();
@@ -32,7 +33,7 @@ test.describe('Home Page', () => {
         await route.fulfill({ status: 401 });
       }
     });
-    
+
     // Reload to reinitialize AuthProvider with the token
     await page.reload();
   });

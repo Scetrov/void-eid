@@ -21,8 +21,8 @@ cd "$PROJECT_ROOT/src/backend"
 cargo build --bin stub_api
 
 # 2. Start Stub API
-echo "Starting Stub API on port 5039..."
-PORT=5039 \
+echo "Starting Stub API on port 5038..."
+PORT=5038 \
 DATABASE_URL="sqlite::memory:" \
 JWT_SECRET="test-secret" \
 FRONTEND_URL="http://localhost:5178" \
@@ -44,7 +44,7 @@ wait_for_port() {
   echo "Port $port is ready."
 }
 
-wait_for_port 5039
+wait_for_port 5038
 
 # 3. Start Frontend
 echo "Starting Frontend..."

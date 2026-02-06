@@ -96,7 +96,30 @@ async fn seed_db(pool: &SqlitePool) {
         .await
         .expect("Failed to insert user");
 
-    // 3. Admin Wallet
+    // 3. Regular User Wallet
+    let regular_wallet_id = Uuid::new_v4().to_string();
+    sqlx::query("INSERT INTO wallets (id, user_id, address, verified_at) VALUES (?, ?, ?, ?)")
+        .bind(&regular_wallet_id)
+        .bind(user_id)
+        .bind("0xregularwallet987654321")
+        .bind(now)
+        .execute(pool)
+        .await
+        .expect("Failed to insert regular wallet");
+
+    // 4. Tribe for Regular User Wallet
+    sqlx::query(
+        "INSERT INTO user_tribes (user_id, wallet_id, tribe, is_admin) VALUES (?, ?, ?, ?)",
+    )
+    .bind(user_id)
+    .bind(&regular_wallet_id)
+    .bind("void_tribe")
+    .bind(false)
+    .execute(pool)
+    .await
+    .expect("Failed to insert regular user tribe");
+
+    // 5. Admin Wallet
     let wallet_id = Uuid::new_v4().to_string();
     sqlx::query("INSERT INTO wallets (id, user_id, address, verified_at) VALUES (?, ?, ?, ?)")
         .bind(&wallet_id)
@@ -107,7 +130,7 @@ async fn seed_db(pool: &SqlitePool) {
         .await
         .expect("Failed to insert wallet");
 
-    // 4. Tribe for Admin Wallet
+    // 6. Tribe for Admin Wallet
     sqlx::query(
         "INSERT INTO user_tribes (user_id, wallet_id, tribe, is_admin) VALUES (?, ?, ?, ?)",
     )

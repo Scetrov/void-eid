@@ -8,7 +8,8 @@ test.describe('Roster Page', () => {
     username: "AdminUser",
     discriminator: "0000",
     avatar: null,
-    tribe: "Fire",
+    tribes: ["Fire"],
+    adminTribes: ["Fire"],
     isAdmin: true,
     wallets: []
   };
@@ -31,7 +32,7 @@ test.describe('Roster Page', () => {
     await page.evaluate(() => {
         localStorage.setItem('sui_jwt', 'fake-token');
     });
-    
+
     // Set up route mocks BEFORE reload to prevent unmocked API calls
     // Mock /api/me to return admin user
     await page.route('**/api/me', async route => {

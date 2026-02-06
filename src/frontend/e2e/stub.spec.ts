@@ -27,7 +27,7 @@ test.describe('Stub API Integration', () => {
     await expect(page.getByText('AdminUser')).toBeVisible();
     // RegularUser should be visible
     await expect(page.getByText('RegularUser')).toBeVisible();
-    // Admin Wallet Address
-    await expect(page.getByText('0xadmi...8789')).toBeVisible();
+    // Admin Wallet Address (truncated with slice(0,6)...slice(-4))
+    await expect(page.getByText('0xadmi...6789')).toBeVisible();
   });
 });
