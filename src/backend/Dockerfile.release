@@ -1,12 +1,12 @@
-FROM docker.io/library/debian:bookworm-slim
+FROM docker.io/library/alpine:latest
 
 WORKDIR /usr/local/bin
 
 # Install runtime dependencies
-RUN apt-get update && apt-get install -y \
+RUN apk add --no-cache \
     ca-certificates \
-    libsqlite3-0 \
-    && rm -rf /var/lib/apt/lists/*
+    sqlite-libs \
+    libgcc
 
 # Copy the binary
 COPY void-eid-backend .

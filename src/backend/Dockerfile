@@ -1,7 +1,10 @@
 # Builder stage
-FROM docker.io/library/rust:latest AS builder
+FROM docker.io/library/rust:alpine AS builder
 
 WORKDIR /usr/src/app
+
+# Install build dependencies for musl
+RUN apk add --no-cache musl-dev openssl-dev openssl-libs-static pkgconfig curl
 
 # Copy manifests
 COPY Cargo.toml Cargo.lock ./
@@ -20,21 +23,18 @@ RUN touch src/main.rs
 RUN cargo build --release
 
 # Runtime stage
-FROM docker.io/library/debian:bookworm-slim
+FROM alpine:latest
 
 WORKDIR /usr/local/bin
 
-# Install runtime dependencies if needed (e.g. openssl, ca-certificates, sqlite3 lib)
-RUN apt-get update && apt-get install -y \
+# Install runtime dependencies
+RUN apk add --no-cache \
     ca-certificates \
-    libsqlite3-0 \
-    && rm -rf /var/lib/apt/lists/*
+    sqlite-libs \
+    libgcc
 
 # Copy the binary from the builder stage
 COPY --from=builder /usr/src/app/target/release/void-eid-backend .
-
-# Copy any necessary runtime files (e.g. static assets, config)
-# COPY .env .env # We'll use env vars passed to container for production/dev
 
 # Expose the API port
 EXPOSE 5038

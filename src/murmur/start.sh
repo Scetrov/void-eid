@@ -6,7 +6,7 @@ chown -R mumble-server:mumble-server /data
 
 # Start Murmur in background
 echo "Starting Murmur..."
-murmurd -ini /etc/murmur.ini -fg &
+mumble-server -ini /etc/murmur.ini -fg &
 MURMUR_PID=$!
 
 # Wait for Ice to be ready
