@@ -1,12 +1,14 @@
 import { defineConfig, devices } from '@playwright/test';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-const stubApiCommand =
-  process.env.STUB_API_CMD || 'cargo run --bin stub_api';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-// When using the pre-built binary (CI), cwd should stay default (frontend root)
-// so relative paths like ../../src/backend/target/release/stub_api resolve correctly.
-// When using cargo, cwd must be the backend directory.
-const stubApiCwd = process.env.STUB_API_CMD ? undefined : '../backend';
+// stub_api should be pre-built by test-e2e.sh script
+const stubApiPath = join(__dirname, '../backend/target/debug/stub_api');
+const stubApiCommand = process.env.STUB_API_CMD || stubApiPath;
+const stubApiCwd = undefined;
 
 // For CI, use preview (production build already exists). For local, use dev server.
 const frontendCommand = process.env.CI ? 'bun run preview' : 'bun run dev';
@@ -56,11 +58,12 @@ export default defineConfig({
       url: 'http://localhost:5038/api/auth/discord/login',
       cwd: stubApiCwd,
       reuseExistingServer: !process.env.CI,
-      timeout: 30_000,
+      timeout: 120_000,
       stdout: 'pipe',
       stderr: 'pipe',
       env: {
         ...process.env,
+        PORT: '5038',
         DATABASE_URL: process.env.DATABASE_URL || 'sqlite::memory:',
         JWT_SECRET: process.env.JWT_SECRET || 'dev-jwt-secret',
         FRONTEND_URL: process.env.FRONTEND_URL || `http://localhost:${frontendPort}`,

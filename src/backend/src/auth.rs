@@ -418,7 +418,7 @@ pub async fn get_me(
         .collect();
 
     Json(serde_json::json!({
-        "id": user.id,
+        "id": user.id.to_string(),
         "discordId": user.discord_id,
         "username": user.username,
         "discriminator": user.discriminator,

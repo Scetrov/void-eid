@@ -4,7 +4,7 @@ import { ThemeToggle } from './ThemeToggle'
 import { AdminTribeNav } from './AdminTribeNav'
 import { useAuth } from '../providers/AuthProvider'
 import { CipherNavText, type CipherNavTextHandle } from './CipherNavText'
-import { useRef, type ReactNode } from 'react'
+import { useRef, type ReactNode, useState, useEffect } from 'react'
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
     const { user, logout } = useAuth()
@@ -15,10 +15,51 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     const voiceRef = useRef<CipherNavTextHandle>(null)
     const rosterRef = useRef<CipherNavTextHandle>(null)
 
+    const mobileHomeRef = useRef<CipherNavTextHandle>(null)
+    const mobileVoiceRef = useRef<CipherNavTextHandle>(null)
+    const mobileRosterRef = useRef<CipherNavTextHandle>(null)
+
+    const [isMenuOpen, setIsMenuOpen] = useState(false)
+
+    // Close menu when location changes
+    useEffect(() => {
+        // Use requestAnimationFrame to avoid "setState synchronously in effect" lint error
+        // and ensure the menu closes after the navigation render is committed.
+        const frame = requestAnimationFrame(() => setIsMenuOpen(false))
+        return () => cancelAnimationFrame(frame)
+    }, [location.pathname])
+
+    // Staggered animation for mobile menu
+    useEffect(() => {
+        if (isMenuOpen) {
+            const timeout1 = setTimeout(() => mobileHomeRef.current?.trigger(), 100)
+            const timeout2 = setTimeout(() => mobileVoiceRef.current?.trigger(), 200)
+            const timeout3 = setTimeout(() => mobileRosterRef.current?.trigger(), 300)
+
+            return () => {
+                clearTimeout(timeout1)
+                clearTimeout(timeout2)
+                clearTimeout(timeout3)
+            }
+        }
+    }, [isMenuOpen])
+
     return (
         <div className="dashboard-container">
-            <header className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '3rem' }}>
-                  <nav style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+            <header className="dashboard-header">
+                {/* Mobile Menu Trigger - Visible only on mobile via CSS */}
+                <div className="mobile-menu-trigger">
+                    <button
+                        className="frontier-burger-btn"
+                        onClick={() => setIsMenuOpen(true)}
+                        aria-label="Open Menu"
+                    >
+                        [ :: MENU :: ]
+                    </button>
+                </div>
+
+                {/* Desktop Navigation - Hidden on mobile via CSS */}
+                <nav className="desktop-nav" style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
                     <Link
                         to="/home"
                         activeProps={{ style: { color: 'var(--text-primary)', fontWeight: 'bold' } }}
@@ -56,13 +97,74 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                         </div>
                     )}
                 </nav>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingTop: '0.25rem' }}>
+
+                {/* Desktop Actions - Hidden on mobile via CSS, moved to overlay */}
+                <div className="desktop-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingTop: '0.25rem' }}>
                     <ThemeToggle />
                     <button onClick={logout} className="btn btn-secondary" title="Logout">
                         <LogOut size={18} />
                     </button>
-                 </div>
+                </div>
             </header>
+
+            {/* Mobile Menu Overlay */}
+            {isMenuOpen && (
+                <div className="mobile-menu-overlay">
+                    <div className="mobile-menu-header">
+                        <button
+                            className="frontier-close-btn"
+                            onClick={() => setIsMenuOpen(false)}
+                            aria-label="Close Menu"
+                        >
+                            [ X ]
+                        </button>
+                    </div>
+
+                    <nav className="mobile-nav">
+                         <Link
+                            to="/home"
+                            className="mobile-nav-link"
+                            activeProps={{ className: 'active' }}
+                         >
+                            <Home size={32} />
+                            <CipherNavText ref={mobileHomeRef} text="Home" scrambleDuration={600} scrambleSpeed={50} />
+                        </Link>
+                        <Link
+                            to="/voice"
+                            className="mobile-nav-link"
+                            activeProps={{ className: 'active' }}
+                        >
+                            <Mic size={32} />
+                            <CipherNavText ref={mobileVoiceRef} text="Voice" scrambleDuration={600} scrambleSpeed={50} />
+                        </Link>
+                         {(user?.adminTribes?.length ?? 0) > 0 && (
+                            <>
+                                <Link
+                                    to="/roster"
+                                    className="mobile-nav-link"
+                                    activeProps={{ className: 'active' }}
+                                >
+                                    <Users size={32} />
+                                    <CipherNavText ref={mobileRosterRef} text="Roster" scrambleDuration={600} scrambleSpeed={50} />
+                                </Link>
+                                <div className="mobile-subnav">
+                                     <AdminTribeNav />
+                                </div>
+                            </>
+                        )}
+                    </nav>
+
+                    <div className="mobile-menu-footer">
+                         <div className="mobile-theme-toggle">
+                            <ThemeToggle />
+                        </div>
+                        <button onClick={logout} className="btn btn-primary btn-block" style={{ width: '100%' }}>
+                            <LogOut size={18} style={{ marginRight: '0.5rem' }} />
+                            LOGOUT
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {children}
         </div>

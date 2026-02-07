@@ -1,28 +1,13 @@
-import { test, expect } from '@playwright/test';
-
-const API_URL = process.env.API_URL || 'http://localhost:5038';
+import { test, expect } from './fixtures';
 
 test.describe('Stub API Integration', () => {
-  // This test requires the Stub API to be running on port 5038
+  test('should login via stub and view roster', async ({ adminPage: page }) => {
+    // Already logged in as admin via fixture
 
-  test('should login via stub and view roster', async ({ page }) => {
-    // 1. Initiate Stub Login for Admin User
-    // The stub API is at http://localhost:5038/api/auth/stub-login?user_id=1001
-    // This redirects to frontend /auth/callback which handles the token
-
-    await page.goto(`${API_URL}/api/auth/stub-login?user_id=1001`);
-
-    // 2. Wait for redirect to dashboard
-    await page.waitForURL('**/home');
-
-    // Verify we are logged in (localStorage has token)
-    const token = await page.evaluate(() => localStorage.getItem('sui_jwt'));
-    expect(token).toBeTruthy();
-
-    // 3. Navigate to Roster
+    // Navigate to Roster
     await page.goto('/roster');
 
-    // 4. Verify Content from Stub DB
+    // Verify Content from Stub DB
     // AdminUser should be visible
     await expect(page.getByText('AdminUser')).toBeVisible();
     // RegularUser should be visible

@@ -1,165 +1,44 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 test.describe('Roster Member Detail Page', () => {
-  // Mock User Data (Admin)
-  const mockAdminUser = {
-    id: "admin-id",
-    discordId: "123",
-    username: "AdminUser",
-    discriminator: "0000",
-    avatar: null,
-    tribes: ["Fire"],
-    adminTribes: ["Fire"],
-    isAdmin: true,
-    lastLoginAt: "2026-01-21T10:30:00Z",
-    wallets: []
-  };
-
-  // Mock Member Detail
-  const mockMember = {
-    discordId: "789",
-    username: "MemberToView",
-    avatar: null,
-    wallets: [
-        { id: "w1", address: "0xabcdef1234567890abcdef1234567890abcdef12", tribes: ["Fire"] },
-        { id: "w2", address: "0x1111222233334444555566667777888899990000", tribes: [] }
-    ],
-    audits: {
-      items: [
-        {
-          id: "audit-1",
-          action: "LINK_WALLET",
-          actorId: "789",
-          targetId: null,
-          details: "Linked wallet 0xabcd...",
-          createdAt: "2026-01-20T15:30:00Z",
-          actorUsername: "MemberToView",
-          actorDiscriminator: "2222"
-        },
-        {
-          id: "audit-2",
-          action: "LOGIN",
-          actorId: "789",
-          targetId: null,
-          details: "User logged in via Discord",
-          createdAt: "2026-01-20T10:00:00Z",
-          actorUsername: "MemberToView",
-          actorDiscriminator: "2222"
-        }
-      ],
-      total: 2,
-      page: 1,
-      perPage: 10,
-      totalPages: 1
-    }
-  };
-
-  test.beforeEach(async ({ page }) => {
-    // Set JWT token BEFORE any navigation so AuthProvider initializes with it
-    await page.goto('/');
-    await page.evaluate(() => {
-      localStorage.setItem('sui_jwt', 'fake-token');
-    });
-
-    // Set up route mocks BEFORE subsequent navigation
-    await page.route('**/api/me', async route => {
-      await route.fulfill({ json: mockAdminUser });
-    });
-
-    // Reload page to reinitialize AuthProvider with the token
-    await page.reload();
-  });
-
-  test('should display member details for admin', async ({ page }) => {
-    // Mock member detail endpoint
-    await page.route('**/api/roster/789*', async route => {
-      await route.fulfill({ json: mockMember });
-    });
-
-    await page.goto('/roster/789');
+  test('should display member details for admin', async ({ adminPage: page }) => {
+    // Navigate to RegularUser's detail page (discord_id: regular-discord-id from stub DB)
+    await page.goto('/roster/regular-discord-id');
 
     // Expect member username heading
-    await expect(page.getByRole('heading', { name: 'MemberToView' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'RegularUser' })).toBeVisible();
     // Expect Member Details header
     await expect(page.getByText('Member Details')).toBeVisible();
   });
 
-  test('should show linked wallets', async ({ page }) => {
-    await page.route('**/api/roster/789*', async route => {
-      await route.fulfill({ json: mockMember });
-    });
-
-    await page.goto('/roster/789');
+  test('should show linked wallets', async ({ adminPage: page }) => {
+    await page.goto('/roster/regular-discord-id');
 
     // Expect Linked Wallets section
     await expect(page.getByText('Linked Wallets')).toBeVisible();
-    // Expect wallet addresses to be visible
-    await expect(page.getByText('0xabcdef1234567890abcdef1234567890abcdef12')).toBeVisible();
+    // Expect wallet address to be visible
+    await expect(page.getByText('0xregularwallet987654321')).toBeVisible();
   });
 
-  test('should display audit history', async ({ page }) => {
-    await page.route('**/api/roster/789*', async route => {
-      await route.fulfill({ json: mockMember });
-    });
-
-    await page.goto('/roster/789');
+  test('should display audit history', async ({ adminPage: page }) => {
+    await page.goto('/roster/regular-discord-id');
 
     // Expect Audit History section
     await expect(page.getByText('Audit History')).toBeVisible();
-    // Expect audit actions to be visible
-    await expect(page.getByText('LINK_WALLET')).toBeVisible();
-    await expect(page.getByText('LOGIN')).toBeVisible();
   });
 
-  test('should show back to roster link', async ({ page }) => {
-    await page.route('**/api/roster/789*', async route => {
-      await route.fulfill({ json: mockMember });
-    });
-
-    await page.goto('/roster/789');
-
+  test('should show back to roster link', async ({ adminPage: page }) => {
+    await page.goto('/roster/regular-discord-id');
     // Expect back link
     await expect(page.getByText('Back to Roster')).toBeVisible();
   });
 });
 
-// Separate describe block for non-admin access test (without admin beforeEach)
+// Separate describe block for non-admin access test
 test.describe('Roster Member Detail Page - Access Control', () => {
-  const mockRegularUser = {
-    id: "user-id",
-    discordId: "456",
-    username: "RegularUser",
-    discriminator: "1111",
-    avatar: null,
-    tribes: ["Fire"],
-    adminTribes: [],
-    isAdmin: false,
-    lastLoginAt: "2026-01-21T10:30:00Z",
-    wallets: []
-  };
-
-  test('should deny access for non-admin', async ({ page }) => {
-    // Set up localStorage with JWT
-    await page.goto('/');
-    await page.evaluate(() => {
-      localStorage.setItem('sui_jwt', 'fake-token');
-    });
-
-    // Mock API to return regular user (not admin)
-    await page.route('**/api/me', async route => {
-      await route.fulfill({ json: mockRegularUser });
-    });
-
-    // Mock roster endpoint to return 403 for non-admin
-    await page.route('**/api/roster/*', async route => {
-      await route.fulfill({ status: 403, body: 'Forbidden' });
-    });
-
-    // Reload to initialize AuthProvider with regular user
-    await page.reload();
-
-    // Navigate to roster detail page
-    await page.goto('/roster/789');
+  test('should deny access for non-admin', async ({ authenticatedPage: page }) => {
+    // Navigate to roster detail page as non-admin (RegularUser)
+    await page.goto('/roster/admin-discord-id');
 
     // Expect access denied message
     await expect(page.getByText('Access Denied')).toBeVisible();

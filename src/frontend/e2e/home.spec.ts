@@ -1,82 +1,44 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 test.describe('Home Page', () => {
-  // Mock User Data
-  const mockUser = {
-    id: "user-id",
-    discordId: "123456",
-    username: "TestUser",
-    discriminator: "0000",
-    avatar: null,
-    tribes: ["Fire"],
-    adminTribes: [],
-    isAdmin: false,
-    lastLoginAt: "2026-01-21T10:30:00Z",
-    wallets: [
-      { id: "wallet-1", address: "0x1234567890abcdef1234567890abcdef12345678", verifiedAt: "2026-01-20T12:00:00Z" }
-    ]
-  };
+  test('should display user profile when logged in', async ({ authenticatedPage: page }) => {
+    await page.goto('/home', { waitUntil: 'networkidle' });
 
-  test.beforeEach(async ({ page }) => {
-    // Set JWT token BEFORE any navigation so AuthProvider initializes with it
-    await page.goto('/');
-    await page.evaluate(() => {
-      localStorage.setItem('sui_jwt', 'fake-token');
-    });
+    // Wait for /api/me to complete after navigation
+    await page.waitForLoadState('networkidle');
 
-    // Mock /api/me to return user - MUST be before reload
-    await page.route('**/api/me', async route => {
-      const headers = route.request().headers();
-      if (headers['authorization']) {
-        await route.fulfill({ json: mockUser });
-      } else {
-        await route.fulfill({ status: 401 });
-      }
-    });
-
-    // Reload to reinitialize AuthProvider with the token
-    await page.reload();
-  });
-
-  test('should display user profile when logged in', async ({ page }) => {
-    await page.goto('/home');
-
-    // Expect to see username
-    await expect(page.getByText('TestUser')).toBeVisible();
+    // Expect to see username (from stub DB: RegularUser)
+    await expect(page.getByText('RegularUser')).toBeVisible();
     // Expect Discord Connected badge
     await expect(page.getByText('Discord Connected')).toBeVisible();
   });
 
-  test('should show linked wallets', async ({ page }) => {
+  test('should show linked wallets', async ({ authenticatedPage: page }) => {
     await page.goto('/home');
 
     // Expect to see wallet count
     await expect(page.getByText('Linked Wallets (1)')).toBeVisible();
-    // Expect to see wallet address (truncated)
-    await expect(page.getByText('0x1234...5678')).toBeVisible();
+    // Expect to see wallet address (from stub DB: 0xregularwallet987654321)
+    // formatAddress uses slice(0,6)...slice(-4) = 0xregu...4321
+    await expect(page.getByText('0xregu...4321')).toBeVisible();
   });
 
-  test('should display last login banner', async ({ page }) => {
+  test('should display last login banner', async ({ authenticatedPage: page }) => {
     await page.goto('/home');
 
-    // Expect to see last login banner
+    // Expect to see last login banner (timestamp from stub DB will be recent)
     await expect(page.getByText('Last logged in on')).toBeVisible();
-    await expect(page.getByText('2026.01.21 at 10:30 UTC')).toBeVisible();
   });
 
   test('should redirect to login when not authenticated', async ({ page }) => {
-    // Clear token
-    await page.evaluate(() => {
-      localStorage.removeItem('sui_jwt');
-    });
-
+    // Don't use the authenticated fixture for this test
     await page.goto('/home');
 
     // Expect access denied or redirect prompt
     await expect(page.getByRole('heading', { name: 'Access Denied' })).toBeVisible();
   });
 
-  test('should show Link Another Wallet section when wallets exist', async ({ page }) => {
+  test('should show Link Another Wallet section when wallets exist', async ({ authenticatedPage: page }) => {
     await page.goto('/home');
 
     // Expect Link Another Wallet section

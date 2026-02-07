@@ -14,6 +14,7 @@ interface RosterMember {
     discordId: string;
     username: string;
     avatar: string | null;
+    lastLoginAt: string | null;
     wallets: {
         id: string;
         address: string;
@@ -24,7 +25,7 @@ interface RosterMember {
 function RosterPage() {
     const { user, token, isAuthenticated, currentTribe } = useAuth()
     const [search, setSearch] = useState('')
-    const [sort, setSort] = useState<'username' | 'wallet_count'>('username')
+    const [sort, setSort] = useState<'username' | 'wallet_count' | 'last_login'>('username')
     const [order, setOrder] = useState<'asc' | 'desc'>('asc')
     const navigate = useNavigate()
 
@@ -90,7 +91,7 @@ function RosterPage() {
         )
     }
 
-    const toggleSort = (field: 'username' | 'wallet_count') => {
+    const toggleSort = (field: 'username' | 'wallet_count' | 'last_login') => {
         if (sort === field) {
             setOrder(order === 'asc' ? 'desc' : 'asc');
         } else {
@@ -136,8 +137,8 @@ function RosterPage() {
                         Loading roster...
                     </div>
                 ) : (
-                    <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <div className="roster-table-container">
+                        <table className="roster-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                             <thead>
                                 <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
                                     <th style={{ padding: '1rem', cursor: 'pointer' }} onClick={() => toggleSort('username')}>
@@ -147,6 +148,12 @@ function RosterPage() {
                                         </div>
                                     </th>
                                     <th style={{ padding: '1rem' }}>Discord ID</th>
+                                    <th style={{ padding: '1rem', cursor: 'pointer' }} onClick={() => toggleSort('last_login')}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            Last Login
+                                            {sort === 'last_login' && <ArrowUpDown size={14} />}
+                                        </div>
+                                    </th>
                                     <th style={{ padding: '1rem', cursor: 'pointer' }} onClick={() => toggleSort('wallet_count')}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                             Wallets
@@ -158,7 +165,7 @@ function RosterPage() {
                             <tbody>
                                 {roster?.length === 0 ? (
                                     <tr>
-                                        <td colSpan={3} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                        <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                                             No members found.
                                         </td>
                                     </tr>
@@ -170,7 +177,7 @@ function RosterPage() {
                                             onClick={() => navigate({ to: '/roster/$id', params: { id: member.discordId } })}
                                             className="roster-row"
                                         >
-                                            <td style={{ padding: '1rem' }}>
+                                            <td style={{ padding: '1rem' }} data-label="Member">
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                                     {member.avatar ? (
                                                         <img
@@ -186,10 +193,13 @@ function RosterPage() {
                                                     {member.username}
                                                 </div>
                                             </td>
-                                            <td style={{ padding: '1rem', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
+                                            <td style={{ padding: '1rem', fontFamily: 'monospace', color: 'var(--text-secondary)' }} data-label="Discord ID">
                                                 {member.discordId}
                                             </td>
-                                            <td style={{ padding: '1rem' }}>
+                                            <td style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }} data-label="Last Login">
+                                                {member.lastLoginAt ? new Date(member.lastLoginAt).toLocaleString() : 'Never'}
+                                            </td>
+                                            <td style={{ padding: '1rem' }} data-label="Wallets">
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                                     {member.wallets.map(w => (
                                                         <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

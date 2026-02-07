@@ -44,6 +44,7 @@ pub struct RosterMember {
     pub discord_id: String,
     pub username: String,
     pub avatar: Option<String>,
+    pub last_login_at: Option<DateTime<Utc>>,
     pub wallets: Vec<LinkedWallet>,
     pub audits: Option<PaginatedAudits>,
 }
@@ -58,7 +59,7 @@ pub struct MemberQuery {
 #[derive(Deserialize, IntoParams)]
 pub struct RosterQuery {
     pub tribe: Option<String>,
-    pub sort: Option<String>,  // "username", "wallet_count"
+    pub sort: Option<String>,  // "username", "wallet_count", "last_login"
     pub order: Option<String>, // "asc", "desc"
     pub search: Option<String>,
 }
@@ -205,6 +206,7 @@ pub async fn get_roster_member(
         discord_id: target_member.discord_id,
         username: target_member.username,
         avatar: target_member.avatar,
+        last_login_at: target_member.last_login_at,
         wallets,
         audits: Some(PaginatedAudits {
             items: audits,
@@ -266,6 +268,9 @@ pub async fn get_roster(
     match query.sort.as_deref() {
         Some("username") => {
             sql.push_str(" ORDER BY username");
+        }
+        Some("last_login") => {
+            sql.push_str(" ORDER BY last_login_at");
         }
         _ => {
             // default sort
@@ -361,6 +366,7 @@ pub async fn get_roster(
                 discord_id: m.discord_id,
                 username: m.username,
                 avatar: m.avatar,
+                last_login_at: m.last_login_at,
                 wallets: user_wallets,
                 audits: None,
             }
