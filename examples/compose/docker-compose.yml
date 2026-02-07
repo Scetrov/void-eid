@@ -1,0 +1,49 @@
+services:
+  backend:
+    image: ghcr.io/scetrov/void-eid/void-eid-backend:latest
+    ports:
+      - "5038:5038"
+    env_file: .env
+    environment:
+      - PORT=5038
+    volumes:
+      - backend-data:/data
+    restart: unless-stopped
+    networks:
+      - shared_net
+
+  murmur:
+    image: ghcr.io/scetrov/void-eid/void-eid-murmur:latest
+    ports:
+      - "64738:64738/tcp"
+      - "64738:64738/udp"
+    env_file: .env
+    environment:
+    volumes:
+      - murmur-data:/data
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - shared_net
+
+  frontend:
+    image: ghcr.io/scetrov/void-eid/void-eid-frontend:latest
+    ports:
+      - "5173:80"
+    env_file: .env
+    environment:
+    restart: unless-stopped
+    networks:
+      - shared_net
+
+networks:
+  shared_net:
+    driver: bridge
+
+volumes:
+  backend-data:
+    driver: local
+  murmur-data:
+    driver: local
