@@ -5,6 +5,13 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_call:
+    inputs:
+      is_release:
+        description: "Build release artifacts"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   backend:
@@ -42,6 +49,19 @@ jobs:
       - name: Build stub_api
         run: cargo build --release --bin stub_api
         working-directory: src/backend
+
+      - name: Build release binary
+        if: ${{ inputs.is_release }}
+        run: cargo build --release --bin void-eid-backend
+        working-directory: src/backend
+
+      - name: Upload backend binary
+        if: ${{ inputs.is_release }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-bin
+          path: src/backend/target/release/void-eid-backend
+          retention-days: 1
 
       - name: Upload stub_api artifact
         uses: actions/upload-artifact@v4

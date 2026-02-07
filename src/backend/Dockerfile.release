@@ -1,0 +1,18 @@
+FROM docker.io/library/debian:bookworm-slim
+
+WORKDIR /usr/local/bin
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libsqlite3-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the binary
+COPY void-eid-backend .
+
+# Expose the API port
+EXPOSE 5038
+
+# Run the binary
+CMD ["./void-eid-backend"]

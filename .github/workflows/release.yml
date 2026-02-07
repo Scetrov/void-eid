@@ -11,7 +11,13 @@ env:
   IMAGE_NAME_PREFIX: ${{ github.repository }}
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    with:
+      is_release: true
+
   build-and-push:
+    needs: [ci]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -22,12 +28,28 @@ jobs:
         include:
           - context: src/backend
             image_name: void-eid-backend
+            dockerfile: Dockerfile.release
+            artifact_name: backend-bin
+            download_path: .
           - context: src/frontend
             image_name: void-eid-frontend
+            dockerfile: Dockerfile.release
+            artifact_name: frontend-dist
+            download_path: dist
+          - context: src/murmur
+            image_name: void-eid-murmur
+            dockerfile: Dockerfile
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+
+      - name: Download artifact
+        if: ${{ matrix.artifact_name != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.context }}/${{ matrix.download_path }}
 
       - name: Log in to the Container registry
         uses: docker/login-action@v3
@@ -51,6 +73,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/${{ matrix.dockerfile }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
