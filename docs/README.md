@@ -65,5 +65,6 @@ Void eID provides a seamless way to link Discord identities with Sui Wallets. It
 - [Backend Documentation](./backend.md) - Detailed API and architecture info.
 - [Frontend Documentation](./frontend.md) - Component structure and state management.
 - [Deployment Guide](./deployment.md) - How to build and deploy.
+- [Release Process](./release-process.md) - Automated release workflow.
 - [Design System](./design-system.md) - UI styles and tokens.
 - [Contributing](./contributing.md) - Development guidelines.
