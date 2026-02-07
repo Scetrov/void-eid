@@ -1,5 +1,5 @@
 # Builder stage
-FROM params/bun:latest AS builder
+FROM oven/bun:latest AS builder
 WORKDIR /app
 
 # Copy package.json and lockfile (if exists)
