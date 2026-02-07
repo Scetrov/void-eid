@@ -12,6 +12,10 @@ on:
         required: false
         type: boolean
         default: false
+      version:
+        description: "Version to set (for release)"
+        required: false
+        type: string
 
 jobs:
   backend:
@@ -19,6 +23,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+
+      - name: Patch version
+        if: ${{ inputs.version }}
+        run: |
+          sed -i 's/^version = ".*"/version = "${{ inputs.version }}"/' src/backend/Cargo.toml
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -75,6 +84,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+
+      - name: Patch version
+        if: ${{ inputs.version }}
+        run: |
+          sed -i 's/"version": ".*"/"version": "${{ inputs.version }}"/' src/frontend/package.json
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
