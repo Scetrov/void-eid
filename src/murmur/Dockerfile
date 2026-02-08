@@ -1,27 +1,20 @@
-FROM docker.io/library/alpine:latest
+FROM docker.io/library/debian:trixie-slim
 
 # Install runtime dependencies
-# mumble-server is in the community repository
-RUN apk add --no-cache \
+# python3-zeroc-ice is available in sid
+RUN apt-get update && apt-get install -y \
     mumble-server \
     python3 \
-    py3-pip \
+    python3-zeroc-ice \
+    python3-requests \
     curl \
-    libbz2 \
+    bzip2 \
     openssl \
-    libstdc++
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install build dependencies, build zeroc-ice, then remove build deps
-RUN apk add --no-cache --virtual .build-deps \
-    build-base \
-    python3-dev \
-    bzip2-dev \
-    openssl-dev \
-    && rm -f /usr/lib/python3.*/EXTERNALLY-MANAGED 2>/dev/null || true \
-    && pip3 install --no-cache-dir requests zeroc-ice \
-    && apk del .build-deps
+# No need to pip install zeroc-ice or requests as they are installed via apt
 
 # Copy files
 COPY murmur.ini /etc/murmur.ini
@@ -30,10 +23,12 @@ COPY Murmur.ice /app/Murmur.ice
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
-# Create mumble-server user/group if not exists
-RUN addgroup -S mumble-server 2>/dev/null || true && adduser -S mumble-server -G mumble-server 2>/dev/null || true
+# Create mumble-server user/group if not exists (invoke-rc.d might complain if not present, but for docker build it's fine)
+# The package usually creates the user 'mumble-server'
+RUN getent group mumble-server || groupadd -r mumble-server && \
+    getent passwd mumble-server || useradd -r -g mumble-server mumble-server
 
-# Create data dir (mumble-server user is created by the apk package)
+# Create data dir
 RUN mkdir -p /data && chown -R mumble-server:mumble-server /data
 
 EXPOSE 64738/tcp 64738/udp 6502
