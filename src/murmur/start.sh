@@ -11,7 +11,7 @@ MURMUR_PID=$!
 
 # Wait for Ice to be ready
 echo "Waiting for Ice..."
-timeout 30s bash -c 'until python3 -c "import socket; s = socket.create_connection((\"127.0.0.1\", 6502), timeout=1); s.close()"; do echo "Waiting for port 6502..."; sleep 1; done'
+timeout 30s bash -c 'until python3 -c "import socket; s = socket.create_connection((\"127.0.0.1\", 6502), timeout=1); s.close()" 2>/dev/null; do echo "Waiting for port 6502..."; sleep 1; done'
 echo "Ice is ready."
 
 # Start Authenticator
