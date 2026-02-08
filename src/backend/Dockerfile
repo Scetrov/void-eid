@@ -6,12 +6,26 @@ WORKDIR /usr/src/app
 # Install build dependencies for musl
 RUN apk add --no-cache musl-dev openssl-dev openssl-libs-static pkgconfig curl
 
+# Install sccache
+RUN curl -Lso /usr/local/bin/sccache https://github.com/mozilla/sccache/releases/download/v0.8.0/sccache-v0.8.0-x86_64-unknown-linux-musl.tar.gz \
+    && tar -xvzf /usr/local/bin/sccache -C /usr/local/bin/ --strip-components=1 \
+    && chmod +x /usr/local/bin/sccache
+
+# Configure sccache
+ENV RUSTC_WRAPPER=/usr/local/bin/sccache
+ENV SCCACHE_GHA_ENABLED=on
+ARG ACTIONS_CACHE_URL
+ARG ACTIONS_RUNTIME_TOKEN
+
 # Copy manifests
 COPY Cargo.toml Cargo.lock ./
 
 # Create a dummy main to cache dependencies
 RUN mkdir src && echo "fn main() {}" > src/main.rs
-RUN cargo build --release
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/root/.cache/sccache \
+    cargo build --release
 RUN rm -rf src
 
 # Copy source code
@@ -20,7 +34,10 @@ COPY . .
 # Build the application
 # We need to touch the main file to force a rebuild
 RUN touch src/main.rs
-RUN cargo build --release
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/root/.cache/sccache \
+    cargo build --release && sccache --show-stats
 
 # Runtime stage
 FROM alpine:latest
