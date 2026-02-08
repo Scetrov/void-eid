@@ -34,10 +34,8 @@ COPY . .
 # Build the application
 # We need to touch the main file to force a rebuild
 RUN touch src/main.rs
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/root/.cache/sccache \
-    cargo build --release && sccache --show-stats
+    SCCACHE_NO_DAEMON=1 RUST_BACKTRACE=1 cargo build --release && sccache --show-stats
 
 # Runtime stage
 FROM alpine:latest
