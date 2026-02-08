@@ -126,13 +126,6 @@ jobs:
           context: src/backend
           file: src/backend/Dockerfile
           push: false
-          build-args: |
-            ACTIONS_CACHE_URL=${{ env.ACTIONS_CACHE_URL }}
-            SCCACHE_GHA_ENABLED=on
-            SCCACHE_NO_DAEMON=1
-            RUST_BACKTRACE=1
-          secrets: |
-            ACTIONS_RUNTIME_TOKEN=${{ env.ACTIONS_RUNTIME_TOKEN }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -324,8 +317,6 @@ jobs:
             context: src/murmur
             dockerfile: src/murmur/Dockerfile
     env:
-      SCCACHE_GHA_ENABLED: "true"
-      RUSTC_WRAPPER: "sccache"
       # TODO: Use runtime config for production API URL instead of baking dev URL into images
       VITE_API_URL: "/"
     steps:
@@ -333,18 +324,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Configure sccache (for backend)
-        if: matrix.service == 'backend'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            if (process.env.ACTIONS_CACHE_URL) {
-              core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL);
-            }
-            if (process.env.ACTIONS_RUNTIME_TOKEN) {
-              core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN);
-            }
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -372,12 +351,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            ACTIONS_CACHE_URL=${{ env.ACTIONS_CACHE_URL }}
             VITE_API_URL=${{ env.VITE_API_URL }}
-            SCCACHE_GHA_ENABLED=on
-            SCCACHE_NO_DAEMON=1
-            RUST_BACKTRACE=1
-          secrets: |
-            ACTIONS_RUNTIME_TOKEN=${{ env.ACTIONS_RUNTIME_TOKEN }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
