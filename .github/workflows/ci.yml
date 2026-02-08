@@ -32,7 +32,7 @@ jobs:
       RUSTC_WRAPPER: "sccache"
     steps:
       - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
+        uses: jlumbroso/free-disk-space@54081f1
         with:
           tool-cache: false
           android: true
