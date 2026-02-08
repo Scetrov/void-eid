@@ -7,9 +7,11 @@ WORKDIR /usr/src/app
 RUN apk add --no-cache musl-dev openssl-dev openssl-libs-static pkgconfig curl
 
 # Install sccache
-RUN curl -Lso /usr/local/bin/sccache https://github.com/mozilla/sccache/releases/download/v0.8.0/sccache-v0.8.0-x86_64-unknown-linux-musl.tar.gz \
-    && tar -xvzf /usr/local/bin/sccache -C /usr/local/bin/ --strip-components=1 \
-    && chmod +x /usr/local/bin/sccache
+RUN curl -fsSL https://github.com/mozilla/sccache/releases/download/v0.8.0/sccache-v0.8.0-x86_64-unknown-linux-musl.tar.gz -o /tmp/sccache.tar.gz \
+    && tar -xzf /tmp/sccache.tar.gz -C /tmp --strip-components=1 \
+    && mv /tmp/sccache /usr/local/bin/sccache \
+    && chmod +x /usr/local/bin/sccache \
+    && rm -rf /tmp/sccache.tar.gz /tmp/LICENSE /tmp/README.md
 
 # Configure sccache
 ENV RUSTC_WRAPPER=/usr/local/bin/sccache
