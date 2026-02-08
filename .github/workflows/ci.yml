@@ -289,7 +289,7 @@ jobs:
   push-images:
     name: Push Docker Images
     needs: [backend, frontend, murmur, e2e]
-    if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: success() && (github.ref == 'refs/heads/main' || inputs.is_release)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -329,6 +329,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=sha
+            type=semver,pattern={{version}},value=${{ inputs.version }},enable=${{ inputs.is_release }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -346,7 +347,7 @@ jobs:
   push-backend-image:
     name: Push Backend Docker Image
     needs: [backend, e2e]
-    if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: success() && (github.ref == 'refs/heads/main' || inputs.is_release)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -381,6 +382,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=sha
+            type=semver,pattern={{version}},value=${{ inputs.version }},enable=${{ inputs.is_release }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
