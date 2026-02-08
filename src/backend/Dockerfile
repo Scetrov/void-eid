@@ -35,8 +35,8 @@ COPY . .
 
 # Build the application
 # We need to touch the main file to force a rebuild
-RUN touch src/main.rs
-    --mount=type=cache,target=/root/.cache/sccache \
+RUN --mount=type=cache,target=/root/.cache/sccache \
+    touch src/main.rs && \
     SCCACHE_NO_DAEMON=1 RUST_BACKTRACE=1 cargo build --release && sccache --show-stats
 
 # Runtime stage
