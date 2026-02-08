@@ -43,7 +43,7 @@ jobs:
         include:
           - context: src/backend
             image_name: void-eid-backend
-            dockerfile: Dockerfile.release
+            dockerfile: Dockerfile
             artifact_name: backend-bin
             download_path: .
           - context: src/frontend
