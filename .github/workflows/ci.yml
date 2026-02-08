@@ -128,6 +128,7 @@ jobs:
           push: false
           build-args: |
             ACTIONS_CACHE_URL=${{ env.ACTIONS_CACHE_URL }}
+            SCCACHE_GHA_ENABLED=on
             SCCACHE_NO_DAEMON=1
             RUST_BACKTRACE=1
           secrets: |
@@ -269,7 +270,7 @@ jobs:
   merge-reports:
     name: Merge E2E Reports
     needs: [e2e]
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && needs.e2e.result != 'skipped' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -325,7 +326,7 @@ jobs:
     env:
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: "sccache"
-      # TODO: Use a proper variable for production URL
+      # TODO: Use runtime config for production API URL instead of baking dev URL into images
       VITE_API_URL: "/"
     steps:
       - uses: actions/checkout@v6
@@ -358,8 +359,9 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}/${{ matrix.service }}
           tags: |
-            type=ref,event=pr
+            type=ref,event=branch
             type=sha
+            type=raw,value=latest
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -372,6 +374,7 @@ jobs:
           build-args: |
             ACTIONS_CACHE_URL=${{ env.ACTIONS_CACHE_URL }}
             VITE_API_URL=${{ env.VITE_API_URL }}
+            SCCACHE_GHA_ENABLED=on
             SCCACHE_NO_DAEMON=1
             RUST_BACKTRACE=1
           secrets: |

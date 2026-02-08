@@ -15,9 +15,14 @@ RUN curl -fsSL https://github.com/mozilla/sccache/releases/download/v0.8.0/sccac
 
 # Configure sccache
 ENV RUSTC_WRAPPER=/usr/local/bin/sccache
-ENV SCCACHE_GHA_ENABLED=on
+ARG SCCACHE_GHA_ENABLED=off
+ENV SCCACHE_GHA_ENABLED=${SCCACHE_GHA_ENABLED}
 ARG ACTIONS_CACHE_URL
 ENV ACTIONS_CACHE_URL=${ACTIONS_CACHE_URL}
+ARG SCCACHE_NO_DAEMON=0
+ENV SCCACHE_NO_DAEMON=${SCCACHE_NO_DAEMON}
+ARG RUST_BACKTRACE=0
+ENV RUST_BACKTRACE=${RUST_BACKTRACE}
 
 # Copy manifests
 COPY Cargo.toml Cargo.lock ./
@@ -27,8 +32,8 @@ RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/root/.cache/sccache \
-    --mount=type=secret,id=ACTIONS_RUNTIME_TOKEN \
-    ACTIONS_RUNTIME_TOKEN=$(cat /run/secrets/ACTIONS_RUNTIME_TOKEN) cargo build --release
+    --mount=type=secret,id=ACTIONS_RUNTIME_TOKEN,required=false \
+    ACTIONS_RUNTIME_TOKEN=$([ -f /run/secrets/ACTIONS_RUNTIME_TOKEN ] && cat /run/secrets/ACTIONS_RUNTIME_TOKEN || echo "") cargo build --release
 RUN rm -rf src
 
 # Copy source code
@@ -36,10 +41,12 @@ COPY . .
 
 # Build the application
 # We need to touch the main file to force a rebuild
-RUN --mount=type=cache,target=/root/.cache/sccache \
-    --mount=type=secret,id=ACTIONS_RUNTIME_TOKEN \
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/root/.cache/sccache \
+    --mount=type=secret,id=ACTIONS_RUNTIME_TOKEN,required=false \
     touch src/main.rs && \
-    ACTIONS_RUNTIME_TOKEN=$(cat /run/secrets/ACTIONS_RUNTIME_TOKEN) \
+    ACTIONS_RUNTIME_TOKEN=$([ -f /run/secrets/ACTIONS_RUNTIME_TOKEN ] && cat /run/secrets/ACTIONS_RUNTIME_TOKEN || echo "") \
     SCCACHE_NO_DAEMON=1 RUST_BACKTRACE=1 cargo build --release && sccache --show-stats
 
 # Runtime stage
