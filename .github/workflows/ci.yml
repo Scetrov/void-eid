@@ -329,7 +329,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=sha
-            type=semver,pattern={{version}},value=${{ inputs.version }},enable=${{ inputs.is_release }}
+            type=semver,pattern={{version}},value=${{ inputs.version }},enable=${{ inputs.is_release || 'false' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -382,7 +382,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=sha
-            type=semver,pattern={{version}},value=${{ inputs.version }},enable=${{ inputs.is_release }}
+            type=semver,pattern={{version}},value=${{ inputs.version }},enable=${{ inputs.is_release || 'false' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
