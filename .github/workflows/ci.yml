@@ -325,11 +325,10 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/${{ matrix.service }}
+          images: ghcr.io/${{ github.repository }}/void-eid-${{ matrix.service }}
           tags: |
             type=ref,event=branch
             type=sha
-            type=raw,value=latest
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -378,11 +377,10 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/backend
+          images: ghcr.io/${{ github.repository }}/void-eid-backend
           tags: |
             type=ref,event=branch
             type=sha
-            type=raw,value=latest
 
       - name: Build and push
         uses: docker/build-push-action@v6

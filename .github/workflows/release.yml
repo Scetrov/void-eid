@@ -98,3 +98,66 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  create-release:
+    needs: [ci, update-repo-version]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download backend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-bin
+          path: release-assets/backend
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: release-assets/frontend
+
+      - name: Package artifacts
+        run: |
+          VERSION=${{ needs.update-repo-version.outputs.version }}
+
+          # Backend
+          cd release-assets/backend
+          tar -czvf ../../void-eid-backend-${VERSION}.tar.gz *
+          cd ../..
+
+          # Frontend
+          cd release-assets/frontend
+          tar -czvf ../../void-eid-frontend-${VERSION}.tar.gz *
+          cd ../..
+
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          # Get the previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag found, generating changelog for all commits"
+            git log --pretty=format:"* %s (%h)" > CHANGELOG.md
+          else
+            echo "Generating changelog since $PREV_TAG"
+            echo "## Changes since $PREV_TAG" > CHANGELOG.md
+            git log --pretty=format:"* %s (%h)" $PREV_TAG..HEAD >> CHANGELOG.md
+          fi
+
+          echo "path=CHANGELOG.md" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: ${{ steps.changelog.outputs.path }}
+          files: |
+            void-eid-backend-*.tar.gz
+            void-eid-frontend-*.tar.gz
+          draft: true
+          prerelease: false
