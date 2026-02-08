@@ -14,7 +14,7 @@ Run the Rust binary as a service (e.g., systemd, Docker). Serve the frontend sta
 
 ## Building the Backend
 
-1.  **Environment**: Ensure target environment has `libc` compatible with the build (or build static musl binary).
+1.  **Environment**: The CI pipeline builds a glibc binary on Ubuntu. Production Docker images use `debian:bookworm-slim` as the runtime base.
 2.  **Build**:
     ```bash
     cd src/backend
@@ -34,34 +34,18 @@ Run the Rust binary as a service (e.g., systemd, Docker). Serve the frontend sta
 
 ## Deployment with Docker (Recommended)
 
-A multi-stage Dockerfile is the easiest way to deploy.
+The backend Docker image uses a pre-built binary on `debian:bookworm-slim`. The CI pipeline builds the binary and packages it — no Rust compilation happens inside Docker.
 
 ```dockerfile
-# Build Backend
-FROM rust:latest as backend-builder
-WORKDIR /app
-COPY src/backend .
-RUN cargo build --release
-
-# Build Frontend
-FROM node:20 as frontend-builder
-WORKDIR /app
-COPY src/frontend .
-RUN bun install && bun run build
-
-# Runtime
+# Backend runtime image (src/backend/Dockerfile)
 FROM debian:bookworm-slim
-WORKDIR /app
-# Install dependencies (openssl, ca-certificates, sqlite3)
-RUN apt-get update && apt-get install -y libssl3 ca-certificates sqlite3 && rm -rf /var/lib/apt/lists/*
-
-COPY --from=backend-builder /app/target/release/void-eid-backend .
-# Optional: If backend serves frontend
-# COPY --from=frontend-builder /app/dist ./static
-
-ENV PORT=8080
-ENV DATABASE_URL=sqlite:/data/void-eid.db
-
+WORKDIR /usr/local/bin
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates libssl3 libsqlite3-0 && \
+    rm -rf /var/lib/apt/lists/*
+COPY void-eid-backend .
+RUN chmod +x ./void-eid-backend
+EXPOSE 5038
 CMD ["./void-eid-backend"]
 ```
 

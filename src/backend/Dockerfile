@@ -1,43 +1,20 @@
-# Builder stage
-FROM docker.io/library/rust:alpine AS builder
-
-WORKDIR /usr/src/app
-
-# Install build dependencies for musl
-RUN apk add --no-cache musl-dev openssl-dev openssl-libs-static pkgconfig curl
-
-# Copy manifests
-COPY Cargo.toml Cargo.lock ./
-
-# Create a dummy main to cache dependencies
-RUN mkdir src && echo "fn main() {}" > src/main.rs
-RUN cargo build --release
-RUN rm -rf src
-
-# Copy source code
-COPY . .
-
-# Build the application
-# We need to touch the main file to force a rebuild
-RUN touch src/main.rs
-RUN cargo build --release
-
-# Runtime stage
-FROM alpine:latest
+FROM docker.io/library/debian:bookworm-slim
 
 WORKDIR /usr/local/bin
 
 # Install runtime dependencies
-RUN apk add --no-cache \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     ca-certificates \
-    sqlite-libs \
-    libgcc
+    libssl3 \
+    libsqlite3-0 && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy the binary from the builder stage
-COPY --from=builder /usr/src/app/target/release/void-eid-backend .
+# Copy the pre-built binary
+COPY void-eid-backend .
+RUN chmod +x ./void-eid-backend
 
 # Expose the API port
 EXPOSE 5038
 
-# Run the binary
 CMD ["./void-eid-backend"]

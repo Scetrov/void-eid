@@ -17,17 +17,54 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   backend:
     name: Backend
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write # Required for GHA cache and sccache
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: "sccache"
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+
       - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Patch version
         if: ${{ inputs.version }}
         run: |
           sed -i 's/^version = ".*"/version = "${{ inputs.version }}"/' src/backend/Cargo.toml
+
+      - name: Configure sccache
+        uses: actions/github-script@v7
+        with:
+          script: |
+            if (process.env.ACTIONS_CACHE_URL) {
+              core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL);
+            }
+            if (process.env.ACTIONS_RUNTIME_TOKEN) {
+              core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN);
+            }
+
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -38,6 +75,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src/backend -> target
+          cache-targets: "false"
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -48,11 +86,11 @@ jobs:
         working-directory: src/backend
 
       - name: Build
-        run: cargo build --verbose
+        run: cargo build
         working-directory: src/backend
 
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test
         working-directory: src/backend
 
       - name: Build stub_api
@@ -60,12 +98,10 @@ jobs:
         working-directory: src/backend
 
       - name: Build release binary
-        if: ${{ inputs.is_release }}
         run: cargo build --release --bin void-eid-backend
         working-directory: src/backend
 
       - name: Upload backend binary
-        if: ${{ inputs.is_release }}
         uses: actions/upload-artifact@v4
         with:
           name: backend-bin
@@ -79,11 +115,22 @@ jobs:
           path: src/backend/target/release/stub_api
           retention-days: 1
 
+      - name: Show sccache stats
+        run: sccache --show-stats
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write # Required for GHA cache
+    env:
+      VITE_API_URL: http://localhost:5038
     steps:
       - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Patch version
         if: ${{ inputs.version }}
@@ -106,8 +153,6 @@ jobs:
       - name: Build
         run: bun run build
         working-directory: src/frontend
-        env:
-          VITE_API_URL: http://localhost:5038
 
       - name: Upload dist artifact
         uses: actions/upload-artifact@v4
@@ -115,6 +160,35 @@ jobs:
           name: frontend-dist
           path: src/frontend/dist
           retention-days: 1
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: src/frontend
+          file: src/frontend/Dockerfile
+          build-args: |
+            VITE_API_URL=${{ env.VITE_API_URL }}
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  murmur:
+    name: Murmur
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: src/murmur
+          file: src/murmur/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   e2e:
     name: E2E Tests (${{ matrix.project }})
@@ -178,8 +252,10 @@ jobs:
   merge-reports:
     name: Merge E2E Reports
     needs: [e2e]
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && needs.e2e.result != 'skipped' }}
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
     steps:
       - uses: actions/checkout@v6
 
@@ -209,3 +285,110 @@ jobs:
           name: playwright-report
           path: src/frontend/playwright-report
           retention-days: 14
+
+  push-images:
+    name: Push Docker Images
+    needs: [backend, frontend, murmur, e2e]
+    if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      actions: write # Required for GHA cache
+    strategy:
+      matrix:
+        service: [frontend, murmur]
+        include:
+          - service: frontend
+            context: src/frontend
+            dockerfile: src/frontend/Dockerfile
+          - service: murmur
+            context: src/murmur
+            dockerfile: src/murmur/Dockerfile
+    env:
+      # TODO: Use runtime config for production API URL instead of baking dev URL into images
+      VITE_API_URL: "/"
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/${{ matrix.service }}
+          tags: |
+            type=ref,event=branch
+            type=sha
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VITE_API_URL=${{ env.VITE_API_URL }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  push-backend-image:
+    name: Push Backend Docker Image
+    needs: [backend, e2e]
+    if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download backend binary
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-bin
+          path: src/backend
+
+      - name: Make binary executable
+        run: chmod +x src/backend/void-eid-backend
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/backend
+          tags: |
+            type=ref,event=branch
+            type=sha
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: src/backend
+          file: src/backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
