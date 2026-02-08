@@ -141,7 +141,7 @@ jobs:
         with:
           context: src/backend
           file: src/backend/Dockerfile
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
@@ -216,7 +216,7 @@ jobs:
           file: src/frontend/Dockerfile
           build-args: |
             VITE_API_URL=${{ env.VITE_API_URL }}
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -255,7 +255,7 @@ jobs:
         with:
           context: src/murmur
           file: src/murmur/Dockerfile
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
