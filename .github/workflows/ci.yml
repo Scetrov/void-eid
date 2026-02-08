@@ -24,6 +24,9 @@ jobs:
   backend:
     name: Backend
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write # Required for GHA cache and sccache
     env:
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: "sccache"
@@ -123,8 +126,7 @@ jobs:
           context: src/backend
           file: src/backend/Dockerfile
           push: false
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          # tags/labels removed as they are not needed for verification
           build-args: |
             ACTIONS_CACHE_URL=${{ env.ACTIONS_CACHE_URL }}
             ACTIONS_RUNTIME_TOKEN=${{ env.ACTIONS_RUNTIME_TOKEN }}
@@ -134,6 +136,9 @@ jobs:
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write # Required for GHA cache
     env:
       VITE_API_URL: http://localhost:5038
     steps:
@@ -179,8 +184,6 @@ jobs:
           build-args: |
             VITE_API_URL=${{ env.VITE_API_URL }}
           push: false
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -199,8 +202,6 @@ jobs:
           context: src/murmur
           file: src/murmur/Dockerfile
           push: false
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -300,11 +301,12 @@ jobs:
 
   push-images:
     name: Push Docker Images
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+      actions: write # Required for GHA cache
     strategy:
       matrix:
         service: [backend, frontend, murmur]
@@ -321,7 +323,8 @@ jobs:
     env:
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: "sccache"
-      VITE_API_URL: http://localhost:5038
+      # TODO: Use a proper variable for production URL
+      VITE_API_URL: "/"
     steps:
       - uses: actions/checkout@v6
 
@@ -366,9 +369,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             ACTIONS_CACHE_URL=${{ env.ACTIONS_CACHE_URL }}
-            ACTIONS_RUNTIME_TOKEN=${{ env.ACTIONS_RUNTIME_TOKEN }}
             VITE_API_URL=${{ env.VITE_API_URL }}
             SCCACHE_NO_DAEMON=1
             RUST_BACKTRACE=1
+          secrets: |
+            ACTIONS_RUNTIME_TOKEN=${{ env.ACTIONS_RUNTIME_TOKEN }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
