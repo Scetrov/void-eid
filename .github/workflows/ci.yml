@@ -19,12 +19,14 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   backend:
     name: Backend
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     env:
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: "sccache"
@@ -151,6 +153,9 @@ jobs:
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     env:
       VITE_API_URL: http://localhost:5038
     steps:
