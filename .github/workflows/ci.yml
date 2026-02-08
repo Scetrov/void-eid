@@ -27,6 +27,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Patch version
         if: ${{ inputs.version }}
         run: |
@@ -96,11 +99,23 @@ jobs:
       - name: Show sccache stats
         run: sccache --show-stats
 
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: src/backend
+          file: src/backend/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Patch version
         if: ${{ inputs.version }}
@@ -132,6 +147,17 @@ jobs:
           name: frontend-dist
           path: src/frontend/dist
           retention-days: 1
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: src/frontend
+          file: src/frontend/Dockerfile
+          build-args: |
+            VITE_API_URL=${{ env.VITE_API_URL }}
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   e2e:
     name: E2E Tests (${{ matrix.project }})
