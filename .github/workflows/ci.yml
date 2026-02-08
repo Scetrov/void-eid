@@ -254,6 +254,8 @@ jobs:
     needs: [e2e]
     if: ${{ !cancelled() && needs.e2e.result != 'skipped' }}
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
     steps:
       - uses: actions/checkout@v6
 
@@ -286,8 +288,8 @@ jobs:
 
   push-images:
     name: Push Docker Images
-    needs: [backend, frontend, murmur]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend, frontend, murmur, e2e]
+    if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -344,8 +346,8 @@ jobs:
 
   push-backend-image:
     name: Push Backend Docker Image
-    needs: [backend]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend, e2e]
+    if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
