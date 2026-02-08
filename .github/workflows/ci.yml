@@ -126,9 +126,11 @@ jobs:
           context: src/backend
           file: src/backend/Dockerfile
           push: false
-          # tags/labels removed as they are not needed for verification
           build-args: |
             ACTIONS_CACHE_URL=${{ env.ACTIONS_CACHE_URL }}
+            SCCACHE_NO_DAEMON=1
+            RUST_BACKTRACE=1
+          secrets: |
             ACTIONS_RUNTIME_TOKEN=${{ env.ACTIONS_RUNTIME_TOKEN }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
