@@ -1,5 +1,5 @@
 import { Link, useLocation } from '@tanstack/react-router'
-import { LogOut, Home, Mic, Users } from 'lucide-react'
+import { LogOut, Home, Mic, Users, ShieldAlert } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import { AdminTribeNav } from './AdminTribeNav'
 import { useAuth } from '../providers/AuthProvider'
@@ -99,7 +99,17 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                 </nav>
 
                 {/* Desktop Actions - Hidden on mobile via CSS, moved to overlay */}
-                <div className="desktop-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingTop: '0.25rem' }}>
+                    <div className="desktop-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingTop: '0.25rem' }}>
+                    {user?.isSuperAdmin && (
+                        <Link
+                            to="/super-admin"
+                            className="btn btn-secondary"
+                            style={{ color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            title="Super Admin Dashboard"
+                        >
+                            <ShieldAlert size={18} />
+                        </Link>
+                    )}
                     <ThemeToggle />
                     <button onClick={logout} className="btn btn-secondary" title="Logout">
                         <LogOut size={18} />

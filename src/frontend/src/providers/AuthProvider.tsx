@@ -12,6 +12,7 @@ export interface User {
     tribes: string[];
     adminTribes: string[];
     isAdmin: boolean;
+    isSuperAdmin: boolean;
     lastLoginAt: string | null;
     wallets: LinkedWallet[];
 }
@@ -35,6 +36,7 @@ interface AuthContextType {
   unlinkWallet: (id: string) => Promise<void>;
   isLoading: boolean;
   error: string | null;
+  setAuthToken: (token: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -114,6 +116,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setUser(null);
     setCurrentTribeState(null);
+  }, []);
+
+  const setAuthToken = useCallback((newToken: string | null) => {
+    if (newToken) {
+        localStorage.setItem('sui_jwt', newToken);
+    } else {
+        localStorage.removeItem('sui_jwt');
+    }
+    setToken(newToken);
   }, []);
 
   const linkWallet = async (address: string) => {
@@ -206,7 +217,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       linkWallet,
       unlinkWallet,
       isLoading,
-      error
+      error,
+      setAuthToken
     }}>
       {children}
     </AuthContext.Provider>

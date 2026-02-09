@@ -19,6 +19,10 @@ pub enum AuditAction {
     NoteEdit,
     MumbleCreateAccount,
     MumbleLogin,
+    SuperAdminUpdateUser,
+    SuperAdminCreateTribe,
+    SuperAdminUpdateTribe,
+    SuperAdminDeleteWallet,
 }
 
 impl AuditAction {
@@ -37,8 +41,35 @@ impl AuditAction {
             AuditAction::NoteEdit => "NOTE_EDIT",
             AuditAction::MumbleCreateAccount => "MUMBLE_CREATE_ACCOUNT",
             AuditAction::MumbleLogin => "MUMBLE_LOGIN",
+            AuditAction::SuperAdminUpdateUser => "SUPER_ADMIN_UPDATE_USER",
+            AuditAction::SuperAdminCreateTribe => "SUPER_ADMIN_CREATE_TRIBE",
+            AuditAction::SuperAdminUpdateTribe => "SUPER_ADMIN_UPDATE_TRIBE",
+            AuditAction::SuperAdminDeleteWallet => "SUPER_ADMIN_DELETE_WALLET",
         }
     }
+}
+
+/// Send an alert to Discord Webhook (fire and forget)
+pub fn alert_admin_action(admin_name: String, action: AuditAction, details: String) {
+    tokio::spawn(async move {
+        let webhook_url = match std::env::var("SUPER_ADMIN_AUDIT_WEBHOOK") {
+            Ok(url) => url,
+            Err(_) => return, // No webhook configured, ignore
+        };
+
+        if webhook_url.is_empty() {
+            return;
+        }
+
+        let client = reqwest::Client::new();
+        let payload = serde_json::json!({
+            "content": format!("🛡️ **Super Admin Action Detected**\n**Admin:** {}\n**Action:** {}\n**Details:** {}", admin_name, action.as_str(), details)
+        });
+
+        if let Err(e) = client.post(&webhook_url).json(&payload).send().await {
+            eprintln!("Failed to send admin audit webhook: {}", e);
+        }
+    });
 }
 
 /// Log an action to the audit_logs table

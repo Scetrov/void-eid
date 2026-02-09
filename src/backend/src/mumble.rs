@@ -37,7 +37,7 @@ pub struct VerifyLoginResponse {
 
 pub async fn create_account(
     State(state): State<AppState>,
-    auth::AuthenticatedUser { user_id }: auth::AuthenticatedUser,
+    auth::AuthenticatedUser { user_id, .. }: auth::AuthenticatedUser,
 ) -> impl IntoResponse {
     // user_id is already i64 from AuthenticatedUser extractor
 
@@ -236,7 +236,7 @@ pub struct MumbleStatusResponse {
 
 pub async fn get_status(
     State(state): State<AppState>,
-    auth::AuthenticatedUser { user_id }: auth::AuthenticatedUser,
+    auth::AuthenticatedUser { user_id, .. }: auth::AuthenticatedUser,
 ) -> impl IntoResponse {
     // user_id is already i64 from AuthenticatedUser extractor
 

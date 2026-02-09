@@ -1,5 +1,5 @@
 use axum::{
-    routing::{get, post},
+    routing::{delete, get, patch, post},
     Router,
 };
 use std::net::SocketAddr;
@@ -7,7 +7,7 @@ use tower_http::cors::CorsLayer;
 use void_eid_backend::db::init_db;
 use void_eid_backend::state::AppState;
 
-use void_eid_backend::{auth, models, mumble, notes, roster, wallet};
+use void_eid_backend::{admin, auth, models, mumble, notes, roster, wallet};
 
 use utoipa::OpenApi;
 use utoipa_scalar::{Scalar, Servable};
@@ -114,6 +114,15 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/api/auth/discord/login", get(auth::discord_login))
         .route("/api/auth/discord/callback", get(auth::discord_callback))
+        // Admin Routes
+        .route("/api/admin/users", get(admin::list_users))
+        .route("/api/admin/users/{id}", patch(admin::update_user))
+        .route(
+            "/api/admin/tribes",
+            get(admin::list_tribes).post(admin::create_tribe),
+        )
+        .route("/api/admin/tribes/{id}", patch(admin::update_tribe))
+        .route("/api/admin/wallets/{id}", delete(admin::delete_wallet))
         // Mumble routes
         .route("/api/mumble/account", post(mumble::create_account))
         .route("/api/mumble/status", get(mumble::get_status))

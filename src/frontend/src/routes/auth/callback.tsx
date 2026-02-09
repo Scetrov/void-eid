@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import z from 'zod'
+import { useAuth } from '../../providers/AuthProvider'
 
 const searchSchema = z.object({
   token: z.string().optional(),
@@ -14,17 +15,16 @@ export const Route = createFileRoute('/auth/callback')({
 function AuthCallback() {
   const { token } = Route.useSearch()
   const navigate = useNavigate()
+  const { setAuthToken } = useAuth()
 
   useEffect(() => {
     if (token) {
-      localStorage.setItem('sui_jwt', token)
-      // Use navigate instead of window.location.href to avoid hard reload
-      // The AuthProvider will pick up the token from localStorage on next render
+      setAuthToken(token)
       navigate({ to: '/home' })
     } else {
       navigate({ to: '/login' })
     }
-  }, [token, navigate])
+  }, [token, navigate, setAuthToken])
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>

@@ -4,15 +4,18 @@ use axum::{
 };
 use state::AppState;
 
+pub mod admin;
 pub mod audit;
 pub mod auth;
 pub mod db;
 pub mod helpers;
+pub mod middleware;
 pub mod models;
 pub mod mumble;
 pub mod notes;
 pub mod roster;
 pub mod state;
+
 pub mod wallet;
 
 pub fn get_common_router() -> Router<AppState> {
