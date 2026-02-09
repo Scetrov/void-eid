@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { DashboardLayout } from '../components/DashboardLayout'
 import { useAuth, type User } from '../providers/AuthProvider'
 import { useEffect, useState, useCallback } from 'react'
+import type { ReactNode } from 'react'
 import { API_URL } from '../config'
 import { ShieldAlert, Trash2, Edit2, Plus, ChevronDown, ChevronRight, UserPlus, AlertTriangle, CheckCircle, X, Check } from 'lucide-react'
 import { CopyButton } from '../components/CopyButton'
@@ -21,7 +22,7 @@ const WalletAddress = ({ address }: { address: string }) => {
     );
 };
 
-const Modal = ({ children, title, onClose }: { children: React.ReactNode, title: string, onClose: () => void }) => (
+const Modal = ({ children, title, onClose }: { children: ReactNode, title: string, onClose: () => void }) => (
     <div style={{
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
         backgroundColor: 'rgba(0,0,0,0.5)',

@@ -18,5 +18,5 @@
 		}
 	},
 	"forwardPorts": [5038, 5173],
-	"postCreateCommand": "bun install --prefix src/sui && cd src/rust && cargo fetch"
+	"postCreateCommand": "bun install --prefix src/frontend && cd src/backend && cargo fetch"
 }

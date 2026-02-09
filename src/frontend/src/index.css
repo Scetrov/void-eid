@@ -213,7 +213,7 @@ img {
   border-color: var(--brand-orange);
 }
 
-/* Notifications Banners (Independant of .card) */
+/* Notifications Banners (Independent of .card) */
 .notification-banner {
   background: var(--panel-bg);
   padding: 1rem;

@@ -229,7 +229,10 @@ pub async fn unlink_wallet(
     let wallet_address = match &wallet {
         Ok(Some(w)) => w.address.clone(),
         _ => {
-            return Json(serde_json::json!({ "error": "Wallet not found or not owned by user" }))
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({ "error": "Wallet not found or not owned by user" })),
+            )
                 .into_response();
         }
     };
