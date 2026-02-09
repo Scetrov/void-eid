@@ -16,24 +16,27 @@ try:
         '/usr/share/slice',
         '/usr/share/ice/slice',
         '/usr/local/share/ice/slice',
+        '/usr/share/mumble-server', # Common for Debian packages
         '/usr/local/lib/python3.11/dist-packages/slice',
         # Try to find relative to Ice module
         os.path.join(os.path.dirname(Ice.__file__), 'slice'),
-        # Common pip install location: .../site-packages/zeroc_ice-X.Y.Z.data/data/slice or similiar
+        # Common pip install location
         os.path.join(sys.prefix, 'share', 'ice', 'slice'),
         # Check current dir
         os.getcwd()
     ]
 
-    slice_file = None
-    include_path = []
-
-    for p in slice_paths:
-        if os.path.exists(os.path.join(p, 'Murmur.ice')):
-            slice_file = os.path.join(p, 'Murmur.ice')
-            include_path.append('-I' + p)
-            break
-        # Also check for Murmur.ice inside 'Ice' subdir if we want to be thorough?
+    # Explicitly check ICE_SLICE env var first if it exists
+    ice_slice_env = os.environ.get("ICE_SLICE")
+    if ice_slice_env and os.path.exists(ice_slice_env):
+        slice_file = ice_slice_env
+        include_path.append('-I' + os.path.dirname(ice_slice_env))
+    else:
+        for p in slice_paths:
+            if os.path.exists(os.path.join(p, 'Murmur.ice')):
+                slice_file = os.path.join(p, 'Murmur.ice')
+                include_path.append('-I' + p)
+                break
 
     # Also find system slice dir for Ice/SliceChecksumDict.ice
     for p in slice_paths:

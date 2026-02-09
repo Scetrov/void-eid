@@ -19,8 +19,9 @@ WORKDIR /app
 
 # Copy files
 COPY murmur.ini /etc/murmur.ini
+COPY Murmur.ice /app/Murmur.ice
 COPY authenticator.py /app/authenticator.py
-ENV ICE_SLICE=/usr/share/mumble-server/MumbleServer.ice
+ENV ICE_SLICE=/app/Murmur.ice
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
