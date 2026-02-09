@@ -637,7 +637,7 @@ pub async fn grant_admin(
     if existing.is_some() {
         // Update existing entry
         let result = sqlx::query(
-            "UPDATE user_tribes SET wallet_id = ?, is_admin = TRUE WHERE user_id = ? AND tribe = ?",
+            "UPDATE user_tribes SET wallet_id = ?, is_admin = TRUE, source = 'MANUAL' WHERE user_id = ? AND tribe = ?",
         )
         .bind(&payload.wallet_id)
         .bind(target_user.id)
@@ -651,7 +651,7 @@ pub async fn grant_admin(
     } else {
         // Insert new entry
         let result = sqlx::query(
-            "INSERT INTO user_tribes (user_id, tribe, wallet_id, is_admin) VALUES (?, ?, ?, TRUE)",
+            "INSERT INTO user_tribes (user_id, tribe, wallet_id, is_admin, source) VALUES (?, ?, ?, TRUE, 'MANUAL')",
         )
         .bind(target_user.id)
         .bind(&tribe)

@@ -45,6 +45,12 @@ pub struct UserTribe {
     pub created_at: Option<DateTime<Utc>>,
     #[serde(default)]
     pub is_admin: bool,
+    #[serde(default = "default_source")]
+    pub source: String,
+}
+
+fn default_source() -> String {
+    "MANUAL".to_string()
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]

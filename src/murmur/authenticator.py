@@ -11,6 +11,9 @@ logger = logging.getLogger("MurmurAuthenticator")
 
 # Load Murmur.ice
 try:
+    # Initialize include_path
+    include_path = []
+
     # Attempt to locate slice dir
     slice_paths = [
         '/usr/share/slice',
@@ -132,10 +135,22 @@ def run():
 
     logger.info(f"Connecting to Murmur Ice at {ice_host}:{ice_port}")
 
-    base = communicator.stringToProxy(f"Meta:tcp -h {ice_host} -p {ice_port}")
-    # Use uncheckedCast because checkedCast fails due to potential slice version mismatch
-    # even though methods work fine.
-    meta = Murmur.MetaPrx.uncheckedCast(base)
+    base_str = f"Meta:tcp -h {ice_host} -p {ice_port}"
+    meta = None
+
+    # Retry loop for initial connection
+    for i in range(10):
+        try:
+            base = communicator.stringToProxy(base_str)
+            # Use uncheckedCast because checkedCast might fail if server not ready or slice mismatch logic
+            meta = Murmur.MetaPrx.uncheckedCast(base)
+            # Verify connection by calling a lightweight method
+            meta.ice_ping()
+            logger.info("Successfully connected to Murmur Meta proxy.")
+            break
+        except Exception as e:
+            logger.warning(f"Connection attempt {i+1}/10 failed: {e}")
+            time.sleep(2)
 
     if not meta:
         logger.error("Could not obtain Meta proxy after multiple attempts. Is Murmur running?")

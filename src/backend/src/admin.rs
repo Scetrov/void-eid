@@ -130,6 +130,7 @@ pub struct UpdateUserRequest {
     pub is_admin: bool,
     pub username: String,
     pub discriminator: String,
+    pub admin_tribes: Vec<String>,
 }
 
 pub async fn update_user(
@@ -181,14 +182,44 @@ pub async fn update_user(
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
+    // Update tribe admin status
+    // 1. Reset all admin flags for this user in user_tribes
+    let reset_res = sqlx::query("UPDATE user_tribes SET is_admin = FALSE WHERE user_id = ?")
+        .bind(user_id)
+        .execute(&mut *tx)
+        .await;
+
+    if let Err(e) = reset_res {
+        eprintln!("Failed to reset tribe admin status: {}", e);
+        let _ = tx.rollback().await;
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+
+    // 2. Set admin=TRUE for the tribes in the payload
+    for tribe in &payload.admin_tribes {
+        let set_res =
+            sqlx::query("UPDATE user_tribes SET is_admin = TRUE WHERE user_id = ? AND tribe = ?")
+                .bind(user_id)
+                .bind(tribe)
+                .execute(&mut *tx)
+                .await;
+
+        if let Err(e) = set_res {
+            eprintln!("Failed to set tribe admin status for {}: {}", tribe, e);
+            let _ = tx.rollback().await;
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    }
+
     let changes = format!(
-        "is_admin: {}->{}, username: {}->{}, discriminator: {}->{}",
+        "is_admin: {}->{}, username: {}->{}, discriminator: {}->{}, admin_tribes: {:?}",
         old_user.is_admin,
         payload.is_admin,
         old_user.username,
         payload.username,
         old_user.discriminator,
-        payload.discriminator
+        payload.discriminator,
+        payload.admin_tribes
     );
 
     // Manual audit insert with transaction
@@ -415,7 +446,7 @@ pub async fn add_user_to_tribe(
 
     // 3. Add to user_tribes
     let res = sqlx::query(
-        "INSERT INTO user_tribes (user_id, tribe, is_admin, created_at) VALUES (?, ?, ?, ?)",
+        "INSERT INTO user_tribes (user_id, tribe, is_admin, created_at, source) VALUES (?, ?, ?, ?, 'MANUAL')",
     )
     .bind(user.id)
     .bind(&tribe_name)

@@ -3,7 +3,7 @@ import { DashboardLayout } from '../components/DashboardLayout'
 import { useAuth, type User } from '../providers/AuthProvider'
 import { useEffect, useState, useCallback } from 'react'
 import { API_URL } from '../config'
-import { ShieldAlert, Trash2, Edit2, Plus, ChevronDown, ChevronRight, UserPlus, Copy, Check, AlertTriangle, CheckCircle } from 'lucide-react'
+import { ShieldAlert, Trash2, Edit2, Plus, ChevronDown, ChevronRight, UserPlus, Copy, Check, AlertTriangle, CheckCircle, X } from 'lucide-react'
 
 export const Route = createFileRoute('/super-admin')({
     component: SuperAdminDashboard,
@@ -192,7 +192,8 @@ function SuperAdminDashboard() {
                 body: JSON.stringify({
                     is_admin: editingUser.isAdmin,
                     username: editingUser.username,
-                    discriminator: editingUser.discriminator
+                    discriminator: editingUser.discriminator,
+                    admin_tribes: editingUser.adminTribes
                 })
             });
             if (!res.ok) throw new Error("Failed to update user");
@@ -400,7 +401,7 @@ function SuperAdminDashboard() {
                                                 <td style={{ padding: '0.5rem' }}>{u.username}#{u.discriminator}</td>
                                                 <td style={{ padding: '0.5rem' }}>{u.discordId}</td>
                                                 <td style={{ padding: '0.5rem' }}>
-                                                    {u.isAdmin ? <span style={{color: '#22c55e'}}>YES</span> : <span style={{color: 'var(--text-secondary)'}}>NO</span>}
+                                                    {u.isAdmin ? <Check size={20} color="#22c55e" /> : <X size={20} color="#ef4444" />}
                                                 </td>
                                                 <td style={{ padding: '0.5rem' }}>
                                                     {u.tribes.join(', ')}
@@ -555,6 +556,31 @@ function SuperAdminDashboard() {
                                         />
                                         <span style={{ fontSize: '1.1rem' }}>Is Global Admin</span>
                                     </label>
+                                </div>
+                            </div>
+                            <div style={{ marginBottom: '1rem' }}>
+                                <h4>Tribe Administration</h4>
+                                <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '0.5rem' }}>
+                                    {editingUser.tribes.length === 0 ? (
+                                        <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>User is not in any tribes.</p>
+                                    ) : (
+                                        editingUser.tribes.map(tribe => (
+                                            <label key={tribe} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={editingUser.adminTribes.includes(tribe)}
+                                                    onChange={e => {
+                                                        const newAdminTribes = e.target.checked
+                                                            ? [...editingUser.adminTribes, tribe]
+                                                            : editingUser.adminTribes.filter(t => t !== tribe);
+                                                        setEditingUser({ ...editingUser, adminTribes: newAdminTribes });
+                                                    }}
+                                                    style={{ width: '18px', height: '18px', borderRadius: '0' }}
+                                                />
+                                                <span>Admin of <strong>{tribe}</strong></span>
+                                            </label>
+                                        ))
+                                    )}
                                 </div>
                             </div>
                             <div style={{ marginBottom: '1rem' }}>
