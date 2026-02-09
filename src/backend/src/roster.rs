@@ -140,6 +140,7 @@ pub async fn get_roster_member(
                 user_id: flat.user_id,
                 address: flat.address,
                 verified_at: flat.verified_at,
+                deleted_at: flat.deleted_at,
                 tribes: Vec::new(),
             });
         if let Some(t) = flat.tribe {
@@ -340,6 +341,7 @@ pub async fn get_roster(
                 user_id: flat.user_id,
                 address: flat.address,
                 verified_at: flat.verified_at,
+                deleted_at: flat.deleted_at,
                 tribes: Vec::new(),
             });
         if let Some(t) = flat.tribe {
@@ -605,14 +607,15 @@ pub async fn grant_admin(
         Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response(),
     };
 
-    // Verify wallet exists and belongs to target user
-    let wallet: Option<crate::models::FlatLinkedWallet> =
-        sqlx::query_as("SELECT * FROM wallets WHERE id = ? AND user_id = ?")
-            .bind(&payload.wallet_id)
-            .bind(target_user.id)
-            .fetch_optional(&state.db)
-            .await
-            .unwrap_or(None);
+    // Verify wallet exists, belongs to target user, and is active
+    let wallet: Option<crate::models::FlatLinkedWallet> = sqlx::query_as(
+        "SELECT *, NULL as tribe FROM wallets WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+    )
+    .bind(&payload.wallet_id)
+    .bind(target_user.id)
+    .fetch_optional(&state.db)
+    .await
+    .unwrap_or(None);
 
     if wallet.is_none() {
         return (

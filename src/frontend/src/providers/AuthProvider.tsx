@@ -21,6 +21,7 @@ export interface LinkedWallet {
     id: string;
     address: string;
     verifiedAt: string;
+    deletedAt?: string;
     tribes: string[];
 }
 

@@ -72,16 +72,7 @@ const Modal = ({ children, title, onClose }: { children: React.ReactNode, title:
 );
 
 const Notification = ({ message, type, onClose }: { message: string, type: 'error' | 'success', onClose: () => void }) => (
-     <div className="card" style={{
-         padding: '1rem',
-         marginBottom: '1rem',
-         border: `1px solid ${type === 'error' ? 'var(--text-primary)' : 'var(--border-color)'}`,
-         borderLeft: `4px solid ${type === 'error' ? '#ef4444' : '#22c55e'}`,
-         color: 'var(--text-primary)',
-         display: 'flex',
-         alignItems: 'center',
-         justifyContent: 'space-between'
-     }}>
+     <div className={`notification-banner notification-banner-${type}`}>
          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
              {type === 'error' ? <AlertTriangle size={20} color="#ef4444" /> : <CheckCircle size={20} color="#22c55e" />}
              <span>{message}</span>
@@ -347,8 +338,8 @@ function SuperAdminDashboard() {
     // Derived filtered wallets
     const allWallets = users.flatMap(u => u.wallets.map(w => ({ ...w, username: u.username, userId: u.id })));
     const filteredWallets = allWallets.filter(w =>
-        w.address.toLowerCase().includes(walletSearch.toLowerCase()) ||
-        w.username.toLowerCase().includes(walletSearch.toLowerCase())
+        (w.address.toLowerCase().includes(walletSearch.toLowerCase()) ||
+        w.username.toLowerCase().includes(walletSearch.toLowerCase()))
     );
 
 
@@ -510,8 +501,8 @@ function SuperAdminDashboard() {
                                     </thead>
                                     <tbody>
                                         {filteredWallets.map(w => (
-                                            <tr key={w.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                                <td style={{ padding: '0.5rem' }}>
+                                            <tr key={w.id} style={{ borderBottom: '1px solid var(--border-color)', opacity: w.deletedAt ? 0.5 : 1 }}>
+                                                <td style={{ padding: '0.5rem', textDecoration: w.deletedAt ? 'line-through' : 'none' }}>
                                                     <WalletAddress address={w.address} />
                                                 </td>
                                                 <td style={{ padding: '0.5rem' }}>{w.username}</td>
@@ -571,9 +562,9 @@ function SuperAdminDashboard() {
                                 {editingUser.wallets.length === 0 ? <p style={{color: 'var(--text-secondary)'}}>No wallets attached</p> : (
                                     <ul style={{ listStyle: 'none', padding: 0 }}>
                                         {editingUser.wallets.map(w => (
-                                            <li key={w.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
-                                                 <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                     <WalletAddress address={w.address} />
+                                            <li key={w.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', borderBottom: '1px solid var(--border-color)', opacity: w.deletedAt ? 0.5 : 1 }}>
+                                                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: w.deletedAt ? 'line-through' : 'none' }}>
+                                                    <WalletAddress address={w.address} />
                                                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{new Date(w.verifiedAt).toLocaleString()}</div>
                                                  </div>
                                                  <button

@@ -213,6 +213,32 @@ img {
   border-color: var(--brand-orange);
 }
 
+/* Notifications Banners (Independant of .card) */
+.notification-banner {
+  background: var(--panel-bg);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-family: var(--font-heading);
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+}
+
+.notification-banner-error {
+  border-color: #ef4444;
+  border-left: 4px solid #ef4444;
+}
+
+.notification-banner-success {
+  border-color: #22c55e;
+  border-left: 4px solid #22c55e;
+}
+
 /* Headings */
 h1,
 h2,

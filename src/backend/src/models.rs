@@ -55,6 +55,7 @@ pub struct LinkedWallet {
     pub user_id: i64,
     pub address: String,
     pub verified_at: DateTime<Utc>,
+    pub deleted_at: Option<DateTime<Utc>>,
     pub tribes: Vec<String>,
 }
 
@@ -65,5 +66,6 @@ pub struct FlatLinkedWallet {
     pub user_id: i64,
     pub address: String,
     pub verified_at: DateTime<Utc>,
+    pub deleted_at: Option<DateTime<Utc>>,
     pub tribe: Option<String>,
 }

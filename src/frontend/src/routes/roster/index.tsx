@@ -18,6 +18,7 @@ interface RosterMember {
     wallets: {
         id: string;
         address: string;
+        deletedAt?: string;
         tribes: string[];
     }[];
 }
@@ -202,8 +203,8 @@ function RosterPage() {
                                             <td style={{ padding: '1rem' }} data-label="Wallets">
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                                     {member.wallets.map(w => (
-                                                        <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                            <code style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>
+                                                        <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: w.deletedAt ? 0.5 : 1 }}>
+                                                            <code style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.4rem', borderRadius: '4px', textDecoration: w.deletedAt ? 'line-through' : 'none' }}>
                                                                 {w.address.slice(0, 6)}...{w.address.slice(-4)}
                                                             </code>
                                                             {w.tribes && w.tribes.length > 0 && (

@@ -378,7 +378,7 @@ pub async fn get_me(
     };
 
     let flat_wallets = sqlx::query_as::<_, crate::models::FlatLinkedWallet>(
-        "SELECT w.*, ut.tribe FROM wallets w LEFT JOIN user_tribes ut ON w.id = ut.wallet_id WHERE w.user_id = ?"
+        "SELECT w.*, ut.tribe FROM wallets w LEFT JOIN user_tribes ut ON w.id = ut.wallet_id WHERE w.user_id = ? AND w.deleted_at IS NULL"
     )
         .bind(auth_user.user_id)
         .fetch_all(&state.db)
@@ -396,6 +396,7 @@ pub async fn get_me(
                 user_id: flat.user_id,
                 address: flat.address,
                 verified_at: flat.verified_at,
+                deleted_at: flat.deleted_at,
                 tribes: Vec::new(),
             });
         if let Some(t) = flat.tribe {

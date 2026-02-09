@@ -36,6 +36,7 @@ interface RosterMember {
     wallets: {
         id: string;
         address: string;
+        deletedAt?: string;
         tribes: string[];
     }[];
     audits?: PaginatedAudits;
@@ -341,9 +342,10 @@ function RosterMemberPage() {
                                     justifyContent: 'space-between',
                                     alignItems: 'center',
                                     border: '1px solid var(--glass-border)',
-                                    gap: '1rem'
+                                    gap: '1rem',
+                                    opacity: wallet.deletedAt ? 0.5 : 1
                                 }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, textDecoration: wallet.deletedAt ? 'line-through' : 'none' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                                             <code style={{ fontSize: '0.9rem', wordBreak: 'break-all' }}>{wallet.address}</code>
                                             {wallet.tribes && wallet.tribes.length > 0 && (
@@ -352,8 +354,8 @@ function RosterMemberPage() {
                                                 </span>
                                             )}
                                         </div>
-                                        {/* Grant Admin button - only show if user is admin of current tribe and wallet doesn't already have this tribe */}
-                                        {currentTribe && user?.adminTribes?.includes(currentTribe) && !wallet.tribes.includes(currentTribe) && (
+                                         {/* Grant Admin button - only show if active, if user is admin of current tribe and wallet doesn't already have this tribe */}
+                                        {currentTribe && !wallet.deletedAt && user?.adminTribes?.includes(currentTribe) && !wallet.tribes.includes(currentTribe) && (
                                             <button
                                                 onClick={() => grantAdminMutation.mutate(wallet.id)}
                                                 disabled={grantAdminMutation.isPending}

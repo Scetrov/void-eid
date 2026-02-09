@@ -18,6 +18,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     const mobileHomeRef = useRef<CipherNavTextHandle>(null)
     const mobileVoiceRef = useRef<CipherNavTextHandle>(null)
     const mobileRosterRef = useRef<CipherNavTextHandle>(null)
+    const mobileSuperAdminRef = useRef<CipherNavTextHandle>(null)
 
     const [isMenuOpen, setIsMenuOpen] = useState(false)
 
@@ -35,11 +36,13 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             const timeout1 = setTimeout(() => mobileHomeRef.current?.trigger(), 100)
             const timeout2 = setTimeout(() => mobileVoiceRef.current?.trigger(), 200)
             const timeout3 = setTimeout(() => mobileRosterRef.current?.trigger(), 300)
+            const timeout4 = setTimeout(() => mobileSuperAdminRef.current?.trigger(), 400)
 
             return () => {
                 clearTimeout(timeout1)
                 clearTimeout(timeout2)
                 clearTimeout(timeout3)
+                clearTimeout(timeout4)
             }
         }
     }, [isMenuOpen])
@@ -161,6 +164,17 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                                      <AdminTribeNav />
                                 </div>
                             </>
+                        )}
+                        {user?.isSuperAdmin && (
+                            <Link
+                                to="/super-admin"
+                                className="mobile-nav-link"
+                                activeProps={{ className: 'active' }}
+                                style={{ color: 'var(--accent-primary)' }}
+                            >
+                                <ShieldAlert size={32} />
+                                <CipherNavText ref={mobileSuperAdminRef} text="Super Admin" scrambleDuration={600} scrambleSpeed={50} />
+                            </Link>
                         )}
                     </nav>
 

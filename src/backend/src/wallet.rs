@@ -132,19 +132,46 @@ pub async fn link_verify(
         ));
     }
 
-    // Check availability
+    // Check availability (including soft-deleted)
     let existing: Option<FlatLinkedWallet> =
-        sqlx::query_as("SELECT * FROM wallets WHERE address = ?")
+        sqlx::query_as("SELECT *, NULL as tribe FROM wallets WHERE address = ?")
             .bind(&address_str)
             .fetch_optional(&state.db)
             .await
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    if existing.is_some() {
-        return Err((StatusCode::BAD_REQUEST, "Wallet already linked".into()));
+    if let Some(w) = existing {
+        if w.deleted_at.is_none() {
+            return Err((StatusCode::BAD_REQUEST, "Wallet already linked".into()));
+        }
+
+        // Re-link: Update user_id and clear deleted_at
+        sqlx::query(
+            "UPDATE wallets SET user_id = ?, verified_at = ?, deleted_at = NULL WHERE id = ?",
+        )
+        .bind(auth_user.user_id)
+        .bind(Utc::now())
+        .bind(&w.id)
+        .execute(&state.db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+        // Audit log for re-linking
+        let _ = log_audit(
+            &state.db,
+            AuditAction::LinkWallet,
+            auth_user.user_id,
+            None,
+            &format!("Re-linked wallet {}", address_str),
+        )
+        .await;
+
+        return Ok(Json(
+            serde_json::json!({ "message": "Wallet re-linked successfully" }),
+        ));
     }
 
-    // Link
+    // Link new wallet
     let _ =
         sqlx::query("INSERT INTO wallets (id, user_id, address, verified_at) VALUES (?, ?, ?, ?)")
             .bind(Uuid::new_v4().to_string())
@@ -190,19 +217,30 @@ pub async fn unlink_wallet(
     auth_user: AuthenticatedUser,
 ) -> impl IntoResponse {
     // First fetch the wallet to get the address for the audit log
-    let wallet =
-        sqlx::query_as::<_, FlatLinkedWallet>("SELECT * FROM wallets WHERE id = ? AND user_id = ?")
-            .bind(&wallet_id)
-            .bind(auth_user.user_id)
-            .fetch_optional(&state.db)
-            .await;
+    // Only search in active wallets for regular users
+    let wallet = sqlx::query_as::<_, FlatLinkedWallet>(
+        "SELECT *, NULL as tribe FROM wallets WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+    )
+    .bind(&wallet_id)
+    .bind(auth_user.user_id)
+    .fetch_optional(&state.db)
+    .await;
 
     let wallet_address = match &wallet {
         Ok(Some(w)) => w.address.clone(),
-        _ => "unknown".to_string(),
+        _ => {
+            return Json(serde_json::json!({ "error": "Wallet not found or not owned by user" }))
+                .into_response();
+        }
     };
 
-    let result = sqlx::query("DELETE FROM wallets WHERE id = ? AND user_id = ?")
+    // Also remove from user_tribes where verified by this wallet
+    let _ = sqlx::query("UPDATE user_tribes SET wallet_id = NULL WHERE wallet_id = ?")
+        .bind(&wallet_id)
+        .execute(&state.db)
+        .await;
+
+    let result = sqlx::query("UPDATE wallets SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ? AND deleted_at IS NULL")
         .bind(&wallet_id)
         .bind(auth_user.user_id)
         .execute(&state.db)
@@ -219,10 +257,11 @@ pub async fn unlink_wallet(
                 &format!("Unlinked wallet {}", wallet_address),
             )
             .await;
-            Json(serde_json::json!({ "message": "Unlinked" }))
+            Json(serde_json::json!({ "message": "Unlinked" })).into_response()
         }
-        Ok(_) => Json(serde_json::json!({ "error": "Wallet not found or not owned by user" })),
-        Err(e) => Json(serde_json::json!({ "error": e.to_string() })),
+        Ok(_) => Json(serde_json::json!({ "error": "Wallet not found or not owned by user" }))
+            .into_response(),
+        Err(e) => Json(serde_json::json!({ "error": e.to_string() })).into_response(),
     }
 }
 

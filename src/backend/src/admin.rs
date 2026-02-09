@@ -1,5 +1,5 @@
 use crate::{
-    audit::{alert_admin_action, log_audit, AuditAction},
+    audit::{alert_admin_action, AuditAction},
     middleware::admin::RequireSuperAdmin,
     models::User,
     state::AppState,
@@ -11,6 +11,14 @@ use axum::{
     Json,
 };
 use serde::Deserialize;
+
+async fn get_admin_id(db: &crate::db::DbPool, discord_id: &str) -> i64 {
+    sqlx::query_scalar("SELECT id FROM users WHERE discord_id = ?")
+        .bind(discord_id)
+        .fetch_one(db)
+        .await
+        .unwrap_or(0)
+}
 
 // --- Users ---
 #[derive(serde::Serialize)]
@@ -61,6 +69,7 @@ pub async fn list_users(
                         user_id: flat.user_id,
                         address: flat.address,
                         verified_at: flat.verified_at,
+                        deleted_at: flat.deleted_at,
                         tribes: Vec::new(),
                     });
             if let Some(t) = flat.tribe {
@@ -131,8 +140,13 @@ pub async fn update_user(
 ) -> impl IntoResponse {
     let mut tx = match state.db.begin().await {
         Ok(tx) => tx,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Err(e) => {
+            eprintln!("Failed to start transaction for update_user: {}", e);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
     };
+
+    let admin_id = get_admin_id(&state.db, &admin.discord_id).await;
 
     // calculate diff for audit
     let old_user = match sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ?")
@@ -141,10 +155,18 @@ pub async fn update_user(
         .await
     {
         Ok(Some(u)) => u,
-        _ => return StatusCode::NOT_FOUND.into_response(),
+        Ok(None) => {
+            let _ = tx.rollback().await;
+            return StatusCode::NOT_FOUND.into_response();
+        }
+        Err(e) => {
+            eprintln!("Failed to fetch old user for update_user: {}", e);
+            let _ = tx.rollback().await;
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
     };
 
-    let _ =
+    let update_res =
         sqlx::query("UPDATE users SET is_admin = ?, username = ?, discriminator = ? WHERE id = ?")
             .bind(payload.is_admin)
             .bind(&payload.username)
@@ -152,6 +174,12 @@ pub async fn update_user(
             .bind(user_id)
             .execute(&mut *tx)
             .await;
+
+    if let Err(e) = update_res {
+        eprintln!("Failed to update user in update_user: {}", e);
+        let _ = tx.rollback().await;
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
 
     let changes = format!(
         "is_admin: {}->{}, username: {}->{}, discriminator: {}->{}",
@@ -163,27 +191,6 @@ pub async fn update_user(
         payload.discriminator
     );
 
-    if let Err(_e) = log_audit(
-        &state.db, // Use pool for audit log to not couple with main transaction failure if we want?
-        // WAIT: Requirement says "must use a Database Transaction to ensure the change and the audit log are committed together."
-        // So I must pass &mut *tx to log_audit.
-        // But log_audit takes &DbPool. I should overload it or just use sqlx::query directly here for simplicity or refactor log_audit.
-        // Refactoring log_audit to take Executor is better but might break other calls.
-        // For now, I'll allow log_audit to take a transaction if I refactor it, OR I just write the insert query here to be safe and strictly follow the "Atomic" requirement.
-        // Actually, `log_audit` signature in `audit.rs` is `db: &DbPool`. I can't pass transaction easily without changing it to `impl Executor`.
-        // Let's duplicate the insert logic here for transaction safety or change log_audit in the previous step?
-        // Changing log_audit to generic Executor is best practice.
-        // But for now, to avoid touching too many files, I will execute the audit insert manually within this transaction.
-        AuditAction::SuperAdminUpdateUser,
-        user_id, // Target is the user being modified
-        Some(user_id),
-        &changes,
-    )
-    .await
-    {
-        // This block won't work because log_audit takes Pool.
-    }
-
     // Manual audit insert with transaction
     let audit_id = uuid::Uuid::new_v4().to_string();
     let audit_res = sqlx::query(
@@ -191,24 +198,21 @@ pub async fn update_user(
     )
     .bind(audit_id)
     .bind(AuditAction::SuperAdminUpdateUser.as_str())
-    .bind(0) // Actor ID: System/SuperAdmin? strictly speaking we don't have the admin's numerical ID easily from JWT unless we query it.
-             // The middleware gave us discord_id.
-             // Let's fetch admin user ID or just use 0/System.
-             // We can fetch admin ID from their discord_id.
-             // For safety/speed let's just use 0 if we don't want to query, buuut it's better to have real ID.
-             // Let's query admin ID first.
+    .bind(admin_id)
     .bind(user_id)
     .bind(&changes)
     .bind(chrono::Utc::now())
     .execute(&mut *tx)
     .await;
 
-    if audit_res.is_err() {
+    if let Err(e) = audit_res {
+        eprintln!("Audit log insert failed for update_user: {}", e);
         let _ = tx.rollback().await;
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
-    if tx.commit().await.is_err() {
+    if let Err(e) = tx.commit().await {
+        eprintln!("Transaction commit failed for update_user: {}", e);
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
@@ -283,8 +287,13 @@ pub async fn update_tribe(
 ) -> impl IntoResponse {
     let mut tx = match state.db.begin().await {
         Ok(tx) => tx,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Err(e) => {
+            eprintln!("Failed to start transaction for update_tribe: {}", e);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
     };
+
+    let admin_id = get_admin_id(&state.db, &admin.discord_id).await;
 
     // Update the tribe name in the tribes table
     let update_tribes_res = sqlx::query("UPDATE tribes SET name = ? WHERE name = ?")
@@ -293,7 +302,8 @@ pub async fn update_tribe(
         .execute(&mut *tx)
         .await;
 
-    if update_tribes_res.is_err() {
+    if let Err(e) = update_tribes_res {
+        eprintln!("Failed to update tribe name in update_tribe: {}", e);
         let _ = tx.rollback().await;
         return StatusCode::CONFLICT.into_response(); // Potential duplicate name
     }
@@ -311,19 +321,21 @@ pub async fn update_tribe(
     )
     .bind(uuid::Uuid::new_v4().to_string())
     .bind(AuditAction::SuperAdminUpdateTribe.as_str())
-    .bind(0)
+    .bind(admin_id)
     .bind(None::<i64>)
     .bind(format!("Renamed Tribe '{}' to '{}'", tribe_name, payload.name))
     .bind(chrono::Utc::now())
     .execute(&mut *tx)
     .await;
 
-    if audit_res.is_err() {
+    if let Err(e) = audit_res {
+        eprintln!("Audit log insert failed for update_tribe: {}", e);
         let _ = tx.rollback().await;
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
-    if tx.commit().await.is_err() {
+    if let Err(e) = tx.commit().await {
+        eprintln!("Transaction commit failed for update_tribe: {}", e);
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
@@ -347,29 +359,57 @@ pub async fn add_user_to_tribe(
     Path(tribe_name): Path<String>,
     Json(payload): Json<AddUserToTribeRequest>,
 ) -> impl IntoResponse {
+    let mut tx = match state.db.begin().await {
+        Ok(tx) => tx,
+        Err(e) => {
+            eprintln!("Failed to start transaction for add_user_to_tribe: {}", e);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+
+    let admin_id = get_admin_id(&state.db, &admin.discord_id).await;
+
     // 1. Find user by username (case-insensitive)
     let user =
         match sqlx::query_as::<_, User>("SELECT * FROM users WHERE LOWER(username) = LOWER(?)")
             .bind(&payload.username)
-            .fetch_optional(&state.db)
+            .fetch_optional(&mut *tx)
             .await
-            .unwrap_or(None)
         {
-            Some(u) => u,
-            None => return (StatusCode::NOT_FOUND, "User not found").into_response(),
+            Ok(Some(u)) => u,
+            Ok(None) => {
+                let _ = tx.rollback().await;
+                return (StatusCode::NOT_FOUND, "User not found").into_response();
+            }
+            Err(e) => {
+                eprintln!("Failed to find user in add_user_to_tribe: {}", e);
+                let _ = tx.rollback().await;
+                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+            }
         };
 
     // 2. Check if already in tribe
-    let exists: bool = sqlx::query_scalar(
+    let exists: bool = match sqlx::query_scalar(
         "SELECT EXISTS(SELECT 1 FROM user_tribes WHERE user_id = ? AND tribe = ?)",
     )
     .bind(user.id)
     .bind(&tribe_name)
-    .fetch_one(&state.db)
+    .fetch_one(&mut *tx)
     .await
-    .unwrap_or(false);
+    {
+        Ok(e) => e,
+        Err(e) => {
+            eprintln!(
+                "Failed to check tribe membership in add_user_to_tribe: {}",
+                e
+            );
+            let _ = tx.rollback().await;
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
 
     if exists {
+        let _ = tx.rollback().await;
         return (StatusCode::CONFLICT, "User already in tribe").into_response();
     }
 
@@ -381,16 +421,43 @@ pub async fn add_user_to_tribe(
     .bind(&tribe_name)
     .bind(false)
     .bind(chrono::Utc::now())
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await;
 
-    if res.is_err() {
+    if let Err(e) = res {
+        eprintln!("Failed to insert user_tribe in add_user_to_tribe: {}", e);
+        let _ = tx.rollback().await;
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+
+    // Audit
+    let audit_id = uuid::Uuid::new_v4().to_string();
+    let audit_res = sqlx::query(
+        "INSERT INTO audit_logs (id, action, actor_id, target_id, details, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+    )
+    .bind(audit_id)
+    .bind(AuditAction::SuperAdminUpdateTribe.as_str()) // Reusing action or create new
+    .bind(admin_id)
+    .bind(user.id)
+    .bind(format!("Added User '{}' to Tribe '{}'", user.username, tribe_name))
+    .bind(chrono::Utc::now())
+    .execute(&mut *tx)
+    .await;
+
+    if let Err(e) = audit_res {
+        eprintln!("Audit log insert failed for add_user_to_tribe: {}", e);
+        let _ = tx.rollback().await;
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+
+    if let Err(e) = tx.commit().await {
+        eprintln!("Transaction commit failed for add_user_to_tribe: {}", e);
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
     alert_admin_action(
         format!("SuperAdmin ({})", admin.discord_id),
-        AuditAction::SuperAdminUpdateTribe, // Reusing action or create new
+        AuditAction::SuperAdminUpdateTribe,
         format!("Added User '{}' to Tribe '{}'", user.username, tribe_name),
     );
 
@@ -406,50 +473,59 @@ pub async fn delete_wallet(
 ) -> impl IntoResponse {
     let mut tx = match state.db.begin().await {
         Ok(tx) => tx,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Err(e) => {
+            eprintln!("Failed to start transaction for delete_wallet: {}", e);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
     };
+
+    let admin_id = get_admin_id(&state.db, &admin.discord_id).await;
 
     let audit_res = sqlx::query(
         "INSERT INTO audit_logs (id, action, actor_id, target_id, details, created_at) VALUES (?, ?, ?, ?, ?, ?)"
     )
     .bind(uuid::Uuid::new_v4().to_string())
     .bind(AuditAction::SuperAdminDeleteWallet.as_str())
-    .bind(0) // Placeholder for admin ID
-    .bind(None::<i64>) // No target user ID easily available without query, or we can query wallet first.
-    .bind(format!("Forced delete wallet {}", wallet_id))
+    .bind(admin_id)
+    .bind(None::<i64>)
+    .bind(format!("Forced soft delete wallet {}", wallet_id))
     .bind(chrono::Utc::now())
     .execute(&mut *tx)
     .await;
 
-    if audit_res.is_err() {
+    if let Err(e) = audit_res {
+        eprintln!("Audit log insert failed for delete_wallet: {}", e);
         let _ = tx.rollback().await;
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
     // Also remove from user_tribes where verified by this wallet
-    // user_tribes has wallet_id column
     let _ = sqlx::query("UPDATE user_tribes SET wallet_id = NULL WHERE wallet_id = ?")
         .bind(&wallet_id)
         .execute(&mut *tx)
         .await;
 
-    let del_res = sqlx::query("DELETE FROM wallets WHERE id = ?")
-        .bind(&wallet_id)
-        .execute(&mut *tx)
-        .await;
+    let del_res = sqlx::query(
+        "UPDATE wallets SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted_at IS NULL",
+    )
+    .bind(&wallet_id)
+    .execute(&mut *tx)
+    .await;
 
-    if del_res.is_err() {
+    if let Err(e) = del_res {
+        eprintln!("Soft delete from wallets failed: {}", e);
         let _ = tx.rollback().await;
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
-    // Check if wallet was actually deleted
-    if del_res.as_ref().unwrap().rows_affected() == 0 {
+    // Check if wallet was actually updated
+    if del_res.unwrap().rows_affected() == 0 {
         let _ = tx.rollback().await;
-        return (StatusCode::NOT_FOUND, "Wallet not found").into_response();
+        return (StatusCode::NOT_FOUND, "Wallet not found or already deleted").into_response();
     }
 
-    if tx.commit().await.is_err() {
+    if let Err(e) = tx.commit().await {
+        eprintln!("Transaction commit failed for delete_wallet: {}", e);
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
