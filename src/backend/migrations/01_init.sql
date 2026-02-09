@@ -41,10 +41,41 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     FOREIGN KEY(actor_id) REFERENCES users(id)
 );
 
+-- Notes/Comments table
+CREATE TABLE IF NOT EXISTS notes (
+    id TEXT PRIMARY KEY,
+    target_user_id INTEGER NOT NULL,
+    author_id INTEGER NOT NULL,
+    tribe TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(target_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Mumble Accounts table
+CREATE TABLE IF NOT EXISTS mumble_accounts (
+    user_id INTEGER PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_user_tribes_user_id ON user_tribes(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_tribes_tribe ON user_tribes(tribe);
 CREATE INDEX IF NOT EXISTS idx_wallets_user_id ON wallets(user_id);
-CREATE INDEX IF NOT EXISTS idx_wallets_address ON wallets(address);
+-- Unique index on address (replaces original non-unique index from earlier migration)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_wallets_address_unique ON wallets(address);
+
 CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_id ON audit_logs(actor_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_target_id ON audit_logs(target_id);
+
+CREATE INDEX IF NOT EXISTS idx_notes_target_user_id ON notes(target_user_id);
+CREATE INDEX IF NOT EXISTS idx_notes_tribe ON notes(tribe);
+CREATE INDEX IF NOT EXISTS idx_notes_author_id ON notes(author_id);
+
+CREATE INDEX IF NOT EXISTS idx_mumble_accounts_username ON mumble_accounts(username);

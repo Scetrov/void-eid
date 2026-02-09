@@ -289,7 +289,7 @@ jobs:
   push-images:
     name: Push Docker Images
     needs: [backend, frontend, murmur, e2e]
-    if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: success() && (github.ref == 'refs/heads/main' || inputs.is_release)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -325,11 +325,11 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/${{ matrix.service }}
+          images: ghcr.io/${{ github.repository }}/void-eid-${{ matrix.service }}
           tags: |
             type=ref,event=branch
             type=sha
-            type=raw,value=latest
+            type=semver,pattern={{version}},value=${{ inputs.version }},enable=${{ inputs.is_release || 'false' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -347,7 +347,7 @@ jobs:
   push-backend-image:
     name: Push Backend Docker Image
     needs: [backend, e2e]
-    if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: success() && (github.ref == 'refs/heads/main' || inputs.is_release)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -378,11 +378,11 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/backend
+          images: ghcr.io/${{ github.repository }}/void-eid-backend
           tags: |
             type=ref,event=branch
             type=sha
-            type=raw,value=latest
+            type=semver,pattern={{version}},value=${{ inputs.version }},enable=${{ inputs.is_release || 'false' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6

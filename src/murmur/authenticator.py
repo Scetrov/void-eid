@@ -20,35 +20,40 @@ try:
         # Try to find relative to Ice module
         os.path.join(os.path.dirname(Ice.__file__), 'slice'),
         # Common pip install location: .../site-packages/zeroc_ice-X.Y.Z.data/data/slice or similiar
-        # But often simpler:
         os.path.join(sys.prefix, 'share', 'ice', 'slice'),
-        os.path.join(os.path.dirname(Ice.__file__), '..', '..', '..', 'share', 'ice', 'slice')
+        # Check current dir
+        os.getcwd()
     ]
 
-    found_path = None
+    slice_file = None
+    include_path = []
+
     for p in slice_paths:
-        if os.path.exists(os.path.join(p, 'Ice', 'SliceChecksumDict.ice')):
-            found_path = p
+        if os.path.exists(os.path.join(p, 'Murmur.ice')):
+            slice_file = os.path.join(p, 'Murmur.ice')
+            include_path.append('-I' + p)
             break
+        # Also check for Murmur.ice inside 'Ice' subdir if we want to be thorough?
 
-    if not found_path:
-        logger.warning(f"Could not find Ice slice files in {slice_paths}. Defaulting to /usr/share/slice")
-        found_path = '/usr/share/slice'
-    else:
-        logger.info(f"Using Slice path: {found_path}")
+    # Also find system slice dir for Ice/SliceChecksumDict.ice
+    for p in slice_paths:
+         if os.path.exists(os.path.join(p, 'Ice', 'SliceChecksumDict.ice')):
+             include_path.append('-I' + p)
+             break
 
-    slice_file = os.environ.get('ICE_SLICE', 'Murmur.ice')
-    logger.info(f"Loading slice file: {slice_file}")
-    Ice.loadSlice('', ['-I' + found_path, slice_file])
+    if not slice_file:
+         # Fallback to local default if not found in system
+         if os.path.exists('/app/Murmur.ice'):
+             slice_file = '/app/Murmur.ice'
+             include_path.append('-I.')
 
-    try:
-        import Murmur
-    except ImportError:
-        try:
-            import MumbleServer as Murmur
-        except ImportError:
-            logger.error("Failed to import Murmur or MumbleServer module.")
-            sys.exit(1)
+    if not slice_file:
+        logger.error("Could not find Murmur.ice in common locations.")
+        sys.exit(1)
+
+    logger.info(f"Loading Slice: {slice_file}")
+    Ice.loadSlice('', include_path + [slice_file])
+    import Murmur
 except ImportError:
     logger.error("Failed to load generic Ice modules or slice.")
     sys.exit(1)
@@ -124,25 +129,10 @@ def run():
 
     logger.info(f"Connecting to Murmur Ice at {ice_host}:{ice_port}")
 
-    proxy_str = f"Meta:tcp -h {ice_host} -p {ice_port}"
-    base = communicator.stringToProxy(proxy_str)
-
-    meta = None
-    retries = 10
-    for i in range(retries):
-        try:
-            # Try to ping the object first to check connectivity
-            base.ice_ping()
-
-            # If ping succeeds, try to cast
-            meta = Murmur.MetaPrx.checkedCast(base)
-            if meta:
-                break
-        except Exception as e:
-            logger.warning(f"Connection attempt {i+1}/{retries} failed: {e}")
-
-        if i < retries - 1:
-            time.sleep(2)
+    base = communicator.stringToProxy(f"Meta:tcp -h {ice_host} -p {ice_port}")
+    # Use uncheckedCast because checkedCast fails due to potential slice version mismatch
+    # even though methods work fine.
+    meta = Murmur.MetaPrx.uncheckedCast(base)
 
     if not meta:
         logger.error("Could not obtain Meta proxy after multiple attempts. Is Murmur running?")

@@ -1,22 +1,21 @@
 FROM docker.io/library/debian:trixie-slim
 
-# Install runtime dependencies and build dependencies in one go to keep layer small if cleanup worked (but we do separate install for clarity and caching if needed, though combined is better for size)
-# We need to install runtime deps, then build deps, compile/install pip packages, then remove build deps.
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+# Install runtime dependencies
+# python3-zeroc-ice is available in sid
+RUN apt-get update && apt-get install -y \
     mumble-server \
     python3 \
-    python3-pip \
     python3-zeroc-ice \
+    python3-requests \
     zeroc-ice-slice \
     curl \
-    libbz2-1.0 \
+    bzip2 \
     openssl \
-    libstdc++6 && \
-    pip3 install --no-cache-dir --break-system-packages requests && \
-    rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
+# No need to pip install zeroc-ice or requests as they are installed via apt
 
 # Copy files
 COPY murmur.ini /etc/murmur.ini
@@ -25,10 +24,12 @@ ENV ICE_SLICE=/usr/share/mumble-server/MumbleServer.ice
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
-# Create mumble-server user/group if not exists (Debian package usually creates it, but ensuring it)
-RUN id -u mumble-server >/dev/null 2>&1 || useradd -r -m -d /var/lib/mumble-server -s /usr/sbin/nologin mumble-server
+# Create mumble-server user/group if not exists (invoke-rc.d might complain if not present, but for docker build it's fine)
+# The package usually creates the user 'mumble-server'
+RUN getent group mumble-server || groupadd -r mumble-server && \
+    getent passwd mumble-server || useradd -r -g mumble-server mumble-server
 
-# Create data dir (mumble-server user is created by the apk package)
+# Create data dir
 RUN mkdir -p /data && chown -R mumble-server:mumble-server /data
 
 EXPOSE 64738/tcp 64738/udp 6502

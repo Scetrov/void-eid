@@ -14,7 +14,7 @@ Run the Rust binary as a service (e.g., systemd, Docker). Serve the frontend sta
 
 ## Building the Backend
 
-1.  **Environment**: The CI pipeline builds a glibc binary on Ubuntu. Production Docker images use `debian:bookworm-slim` as the runtime base.
+1.  **Environment**: The CI pipeline builds a glibc binary on Ubuntu. Production Docker images use `debian:trixie-slim` as the runtime base.
 2.  **Build**:
     ```bash
     cd src/backend
@@ -34,11 +34,11 @@ Run the Rust binary as a service (e.g., systemd, Docker). Serve the frontend sta
 
 ## Deployment with Docker (Recommended)
 
-The backend Docker image uses a pre-built binary on `debian:bookworm-slim`. The CI pipeline builds the binary and packages it — no Rust compilation happens inside Docker.
+The backend Docker image uses a pre-built binary on `debian:trixie-slim`. The CI pipeline builds the binary and packages it — no Rust compilation happens inside Docker.
 
 ```dockerfile
 # Backend runtime image (src/backend/Dockerfile)
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 WORKDIR /usr/local/bin
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates libssl3 libsqlite3-0 && \

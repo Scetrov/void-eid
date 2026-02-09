@@ -24,7 +24,7 @@ services:
       - "64738:64738/udp"
     env_file: .env
     environment:
-      - BACKEND_URL=http://backend:5038/api/internal/mumble
+      - BACKEND_URL=${BACKEND_URL:-http://backend:5038/api/internal/mumble}
     volumes:
       - ./data/murmur:/data
     restart: unless-stopped
