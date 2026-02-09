@@ -234,7 +234,7 @@ pub async fn list_tribes(
     // Checking `models.rs`... `UserTribe` struct exists.
     // We can SELECT DISTINCT tribe FROM user_tribes.
 
-    let tribes: Vec<String> = sqlx::query_scalar("SELECT DISTINCT tribe FROM user_tribes")
+    let tribes: Vec<String> = sqlx::query_scalar("SELECT name FROM tribes ORDER BY name ASC")
         .fetch_all(&state.db)
         .await
         .unwrap_or_default();
@@ -248,22 +248,23 @@ pub struct CreateTribeRequest {
 }
 
 pub async fn create_tribe(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     admin: RequireSuperAdmin,
     Json(payload): Json<CreateTribeRequest>,
 ) -> impl IntoResponse {
-    // Audit-only creation if no specific tribe table exists, check assumptions.
-    // If we assume a Tribes table exists, we insert. If not, maybe we insert a dummy user-tribe relation?
-    // Let's assume for now we just log it and maybe insert into a `tribes` table if I find one, OR
-    // Looking at `UserTribe`, it seems tribes are just strings associated with users.
-    // Maybe creating a tribe just means reserving it?
-    // Without a `tribes` table schema, I can't do much DB wise other than maybe ensuring no one has it?
-    // Or maybe I missed `tribes` table existence.
-    // Let's implement it as a "Log creation" for now, and if I need to insert, I'll find out.
-    // Wait, if there is no tribes table, `list_tribes` uses `SELECT DISTINCT tribe FROM user_tribes`.
-    // So "creating" a tribe might just be a no-op DB-wise until a user joins it?
-    // OR we insert a system user into it?
-    // Let's just Log and Alert for now to satisfy the "Admin Action" requirement.
+    if payload.name.trim().is_empty() {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+
+    // Insert into tribes table
+    let res = sqlx::query("INSERT INTO tribes (name) VALUES (?)")
+        .bind(&payload.name)
+        .execute(&state.db)
+        .await;
+
+    if res.is_err() {
+        return StatusCode::CONFLICT.into_response(); // Assuming unique constraint violation
+    }
 
     alert_admin_action(
         format!("SuperAdmin ({})", admin.discord_id),
@@ -284,6 +285,18 @@ pub async fn update_tribe(
         Ok(tx) => tx,
         Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
+
+    // Update the tribe name in the tribes table
+    let update_tribes_res = sqlx::query("UPDATE tribes SET name = ? WHERE name = ?")
+        .bind(&payload.name)
+        .bind(&tribe_name)
+        .execute(&mut *tx)
+        .await;
+
+    if update_tribes_res.is_err() {
+        let _ = tx.rollback().await;
+        return StatusCode::CONFLICT.into_response(); // Potential duplicate name
+    }
 
     // Update all instances of this tribe name in user_tribes
     let _ = sqlx::query("UPDATE user_tribes SET tribe = ? WHERE tribe = ?")
@@ -323,19 +336,66 @@ pub async fn update_tribe(
     StatusCode::OK.into_response()
 }
 
-// Note: "Create Tribe" might mean just ensuring it exists in the concept?
-// If there's no tribes table, maybe we create a dummy user or just nothing?
-// Wait, `POST /api/admin/tribes/:id` -> Update tribe details?
-// If there is no Tribes table, what are we creating/updating?
-// Checking `models.rs` would have been wise. passing `list_dir` showed `models.rs`.
-// Let's assume for now there isn't one and we might need to create it OR it exists and I missed it.
-// If it implies creating a record in `tribes` table, I definitely need that table.
-// Given `user_tribes` has `tribe` string, maybe it's just a string.
-// "Create a tribe" -> likely adding it to a known list or configuration?
-// Or maybe I am supposed to CREATE a tribes table? Use existing architecture.
-// Let's assume for this task, "Create Tribe" adds a row to `tribes` table if it exists, or we just mock it if it's implicitly defined by user_tribes.
-// BUT, `PATCH /api/admin/tribes/:id` implies ID.
-// I will check `models.rs` content before writing this file fully to be sure.
+#[derive(Deserialize)]
+pub struct AddUserToTribeRequest {
+    pub username: String,
+}
+
+pub async fn add_user_to_tribe(
+    State(state): State<AppState>,
+    admin: RequireSuperAdmin,
+    Path(tribe_name): Path<String>,
+    Json(payload): Json<AddUserToTribeRequest>,
+) -> impl IntoResponse {
+    // 1. Find user by username (case-insensitive)
+    let user =
+        match sqlx::query_as::<_, User>("SELECT * FROM users WHERE LOWER(username) = LOWER(?)")
+            .bind(&payload.username)
+            .fetch_optional(&state.db)
+            .await
+            .unwrap_or(None)
+        {
+            Some(u) => u,
+            None => return (StatusCode::NOT_FOUND, "User not found").into_response(),
+        };
+
+    // 2. Check if already in tribe
+    let exists: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM user_tribes WHERE user_id = ? AND tribe = ?)",
+    )
+    .bind(user.id)
+    .bind(&tribe_name)
+    .fetch_one(&state.db)
+    .await
+    .unwrap_or(false);
+
+    if exists {
+        return (StatusCode::CONFLICT, "User already in tribe").into_response();
+    }
+
+    // 3. Add to user_tribes
+    let res = sqlx::query(
+        "INSERT INTO user_tribes (user_id, tribe, is_admin, created_at) VALUES (?, ?, ?, ?)",
+    )
+    .bind(user.id)
+    .bind(&tribe_name)
+    .bind(false)
+    .bind(chrono::Utc::now())
+    .execute(&state.db)
+    .await;
+
+    if res.is_err() {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+
+    alert_admin_action(
+        format!("SuperAdmin ({})", admin.discord_id),
+        AuditAction::SuperAdminUpdateTribe, // Reusing action or create new
+        format!("Added User '{}' to Tribe '{}'", user.username, tribe_name),
+    );
+
+    StatusCode::OK.into_response()
+}
 
 // --- Wallets ---
 
@@ -366,6 +426,13 @@ pub async fn delete_wallet(
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
+    // Also remove from user_tribes where verified by this wallet
+    // user_tribes has wallet_id column
+    let _ = sqlx::query("UPDATE user_tribes SET wallet_id = NULL WHERE wallet_id = ?")
+        .bind(&wallet_id)
+        .execute(&mut *tx)
+        .await;
+
     let del_res = sqlx::query("DELETE FROM wallets WHERE id = ?")
         .bind(&wallet_id)
         .execute(&mut *tx)
@@ -374,6 +441,12 @@ pub async fn delete_wallet(
     if del_res.is_err() {
         let _ = tx.rollback().await;
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+
+    // Check if wallet was actually deleted
+    if del_res.as_ref().unwrap().rows_affected() == 0 {
+        let _ = tx.rollback().await;
+        return (StatusCode::NOT_FOUND, "Wallet not found").into_response();
     }
 
     if tx.commit().await.is_err() {

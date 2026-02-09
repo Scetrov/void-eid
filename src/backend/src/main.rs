@@ -118,6 +118,10 @@ async fn main() -> anyhow::Result<()> {
             get(admin::list_tribes).post(admin::create_tribe),
         )
         .route("/api/admin/tribes/{id}", patch(admin::update_tribe))
+        .route(
+            "/api/admin/tribes/{id}/users",
+            post(admin::add_user_to_tribe),
+        )
         .route("/api/admin/wallets/{id}", delete(admin::delete_wallet))
         // Mumble routes
         .route("/api/mumble/account", post(mumble::create_account))
