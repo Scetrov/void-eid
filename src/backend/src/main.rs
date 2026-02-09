@@ -80,11 +80,7 @@ impl utoipa::Modify for SecurityAddon {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    if let Err(e) = dotenvy::dotenv() {
-        println!("No .env file found: {}", e);
-    } else {
-        println!("Loaded .env file");
-    }
+    dotenvy::dotenv().ok();
 
     let db_pool = init_db().await?;
     let state = AppState::new(db_pool);
