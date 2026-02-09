@@ -109,6 +109,7 @@ Eagerly implement common traits where appropriate:
 - Use `#[doc(hidden)]` to hide implementation details from public documentation.
 - Document error conditions, panic scenarios, and safety considerations.
 - Examples should use `?` operator, not `unwrap()` or deprecated `try!` macro.
+- Instead of running `cargo check` etc inside the agent, look for the output of `docker compose logs` as these will often lock the `target` directory.
 
 ## Project Organization
 

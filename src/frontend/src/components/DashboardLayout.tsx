@@ -1,5 +1,5 @@
 import { Link, useLocation } from '@tanstack/react-router'
-import { LogOut, Home, Mic, Users } from 'lucide-react'
+import { LogOut, Home, Mic, Users, ShieldAlert } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import { AdminTribeNav } from './AdminTribeNav'
 import { useAuth } from '../providers/AuthProvider'
@@ -18,6 +18,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     const mobileHomeRef = useRef<CipherNavTextHandle>(null)
     const mobileVoiceRef = useRef<CipherNavTextHandle>(null)
     const mobileRosterRef = useRef<CipherNavTextHandle>(null)
+    const mobileSuperAdminRef = useRef<CipherNavTextHandle>(null)
 
     const [isMenuOpen, setIsMenuOpen] = useState(false)
 
@@ -35,11 +36,13 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             const timeout1 = setTimeout(() => mobileHomeRef.current?.trigger(), 100)
             const timeout2 = setTimeout(() => mobileVoiceRef.current?.trigger(), 200)
             const timeout3 = setTimeout(() => mobileRosterRef.current?.trigger(), 300)
+            const timeout4 = setTimeout(() => mobileSuperAdminRef.current?.trigger(), 400)
 
             return () => {
                 clearTimeout(timeout1)
                 clearTimeout(timeout2)
                 clearTimeout(timeout3)
+                clearTimeout(timeout4)
             }
         }
     }, [isMenuOpen])
@@ -99,7 +102,17 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                 </nav>
 
                 {/* Desktop Actions - Hidden on mobile via CSS, moved to overlay */}
-                <div className="desktop-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingTop: '0.25rem' }}>
+                    <div className="desktop-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingTop: '0.25rem' }}>
+                    {user?.isSuperAdmin && (
+                        <Link
+                            to="/super-admin"
+                            className="btn btn-secondary"
+                            style={{ color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            title="Super Admin Dashboard"
+                        >
+                            <ShieldAlert size={18} />
+                        </Link>
+                    )}
                     <ThemeToggle />
                     <button onClick={logout} className="btn btn-secondary" title="Logout">
                         <LogOut size={18} />
@@ -151,6 +164,17 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                                      <AdminTribeNav />
                                 </div>
                             </>
+                        )}
+                        {user?.isSuperAdmin && (
+                            <Link
+                                to="/super-admin"
+                                className="mobile-nav-link"
+                                activeProps={{ className: 'active' }}
+                                style={{ color: 'var(--accent-primary)' }}
+                            >
+                                <ShieldAlert size={32} />
+                                <CipherNavText ref={mobileSuperAdminRef} text="Super Admin" scrambleDuration={600} scrambleSpeed={50} />
+                            </Link>
                         )}
                     </nav>
 

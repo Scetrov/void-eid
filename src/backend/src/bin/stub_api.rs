@@ -48,6 +48,7 @@ async fn stub_login(
         id: user.id.to_string(), // Serialize i64 ID to string for JWT
         discord_id: user.discord_id,
         username: user.username,
+        is_super_admin: false,
         exp: expiration,
     };
 

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VoiceRouteImport } from './routes/voice'
+import { Route as SuperAdminRouteImport } from './routes/super-admin'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as IndexRouteImport } from './routes/index'
@@ -20,6 +21,11 @@ import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 const VoiceRoute = VoiceRouteImport.update({
   id: '/voice',
   path: '/voice',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SuperAdminRoute = SuperAdminRouteImport.update({
+  id: '/super-admin',
+  path: '/super-admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/home': typeof HomeRoute
   '/login': typeof LoginRoute
+  '/super-admin': typeof SuperAdminRoute
   '/voice': typeof VoiceRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/roster/$id': typeof RosterIdRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/home': typeof HomeRoute
   '/login': typeof LoginRoute
+  '/super-admin': typeof SuperAdminRoute
   '/voice': typeof VoiceRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/roster/$id': typeof RosterIdRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/home': typeof HomeRoute
   '/login': typeof LoginRoute
+  '/super-admin': typeof SuperAdminRoute
   '/voice': typeof VoiceRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/roster/$id': typeof RosterIdRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/home'
     | '/login'
+    | '/super-admin'
     | '/voice'
     | '/auth/callback'
     | '/roster/$id'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/'
     | '/home'
     | '/login'
+    | '/super-admin'
     | '/voice'
     | '/auth/callback'
     | '/roster/$id'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/home'
     | '/login'
+    | '/super-admin'
     | '/voice'
     | '/auth/callback'
     | '/roster/$id'
@@ -115,6 +127,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   HomeRoute: typeof HomeRoute
   LoginRoute: typeof LoginRoute
+  SuperAdminRoute: typeof SuperAdminRoute
   VoiceRoute: typeof VoiceRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   RosterIdRoute: typeof RosterIdRoute
@@ -128,6 +141,13 @@ declare module '@tanstack/react-router' {
       path: '/voice'
       fullPath: '/voice'
       preLoaderRoute: typeof VoiceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/super-admin': {
+      id: '/super-admin'
+      path: '/super-admin'
+      fullPath: '/super-admin'
+      preLoaderRoute: typeof SuperAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -179,6 +199,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   HomeRoute: HomeRoute,
   LoginRoute: LoginRoute,
+  SuperAdminRoute: SuperAdminRoute,
   VoiceRoute: VoiceRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   RosterIdRoute: RosterIdRoute,

@@ -1,5 +1,5 @@
 # Builder stage
-FROM oven/bun:latest AS builder
+FROM docker.io/oven/bun:latest AS builder
 WORKDIR /app
 
 # Copy package.json and lockfile (if exists)
@@ -17,7 +17,17 @@ ENV VITE_API_URL=$VITE_API_URL
 RUN bun run build
 
 # Runtime stage
-FROM docker.io/library/nginx:alpine
+FROM docker.io/library/debian:trixie-slim
+
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    nginx && \
+    rm -rf /var/lib/apt/lists/*
+
+# Forward request and error logs to docker log collector
+RUN ln -sf /dev/stdout /var/log/nginx/access.log \
+    && ln -sf /dev/stderr /var/log/nginx/error.log
 
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html

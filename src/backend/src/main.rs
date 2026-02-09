@@ -1,5 +1,5 @@
 use axum::{
-    routing::{get, post},
+    routing::{delete, get, patch, post},
     Router,
 };
 use std::net::SocketAddr;
@@ -7,7 +7,7 @@ use tower_http::cors::CorsLayer;
 use void_eid_backend::db::init_db;
 use void_eid_backend::state::AppState;
 
-use void_eid_backend::{auth, models, mumble, notes, roster, wallet};
+use void_eid_backend::{admin, auth, models, mumble, notes, roster, wallet};
 
 use utoipa::OpenApi;
 use utoipa_scalar::{Scalar, Servable};
@@ -21,6 +21,14 @@ use utoipa_scalar::{Scalar, Servable};
         wallet::link_nonce,
         wallet::link_verify,
         wallet::unlink_wallet,
+
+        admin::list_users,
+        admin::update_user,
+        admin::list_tribes,
+        admin::create_tribe,
+        admin::update_tribe,
+        admin::add_user_to_tribe,
+        admin::delete_wallet,
 
         roster::get_roster,
         roster::get_roster_member,
@@ -39,6 +47,10 @@ use utoipa_scalar::{Scalar, Servable};
             wallet::VerifyRequest,
             auth::CallbackParams,
             auth::Claims,
+            admin::UserResponse,
+            admin::UpdateUserRequest,
+            admin::CreateTribeRequest,
+            admin::AddUserToTribeRequest,
             roster::RosterMember,
             roster::GrantAdminRequest,
             notes::Note,
@@ -80,11 +92,7 @@ impl utoipa::Modify for SecurityAddon {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    if let Err(e) = dotenvy::dotenv() {
-        println!("No .env file found: {}", e);
-    } else {
-        println!("Loaded .env file");
-    }
+    dotenvy::dotenv().ok();
 
     let db_pool = init_db().await?;
     let state = AppState::new(db_pool);
@@ -104,6 +112,7 @@ async fn main() -> anyhow::Result<()> {
         .allow_methods([
             axum::http::Method::GET,
             axum::http::Method::POST,
+            axum::http::Method::PATCH,
             axum::http::Method::DELETE,
         ])
         .allow_headers([
@@ -114,6 +123,19 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/api/auth/discord/login", get(auth::discord_login))
         .route("/api/auth/discord/callback", get(auth::discord_callback))
+        // Admin Routes
+        .route("/api/admin/users", get(admin::list_users))
+        .route("/api/admin/users/{id}", patch(admin::update_user))
+        .route(
+            "/api/admin/tribes",
+            get(admin::list_tribes).post(admin::create_tribe),
+        )
+        .route("/api/admin/tribes/{id}", patch(admin::update_tribe))
+        .route(
+            "/api/admin/tribes/{id}/users",
+            post(admin::add_user_to_tribe),
+        )
+        .route("/api/admin/wallets/{id}", delete(admin::delete_wallet))
         // Mumble routes
         .route("/api/mumble/account", post(mumble::create_account))
         .route("/api/mumble/status", get(mumble::get_status))

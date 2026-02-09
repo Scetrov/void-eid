@@ -140,6 +140,7 @@ pub async fn get_roster_member(
                 user_id: flat.user_id,
                 address: flat.address,
                 verified_at: flat.verified_at,
+                deleted_at: flat.deleted_at,
                 tribes: Vec::new(),
             });
         if let Some(t) = flat.tribe {
@@ -340,6 +341,7 @@ pub async fn get_roster(
                 user_id: flat.user_id,
                 address: flat.address,
                 verified_at: flat.verified_at,
+                deleted_at: flat.deleted_at,
                 tribes: Vec::new(),
             });
         if let Some(t) = flat.tribe {
@@ -504,7 +506,10 @@ mod integration_tests {
             .unwrap();
 
         // 4. Test as Admin
-        let auth_user = AuthenticatedUser { user_id: admin.id };
+        let auth_user = AuthenticatedUser {
+            user_id: admin.id,
+            is_super_admin: false,
+        };
         let query = RosterQuery {
             tribe: None,
             sort: None,
@@ -546,7 +551,10 @@ mod integration_tests {
             .await
             .unwrap();
 
-        let auth_user = AuthenticatedUser { user_id: user.id };
+        let auth_user = AuthenticatedUser {
+            user_id: user.id,
+            is_super_admin: false,
+        };
         let query = RosterQuery {
             tribe: None,
             sort: None,
@@ -599,14 +607,15 @@ pub async fn grant_admin(
         Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response(),
     };
 
-    // Verify wallet exists and belongs to target user
-    let wallet: Option<crate::models::FlatLinkedWallet> =
-        sqlx::query_as("SELECT * FROM wallets WHERE id = ? AND user_id = ?")
-            .bind(&payload.wallet_id)
-            .bind(target_user.id)
-            .fetch_optional(&state.db)
-            .await
-            .unwrap_or(None);
+    // Verify wallet exists, belongs to target user, and is active
+    let wallet: Option<crate::models::FlatLinkedWallet> = sqlx::query_as(
+        "SELECT *, NULL as tribe FROM wallets WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+    )
+    .bind(&payload.wallet_id)
+    .bind(target_user.id)
+    .fetch_optional(&state.db)
+    .await
+    .unwrap_or(None);
 
     if wallet.is_none() {
         return (
@@ -628,7 +637,7 @@ pub async fn grant_admin(
     if existing.is_some() {
         // Update existing entry
         let result = sqlx::query(
-            "UPDATE user_tribes SET wallet_id = ?, is_admin = TRUE WHERE user_id = ? AND tribe = ?",
+            "UPDATE user_tribes SET wallet_id = ?, is_admin = TRUE, source = 'MANUAL' WHERE user_id = ? AND tribe = ?",
         )
         .bind(&payload.wallet_id)
         .bind(target_user.id)
@@ -642,7 +651,7 @@ pub async fn grant_admin(
     } else {
         // Insert new entry
         let result = sqlx::query(
-            "INSERT INTO user_tribes (user_id, tribe, wallet_id, is_admin) VALUES (?, ?, ?, TRUE)",
+            "INSERT INTO user_tribes (user_id, tribe, wallet_id, is_admin, source) VALUES (?, ?, ?, TRUE, 'MANUAL')",
         )
         .bind(target_user.id)
         .bind(&tribe)

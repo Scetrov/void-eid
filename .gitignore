@@ -170,3 +170,4 @@ core
 # =============================================================================
 # Gemini/AI assistant files (optional - remove if you want to track)
 .gemini/
+tmp/

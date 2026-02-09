@@ -11,29 +11,35 @@ logger = logging.getLogger("MurmurAuthenticator")
 
 # Load Murmur.ice
 try:
+    # Initialize include_path
+    include_path = []
+
     # Attempt to locate slice dir
     slice_paths = [
         '/usr/share/slice',
         '/usr/share/ice/slice',
         '/usr/local/share/ice/slice',
+        '/usr/share/mumble-server', # Common for Debian packages
         '/usr/local/lib/python3.11/dist-packages/slice',
         # Try to find relative to Ice module
         os.path.join(os.path.dirname(Ice.__file__), 'slice'),
-        # Common pip install location: .../site-packages/zeroc_ice-X.Y.Z.data/data/slice or similiar
+        # Common pip install location
         os.path.join(sys.prefix, 'share', 'ice', 'slice'),
         # Check current dir
         os.getcwd()
     ]
 
-    slice_file = None
-    include_path = []
-
-    for p in slice_paths:
-        if os.path.exists(os.path.join(p, 'Murmur.ice')):
-            slice_file = os.path.join(p, 'Murmur.ice')
-            include_path.append('-I' + p)
-            break
-        # Also check for Murmur.ice inside 'Ice' subdir if we want to be thorough?
+    # Explicitly check ICE_SLICE env var first if it exists
+    ice_slice_env = os.environ.get("ICE_SLICE")
+    if ice_slice_env and os.path.exists(ice_slice_env):
+        slice_file = ice_slice_env
+        include_path.append('-I' + os.path.dirname(ice_slice_env))
+    else:
+        for p in slice_paths:
+            if os.path.exists(os.path.join(p, 'Murmur.ice')):
+                slice_file = os.path.join(p, 'Murmur.ice')
+                include_path.append('-I' + p)
+                break
 
     # Also find system slice dir for Ice/SliceChecksumDict.ice
     for p in slice_paths:
@@ -55,7 +61,7 @@ try:
     Ice.loadSlice('', include_path + [slice_file])
     import Murmur
 except ImportError:
-    logger.error("Failed to load Murmur.ice or import Murmur module.")
+    logger.error("Failed to load generic Ice modules or slice.")
     sys.exit(1)
 
 class ServerAuthenticatorI(Murmur.ServerAuthenticator):
@@ -129,13 +135,25 @@ def run():
 
     logger.info(f"Connecting to Murmur Ice at {ice_host}:{ice_port}")
 
-    base = communicator.stringToProxy(f"Meta:tcp -h {ice_host} -p {ice_port}")
-    # Use uncheckedCast because checkedCast fails due to potential slice version mismatch
-    # even though methods work fine.
-    meta = Murmur.MetaPrx.uncheckedCast(base)
+    base_str = f"Meta:tcp -h {ice_host} -p {ice_port}"
+    meta = None
+
+    # Retry loop for initial connection
+    for i in range(10):
+        try:
+            base = communicator.stringToProxy(base_str)
+            # Use uncheckedCast because checkedCast might fail if server not ready or slice mismatch logic
+            meta = Murmur.MetaPrx.uncheckedCast(base)
+            # Verify connection by calling a lightweight method
+            meta.ice_ping()
+            logger.info("Successfully connected to Murmur Meta proxy.")
+            break
+        except Exception as e:
+            logger.warning(f"Connection attempt {i+1}/10 failed: {e}")
+            time.sleep(2)
 
     if not meta:
-        logger.error("Invalid proxy")
+        logger.error("Could not obtain Meta proxy after multiple attempts. Is Murmur running?")
         sys.exit(1)
 
     logger.info("Connected to Meta. Waiting for servers...")
@@ -147,14 +165,26 @@ def run():
 
     # We need to attach to existing servers or listen for new ones
     # Simplified: Attach to server 1 (default)
-    try:
-        server = meta.getServer(1)
-        if server:
-            logger.info("Found Server 1. Setting authenticator...")
-            server.setAuthenticator(Murmur.ServerAuthenticatorPrx.uncheckedCast(adapter.addWithUUID(authenticator)))
-            logger.info("Authenticator attached.")
-    except Exception as e:
-        logger.error(f"Failed to attach authenticator: {e}")
+    # Retry attachment as server might be booting
+    attached = False
+    for i in range(5):
+        try:
+            server = meta.getServer(1)
+            if server:
+                logger.info("Found Server 1. Setting authenticator...")
+                server.setAuthenticator(Murmur.ServerAuthenticatorPrx.uncheckedCast(adapter.addWithUUID(authenticator)))
+                logger.info("Authenticator attached.")
+                attached = True
+                break
+        except Murmur.InvalidSecretException:
+            logger.error("Invalid ICE secret!")
+            break
+        except Exception as e:
+             logger.warning(f"Failed to attach authenticator (attempt {i+1}/5): {e}")
+             time.sleep(2)
+
+    if not attached:
+        logger.error("Failed to attach authenticator to Server 1.")
 
 
     try:

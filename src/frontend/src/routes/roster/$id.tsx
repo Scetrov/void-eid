@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useAuth } from '../../providers/AuthProvider'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
-import { ShieldAlert, ArrowLeft, Copy, ExternalLink, Wallet, ChevronLeft, ChevronRight, LogIn, Link as LinkIcon, Unlink, List, Eye, ShieldPlus, ShieldMinus, UserPlus, UserMinus, FileText, Edit2, Save, X } from 'lucide-react'
+import { ShieldAlert, ArrowLeft, ExternalLink, Wallet, ChevronLeft, ChevronRight, LogIn, Link as LinkIcon, Unlink, List, Eye, ShieldPlus, ShieldMinus, UserPlus, UserMinus, FileText, Edit2, Save, X } from 'lucide-react'
+import { CopyButton } from '../../components/CopyButton'
 import { DashboardLayout } from '../../components/DashboardLayout'
 import { useState } from 'react'
 import { API_URL } from '../../config';
@@ -36,6 +37,7 @@ interface RosterMember {
     wallets: {
         id: string;
         address: string;
+        deletedAt?: string;
         tribes: string[];
     }[];
     audits?: PaginatedAudits;
@@ -341,9 +343,10 @@ function RosterMemberPage() {
                                     justifyContent: 'space-between',
                                     alignItems: 'center',
                                     border: '1px solid var(--glass-border)',
-                                    gap: '1rem'
+                                    gap: '1rem',
+                                    opacity: wallet.deletedAt ? 0.5 : 1
                                 }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, textDecoration: wallet.deletedAt ? 'line-through' : 'none' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                                             <code style={{ fontSize: '0.9rem', wordBreak: 'break-all' }}>{wallet.address}</code>
                                             {wallet.tribes && wallet.tribes.length > 0 && (
@@ -352,8 +355,8 @@ function RosterMemberPage() {
                                                 </span>
                                             )}
                                         </div>
-                                        {/* Grant Admin button - only show if user is admin of current tribe and wallet doesn't already have this tribe */}
-                                        {currentTribe && user?.adminTribes?.includes(currentTribe) && !wallet.tribes.includes(currentTribe) && (
+                                         {/* Grant Admin button - only show if active, if user is admin of current tribe and wallet doesn't already have this tribe */}
+                                        {currentTribe && !wallet.deletedAt && user?.adminTribes?.includes(currentTribe) && !wallet.tribes.includes(currentTribe) && (
                                             <button
                                                 onClick={() => grantAdminMutation.mutate(wallet.id)}
                                                 disabled={grantAdminMutation.isPending}
@@ -366,13 +369,7 @@ function RosterMemberPage() {
                                         )}
                                     </div>
                                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <button
-                                            onClick={() => navigator.clipboard.writeText(wallet.address)}
-                                            style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '0.25rem' }}
-                                            title="Copy Address"
-                                        >
-                                            <Copy size={16} />
-                                        </button>
+                                        <CopyButton text={wallet.address} />
                                         <a
                                             href={`https://suiscan.xyz/mainnet/account/${wallet.address}`}
                                             target="_blank"

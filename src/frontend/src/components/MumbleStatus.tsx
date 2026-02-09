@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../providers/AuthProvider';
 import { Mic, RefreshCw, UserPlus } from 'lucide-react';
+import { CopyButton } from './CopyButton';
 import { API_URL } from '../config';
 
 interface MumbleStatusResponse {
@@ -99,17 +100,27 @@ export function MumbleStatus() {
                 {status?.username ? (
                     <div>
                         <div style={{ marginBottom: '1.5rem' }}>
-                            <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Username</label>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Username</label>
+                            </div>
                             <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
                                 padding: '0.75rem',
                                 background: 'var(--bg-secondary)',
                                 border: '1px solid var(--border-color)',
                                 borderRadius: 'var(--radius-sm)',
-                                fontFamily: 'var(--font-heading)',
-                                fontSize: '1.25rem',
-                                color: 'var(--text-primary)'
                             }}>
-                                {status.username}
+                                <div style={{
+                                    fontFamily: 'var(--font-heading)',
+                                    fontSize: '1.25rem',
+                                    color: 'var(--text-primary)',
+                                    flex: 1
+                                }}>
+                                    {status.username}
+                                </div>
+                                <CopyButton text={status.username || ''} />
                             </div>
                         </div>
 
@@ -158,11 +169,17 @@ export function MumbleStatus() {
                         <div style={{ display: 'grid', gap: '1rem', marginTop: '1rem' }}>
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.8rem', opacity: 0.7, color: 'var(--text-secondary)' }}>Username</label>
-                                <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', color: 'var(--text-primary)' }}>{newAccount.username}</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', color: 'var(--text-primary)' }}>{newAccount.username}</div>
+                                    <CopyButton text={newAccount.username} />
+                                </div>
                             </div>
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.8rem', opacity: 0.7, color: 'var(--text-secondary)' }}>Password</label>
                                 <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
                                     fontFamily: 'var(--font-heading)',
                                     fontSize: '1.1rem',
                                     background: 'var(--bg-secondary)',
@@ -171,7 +188,8 @@ export function MumbleStatus() {
                                     wordBreak: 'break-all',
                                     color: 'var(--text-primary)'
                                 }}>
-                                    {newAccount.password}
+                                    <div style={{ flex: 1 }}>{newAccount.password}</div>
+                                    <CopyButton text={newAccount.password} />
                                 </div>
                             </div>
                         </div>

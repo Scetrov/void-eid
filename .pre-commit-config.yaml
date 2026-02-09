@@ -41,7 +41,7 @@ repos:
       # Rust Format Check
       - id: rust-fmt
         name: Rust Format (cargo fmt)
-        entry: bash -c 'cd src/backend && cargo fmt --check'
+        entry: bash -c 'cd src/backend && cargo fmt --all'
         language: system
         files: \.rs$
         pass_filenames: false

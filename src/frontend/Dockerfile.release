@@ -1,4 +1,14 @@
-FROM docker.io/library/nginx:alpine
+FROM docker.io/library/debian:trixie-slim
+
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    nginx && \
+    rm -rf /var/lib/apt/lists/*
+
+# Forward request and error logs to docker log collector
+RUN ln -sf /dev/stdout /var/log/nginx/access.log \
+    && ln -sf /dev/stderr /var/log/nginx/error.log
 
 # Copy built assets
 COPY dist /usr/share/nginx/html
