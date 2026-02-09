@@ -66,34 +66,30 @@ pub async fn create_account(
         }
     };
 
+    // ... (previous code)
+
     // 2. Get username (based on rider name/wallet from tribe) - simplified: using database username for now or custom logic
     // Requirement: "create a username based upon their rider name (the wallet that is in the Fire tribe)"
     // We need to fetch the wallet/rider name associated with the tribe.
 
-    // Assuming `user_tribes` has `wallet_id` which might be the rider name or linked to wallets table.
-    // Let's check `user_tribes` table: `wallet_id` TEXT.
-    // If wallet_id IS the rider name (which seems implied by "rider name (the wallet...)"), we use that.
+    // Update: If no wallet_id is found (manual assignment), fall back to the user's website username.
 
-    let rider_name_query =
-        sqlx::query("SELECT wallet_id FROM user_tribes WHERE user_id = ? AND tribe = ?")
-            .bind(user_id)
-            .bind(&state.mumble_required_tribe)
-            .fetch_one(&state.db)
-            .await;
+    let rider_name_query = sqlx::query(
+        "SELECT ut.wallet_id, u.username
+         FROM user_tribes ut
+         JOIN users u ON ut.user_id = u.id
+         WHERE ut.user_id = ? AND ut.tribe = ?",
+    )
+    .bind(user_id)
+    .bind(&state.mumble_required_tribe)
+    .fetch_one(&state.db)
+    .await;
 
     let username = match rider_name_query {
         Ok(row) => {
-            let w: Option<String> = row.get("wallet_id");
-            match w {
-                Some(name) => name,
-                None => {
-                    return (
-                        StatusCode::BAD_REQUEST,
-                        Json(json!({"error": "No rider name/wallet found for tribe membership"})),
-                    )
-                        .into_response()
-                }
-            }
+            let wallet_id: Option<String> = row.get("wallet_id");
+            let user_username: String = row.get("username");
+            resolve_mumble_username(wallet_id, user_username)
         }
         Err(_) => {
             return (
@@ -106,7 +102,7 @@ pub async fn create_account(
 
     // Sanitize username for Mumble (alphanumeric only ideally, but Murmur is flexible)
     // Replacing spaces with underscores
-    let mumble_username = username.replace(" ", "_");
+    let mumble_username = sanitize_username(&username);
 
     // 3. Generate Password
     let password: String = rand::rng()
@@ -176,6 +172,21 @@ pub async fn create_account(
         }),
     )
         .into_response()
+}
+
+/// Resolves the username to use for Mumble.
+/// Prioritizes the wallet_id (rider name/address) if present.
+/// Falls back to the user's username if wallet_id is None.
+fn resolve_mumble_username(wallet_id: Option<String>, username: String) -> String {
+    match wallet_id {
+        Some(w) if !w.trim().is_empty() => w,
+        _ => username,
+    }
+}
+
+/// Sanitizes the username for Mumble (e.g. replacing spaces).
+fn sanitize_username(name: &str) -> String {
+    name.replace(" ", "_")
 }
 
 pub async fn verify_login(
@@ -266,5 +277,41 @@ pub async fn get_status(
             Json(json!({"error": e.to_string()})),
         )
             .into_response(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_mumble_username_with_wallet() {
+        let wallet = Some("Friendly Rider".to_string());
+        let username = "VoidUser".to_string();
+        let result = resolve_mumble_username(wallet, username);
+        assert_eq!(result, "Friendly Rider");
+    }
+
+    #[test]
+    fn test_resolve_mumble_username_fallback() {
+        let wallet = None;
+        let username = "VoidUser".to_string();
+        let result = resolve_mumble_username(wallet, username);
+        assert_eq!(result, "VoidUser");
+    }
+
+    #[test]
+    fn test_resolve_mumble_username_empty_wallet() {
+        let wallet = Some("   ".to_string());
+        let username = "VoidUser".to_string();
+        let result = resolve_mumble_username(wallet, username);
+        assert_eq!(result, "VoidUser");
+    }
+
+    #[test]
+    fn test_sanitize_username() {
+        let raw = "My Cool Name";
+        let sanitized = sanitize_username(raw);
+        assert_eq!(sanitized, "My_Cool_Name");
     }
 }

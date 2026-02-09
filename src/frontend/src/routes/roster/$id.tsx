@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useAuth } from '../../providers/AuthProvider'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
-import { ShieldAlert, ArrowLeft, Copy, ExternalLink, Wallet, ChevronLeft, ChevronRight, LogIn, Link as LinkIcon, Unlink, List, Eye, ShieldPlus, ShieldMinus, UserPlus, UserMinus, FileText, Edit2, Save, X } from 'lucide-react'
+import { ShieldAlert, ArrowLeft, ExternalLink, Wallet, ChevronLeft, ChevronRight, LogIn, Link as LinkIcon, Unlink, List, Eye, ShieldPlus, ShieldMinus, UserPlus, UserMinus, FileText, Edit2, Save, X } from 'lucide-react'
+import { CopyButton } from '../../components/CopyButton'
 import { DashboardLayout } from '../../components/DashboardLayout'
 import { useState } from 'react'
 import { API_URL } from '../../config';
@@ -368,13 +369,7 @@ function RosterMemberPage() {
                                         )}
                                     </div>
                                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <button
-                                            onClick={() => navigator.clipboard.writeText(wallet.address)}
-                                            style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '0.25rem' }}
-                                            title="Copy Address"
-                                        >
-                                            <Copy size={16} />
-                                        </button>
+                                        <CopyButton text={wallet.address} />
                                         <a
                                             href={`https://suiscan.xyz/mainnet/account/${wallet.address}`}
                                             target="_blank"

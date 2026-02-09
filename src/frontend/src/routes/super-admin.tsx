@@ -3,7 +3,8 @@ import { DashboardLayout } from '../components/DashboardLayout'
 import { useAuth, type User } from '../providers/AuthProvider'
 import { useEffect, useState, useCallback } from 'react'
 import { API_URL } from '../config'
-import { ShieldAlert, Trash2, Edit2, Plus, ChevronDown, ChevronRight, UserPlus, Copy, Check, AlertTriangle, CheckCircle, X } from 'lucide-react'
+import { ShieldAlert, Trash2, Edit2, Plus, ChevronDown, ChevronRight, UserPlus, AlertTriangle, CheckCircle, X, Check } from 'lucide-react'
+import { CopyButton } from '../components/CopyButton'
 
 export const Route = createFileRoute('/super-admin')({
     component: SuperAdminDashboard,
@@ -12,31 +13,10 @@ export const Route = createFileRoute('/super-admin')({
 // --- Components ---
 
 const WalletAddress = ({ address }: { address: string }) => {
-    const [copied, setCopied] = useState(false);
-    const handleCopy = () => {
-        navigator.clipboard.writeText(address);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
     return (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: '"Diskette Mono", monospace' }}>
             <span title={address}>{address.slice(0, 6)}...{address.slice(-4)}</span>
-            <button
-                type="button"
-                onClick={handleCopy}
-                style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: 0,
-                    color: 'var(--text-secondary)',
-                    display: 'flex',
-                    alignItems: 'center'
-                }}
-                title="Copy Address"
-            >
-                {copied ? <Check size={14} color="var(--brand-orange)" /> : <Copy size={14} />}
-            </button>
+            <CopyButton text={address} />
         </div>
     );
 };
