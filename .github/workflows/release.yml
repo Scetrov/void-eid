@@ -163,5 +163,5 @@ jobs:
           files: |
             void-eid-backend-*.tar.gz
             void-eid-frontend-*.tar.gz
-          draft: true
+          draft: false
           prerelease: false
