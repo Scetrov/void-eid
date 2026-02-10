@@ -1,5 +1,7 @@
 [Unit]
 Description=Void Murmur Server
+Requires=void-network.service
+After=void-network.service
 
 [Container]
 ContainerName=murmur

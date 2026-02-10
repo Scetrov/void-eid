@@ -1,5 +1,7 @@
 [Unit]
 Description=Void Backend
+Requires=void-network.service
+After=void-network.service
 
 [Container]
 ContainerName=backend

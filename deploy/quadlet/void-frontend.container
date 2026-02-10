@@ -1,7 +1,7 @@
 [Unit]
 Description=Void Frontend
-Requires=void-backend.service
-After=void-backend.service
+Requires=void-network.service void-backend.service
+After=void-network.service void-backend.service
 
 [Container]
 ContainerName=frontend
