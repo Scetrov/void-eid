@@ -1,0 +1,23 @@
+[Unit]
+Description=Void Frontend
+Requires=void-backend.service
+After=void-backend.service
+
+[Container]
+ContainerName=frontend
+Image=ghcr.io/scetrov/void-eid/void-eid-frontend:latest
+Pull=newer
+PublishPort=5173:80
+AutoUpdate=registry
+Network=void.network
+GroupAdd=keep-groups
+EnvironmentFile=%h/.config/void-eid/.env
+Environment=VITE_API_URL=http://localhost:5038
+
+[Service]
+Restart=always
+StartLimitBurst=10
+RestartSec=30
+
+[Install]
+WantedBy=default.target

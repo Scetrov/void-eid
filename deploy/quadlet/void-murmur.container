@@ -1,0 +1,23 @@
+[Unit]
+Description=Void Murmur Server
+
+[Container]
+ContainerName=murmur
+Image=ghcr.io/scetrov/void-eid/void-eid-murmur:latest
+Pull=newer
+Volume=murmur-data:/data
+PublishPort=64738:64738/tcp
+PublishPort=64738:64738/udp
+AutoUpdate=registry
+Network=void.network
+GroupAdd=keep-groups
+EnvironmentFile=%h/.config/void-eid/.env
+Environment=BACKEND_URL=http://backend:5038/api/internal/mumble
+
+[Service]
+Restart=always
+StartLimitBurst=10
+RestartSec=30
+
+[Install]
+WantedBy=default.target

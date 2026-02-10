@@ -1,0 +1,23 @@
+[Unit]
+Description=Void Backend
+
+[Container]
+ContainerName=backend
+Image=ghcr.io/scetrov/void-eid/void-eid-backend:latest
+Pull=newer
+Volume=backend-data:/data
+PublishPort=5038:5038
+AutoUpdate=registry
+Network=void.network
+GroupAdd=keep-groups
+EnvironmentFile=%h/.config/void-eid/.env
+Environment=DATABASE_URL=sqlite:///data/void-eid.db?mode=rwc
+Environment=PORT=5038
+
+[Service]
+Restart=always
+StartLimitBurst=10
+RestartSec=30
+
+[Install]
+WantedBy=default.target
