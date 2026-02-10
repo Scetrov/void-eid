@@ -20,7 +20,7 @@ function Login() {
       padding: '1rem'
     }}>
       <div className="card" style={{ maxWidth: '400px', width: '100%', textAlign: 'center' }}>
-        <h1 style={{ marginBottom: '0.5rem' }}>Welcome</h1>
+        <img src="/logo.png" alt="VoID eID" style={{ width: '120px', height: 'auto', margin: '0 auto 1.5rem', display: 'block' }} />
         <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
           Connect with Discord to manage your Sui wallets.
         </p>

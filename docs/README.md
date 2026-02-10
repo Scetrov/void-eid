@@ -1,5 +1,8 @@
 # VoID Electronic Identity (eID)
 
+![VoID eID Logo](../src/frontend/public/logo.png)
+
+
 A modern web application integrating Discord authentication with Sui blockchain wallet verification, featuring a Rust backend and a React frontend.
 
 ## Overview

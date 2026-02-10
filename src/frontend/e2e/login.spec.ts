@@ -6,6 +6,9 @@ test.describe('Login Page', () => {
 
     // Expect login with Discord button
     await expect(page.getByText('Login with Discord')).toBeVisible();
+
+    // Expect Logo
+    await expect(page.locator('img[alt="VoID eID"]')).toBeVisible();
   });
 
   test('should redirect to Discord OAuth when clicking login', async ({ page }) => {
