@@ -1,0 +1,72 @@
+# Pull Request Template
+
+## 1. Title
+
+> [!NOTE]
+> Use [Conventional Commits](https://www.conventionalcommits.org/) (e.g., `feat:`, `fix:`, `docs:`, `refactor:`).
+
+## 2. Description
+
+### What?
+
+Provide a brief summary of the changes introduced by this PR.
+
+### Why?
+
+Explain the motivation behind these changes. Reference any relevant issues (e.g., `Closes #123`).
+
+### How?
+
+Describe the technical approach taken.
+
+## 3. Type of Change
+
+* [ ] `feat`: A new feature
+* [ ] `fix`: A bug fix
+* [ ] `docs`: Documentation only changes
+* [ ] `style`: Changes that do not affect the meaning of the code (white-space, formatting, etc.)
+* [ ] `refactor`: A code change that neither fixes a bug nor adds a feature
+* [ ] `perf`: A code change that improves performance
+* [ ] `test`: Adding missing tests or correcting existing tests
+* [ ] `chore`: Changes to the build process or auxiliary tools and libraries
+
+## 4. Development Checklist
+
+* [ ] **Rust**: Ran `cargo fmt` and `cargo clippy`.
+* [ ] **TypeScript**: Ran `bun run lint` in the `frontend` directory.
+* [ ] **Migrations**: If the database schema was modified, ran `sqlx migrate run` and updated `sqlx-data.json` via `cargo sqlx prepare`.
+* [ ] **Testing**: Verified changes locally with appropriate tests.
+* [ ] **Release**: Confirmed that any necessary version metadata patching is compatible with the automated release workflow.
+
+## 5. Security Assessment
+
+*Evaluating against **OWASP Top 10:2025** guidelines*.
+
+* [ ] **Access Control**: Verified that `AuthenticatedUser` extractors or admin-only routes (like `grant_admin`) properly validate sessions/flags.
+* [ ] **Injection**: Verified that all new SQLx queries use parameterized inputs.
+* [ ] **Cryptographic**: Checked that no new hardcoded secrets were introduced and JWT handling remains secure.
+* [ ] **CORS/Infrastructure**: Reviewed any changes to `docker-compose.yml` or `main.rs` for overly permissive policies.
+
+| OWASP Mapping | MITRE ATT&CK ID | Impact Description |
+| --- | --- | --- |
+| (e.g., A01:2025) | (e.g., T1190) | (Describe security impact if applicable) |
+
+## 6. Frontend (if applicable)
+
+* [ ] Components adhere to the "Design System".
+* [ ] Screenshots or screen recordings of the UI changes are attached below.
+
+## 7. Reviewer Feedback & Resolution
+
+*This PR follows the "Fix & Reply" loop for all unresolved comments*.
+
+* [ ] I have replied directly to all reviewer comment threads with a resolution summary.
+* [ ] All fixes are committed atomically with references to the specific feedback.
+
+---
+
+## How to Submit
+
+1. Ensure your branch name follows the pattern `feature/amazing-feature` or `fix/bug-description`.
+2. Fill out this template completely.
+3. Submit the PR and wait for CI validation.
