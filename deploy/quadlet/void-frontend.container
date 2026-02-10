@@ -5,7 +5,7 @@ After=void-network.service void-backend.service
 
 [Container]
 ContainerName=frontend
-Image=ghcr.io/scetrov/void-eid/void-eid-frontend:latest
+Image=ghcr.io/scetrov/void-eid/void-eid-frontend:main
 Pull=newer
 PublishPort=5173:80
 AutoUpdate=registry

@@ -308,8 +308,7 @@ jobs:
             context: src/murmur
             dockerfile: src/murmur/Dockerfile
     env:
-      # TODO: Use runtime config for production API URL instead of baking dev URL into images
-      VITE_API_URL: "/"
+      VITE_API_URL: ""
     steps:
       - uses: actions/checkout@v6
 

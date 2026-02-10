@@ -36,7 +36,11 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy nginx config - replace the default site
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+# Add entrypoint for runtime config
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Expose port 80
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["/entrypoint.sh"]

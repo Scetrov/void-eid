@@ -39,7 +39,7 @@ export function ApiGuard({ children }: ApiGuardProps) {
             } catch {
                 if (isMounted) {
                     setIsAvailable(false);
-                    setStatusText(`Connection failed. Retrying... (${retryCount + 1})`);
+                    setStatusText(`Connection to API at ${API_URL} failed. Retrying... (${retryCount + 1})`);
 
                     // Schedule retry
                     setTimeout(() => {
