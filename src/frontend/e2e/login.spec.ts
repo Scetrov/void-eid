@@ -5,7 +5,7 @@ test.describe('Login Page', () => {
     await page.goto('/login');
 
     // Expect login with Discord button
-    await expect(page.getByText('Login with Discord')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Login with Discord' })).toBeVisible();
 
     // Expect Logo
     await expect(page.locator('img[alt="VoID eID"]')).toBeVisible();
@@ -18,7 +18,7 @@ test.describe('Login Page', () => {
     // Intercept navigation to Discord
     const [request] = await Promise.all([
       page.waitForRequest(request => request.url().includes('/api/auth/discord/login')),
-      page.getByText('Login with Discord').click()
+      page.getByRole('button', { name: 'Login with Discord' }).click()
     ]);
 
     expect(request.url()).toContain('/api/auth/discord/login');

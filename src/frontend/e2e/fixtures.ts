@@ -1,6 +1,8 @@
 import { test as base, expect, Page } from '@playwright/test';
 
-const API_URL = process.env.API_URL || 'http://localhost:5038';
+const STUB_API_PORT = process.env.STUB_API_PORT || '5039';
+const FRONTEND_PORT = process.env.FRONTEND_PORT || (process.env.CI ? '4173' : '5174');
+const API_URL = process.env.API_URL || `http://localhost:${STUB_API_PORT}`;
 
 type AuthFixtures = {
   authenticatedPage: Page;
@@ -25,7 +27,7 @@ async function loginAs(page: Page, userId: number) {
     }
 
     // Extract token from redirect URL
-    const url = new URL(location, `http://localhost:${process.env.CI ? 4173 : 5173}`);
+    const url = new URL(location, `http://localhost:${FRONTEND_PORT}`);
     const token = url.searchParams.get('token');
     if (!token) {
       throw new Error(`No token found in redirect URL: ${location}`);

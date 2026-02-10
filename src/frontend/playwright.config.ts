@@ -10,9 +10,14 @@ const stubApiPath = join(__dirname, '../backend/target/debug/stub_api');
 const stubApiCommand = process.env.STUB_API_CMD || stubApiPath;
 const stubApiCwd = undefined;
 
+// For E2E, use ports that don't conflict with development (5173 / 5038)
+const frontendPort = Number(process.env.FRONTEND_PORT) || (process.env.CI ? 4173 : 5174);
+const stubApiPort = Number(process.env.STUB_API_PORT) || 5039;
+
 // For CI, use preview (production build already exists). For local, use dev server.
-const frontendCommand = process.env.CI ? 'bun run preview' : 'bun run dev';
-const frontendPort = process.env.CI ? 4173 : 5173;
+const frontendCommand = process.env.CI
+  ? `bun run preview --port ${frontendPort}`
+  : `bun run dev --port ${frontendPort}`;
 
 export default defineConfig({
   testDir: './e2e',
@@ -48,22 +53,26 @@ export default defineConfig({
     {
       command: frontendCommand,
       url: `http://localhost:${frontendPort}`,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 30_000,
       stdout: 'pipe',
       stderr: 'pipe',
+      env: {
+        ...process.env,
+        VITE_API_URL: `http://localhost:${stubApiPort}`,
+      },
     },
     {
       command: stubApiCommand,
-      url: 'http://localhost:5038/api/auth/discord/login',
+      url: `http://localhost:${stubApiPort}/api/auth/discord/login`,
       cwd: stubApiCwd,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 120_000,
       stdout: 'pipe',
       stderr: 'pipe',
       env: {
         ...process.env,
-        PORT: '5038',
+        PORT: stubApiPort.toString(),
         DATABASE_URL: process.env.DATABASE_URL || 'sqlite::memory:',
         JWT_SECRET: process.env.JWT_SECRET || 'dev-jwt-secret',
         FRONTEND_URL: process.env.FRONTEND_URL || `http://localhost:${frontendPort}`,
