@@ -66,15 +66,21 @@ Then edit the generated `.sql` file.
 
 Environment variables (`.env`):
 
-| Variable                | Description                           | Default              |
-| ----------------------- | ------------------------------------- | -------------------- |
-| `DATABASE_URL`          | Connection string for SQLite          | `sqlite:void-eid.db` |
-| `jwt_secret`            | Secret key for signing JWTs           | _Required_           |
-| `DISCORD_CLIENT_ID`     | OAuth2 Client ID from Discord         | _Required_           |
-| `DISCORD_CLIENT_SECRET` | OAuth2 Client Secret                  | _Required_           |
-| `PORT`                  | Port to listen on                     | `5038`               |
-| `BASE_URL`              | Public URL of the API (for redirects) | _Optional_           |
-| `INITIAL_ADMIN_ID`      | Discord ID of the initial admin user  | _Optional_           |
+| Variable                    | Description                                                            | Default                   |
+| --------------------------- | ---------------------------------------------------------------------- | ------------------------- |
+| `DATABASE_URL`              | Connection string for SQLite                                           | `sqlite:void-eid.db`      |
+| `JWT_SECRET`                | Secret key for signing JWTs                                            | _Required_                |
+| `DISCORD_CLIENT_ID`         | OAuth2 Client ID from Discord                                          | _Required_                |
+| `DISCORD_CLIENT_SECRET`     | OAuth2 Client Secret                                                   | _Required_                |
+| `DISCORD_REDIRECT_URI`      | Oauth2 Redirect URI (e.g., `http://localhost:5038/api/auth/callback`)  | _Required_                |
+| `FRONTEND_URL`              | URL of the frontend (for CORS and redirects)                           | `http://localhost:5173`   |
+| `PORT`                      | Port to listen on                                                      | `5038`                    |
+| `INITIAL_ADMIN_ID`          | Discord ID of the initial admin user                                   | _Optional_                |
+| `SUPER_ADMIN_DISCORD_IDS`   | Comma-separated list of Super Admin Discord IDs                        | _Optional_                |
+| `SUPER_ADMIN_AUDIT_WEBHOOK` | Discord Webhook URL for critical audit alerts                          | _Optional_                |
+| `MUMBLE_REQUIRED_TRIBE`     | The tribe name required to create a Mumble account                     | `Fire`                    |
+| `INTERNAL_SECRET`           | Shared secret for Backend-to-Murmur Authenticator communication        | `secret`                  |
+| `ICE_SECRET`                | Shared secret for Ice (Murmur) communication                           | _Optional_                |
 
 ## Authentication Flow
 

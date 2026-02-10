@@ -20,9 +20,9 @@ function Login() {
       padding: '1rem'
     }}>
       <div className="card" style={{ maxWidth: '400px', width: '100%', textAlign: 'center' }}>
-        <img src="/logo.png" alt="VoID eID" style={{ width: '120px', height: 'auto', margin: '0 auto 1.5rem', display: 'block' }} />
+        <img src="/logo.png" alt="VoID eID" style={{ maxWidth: '300px', height: 'auto', margin: '0 auto 1.5rem', display: 'block' }} />
         <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
-          Connect with Discord to manage your Sui wallets.
+          Login with Discord first, you will then be able to connect your EVE Frontier character by linking your wallets.
         </p>
 
         <button className="btn btn-primary" onClick={login} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>

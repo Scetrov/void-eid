@@ -32,6 +32,7 @@ export function ApiUnavailableScreen({ statusText }: ApiUnavailableScreenProps) 
             color: 'var(--text-primary)',
             gap: '1rem'
         }}>
+            <img src="/logo.png" alt="VoID eID" style={{ width: '300px', height: 'auto', marginBottom: '1rem' }} />
             <h1 style={{
                 fontFamily: "'Diskette Mono', monospace",
                 fontSize: '2.5rem',
