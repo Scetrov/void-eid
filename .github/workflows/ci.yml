@@ -125,7 +125,7 @@ jobs:
       contents: read
       actions: write # Required for GHA cache
     env:
-      VITE_API_URL: http://localhost:5038
+      VITE_API_URL: http://localhost:5039
     steps:
       - uses: actions/checkout@v6
 
@@ -237,6 +237,8 @@ jobs:
           CI: true
           BASE_URL: http://localhost:4173
           STUB_API_CMD: ../backend/target/release/stub_api
+          STUB_API_PORT: "5039"
+          VITE_API_URL: http://localhost:5039
           DATABASE_URL: "sqlite::memory:"
           JWT_SECRET: ci-test-secret
           FRONTEND_URL: http://localhost:4173
