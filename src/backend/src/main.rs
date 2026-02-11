@@ -104,6 +104,7 @@ async fn main() -> anyhow::Result<()> {
 
     let allowed_origins: Vec<_> = [frontend_url, production_url]
         .iter()
+        .map(|url| url.trim_end_matches('/').to_string())
         .filter_map(|url| url.parse::<axum::http::HeaderValue>().ok())
         .collect();
 
@@ -112,6 +113,7 @@ async fn main() -> anyhow::Result<()> {
         .allow_methods([
             axum::http::Method::GET,
             axum::http::Method::POST,
+            axum::http::Method::PUT,
             axum::http::Method::PATCH,
             axum::http::Method::DELETE,
         ])
