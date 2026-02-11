@@ -1,0 +1,22 @@
+[Unit]
+Description=Void Cloudflare Tunnel
+Requires=void-network.service
+After=void-network.service
+
+[Container]
+ContainerName=tunnel
+Image=docker.io/cloudflare/cloudflared:latest
+Pull=newer
+AutoUpdate=registry
+Network=void.network
+AddCapability=NET_RAW
+EnvironmentFile=%h/.config/void-eid/.env
+Exec=tunnel --no-autoupdate --loglevel debug run
+
+[Service]
+Restart=always
+StartLimitBurst=10
+RestartSec=30
+
+[Install]
+WantedBy=default.target

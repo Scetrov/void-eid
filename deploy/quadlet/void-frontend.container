@@ -12,7 +12,6 @@ AutoUpdate=registry
 Network=void.network
 GroupAdd=keep-groups
 EnvironmentFile=%h/.config/void-eid/.env
-Environment=VITE_API_URL=http://localhost:5038
 
 [Service]
 Restart=always

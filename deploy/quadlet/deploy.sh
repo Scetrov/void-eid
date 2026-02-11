@@ -13,6 +13,7 @@ cp ../../.env "$USER_CONFIG_DIR"
 
 systemctl --user daemon-reload
 systemctl --user restart void-network
+systemctl --user restart void-tunnel
 systemctl --user restart void-backend
 systemctl --user restart void-frontend
 systemctl --user restart void-murmur

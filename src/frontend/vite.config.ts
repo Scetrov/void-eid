@@ -8,6 +8,7 @@ export default defineConfig({
     TanStackRouterVite(),
     react()
   ],
+  envDir: '../../',
   server: {
     host: true,
     watch: {
