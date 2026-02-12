@@ -6,6 +6,7 @@ import { API_URL } from '../config';
 
 interface MumbleStatusResponse {
     username: string | null;
+    required_tribe: string;
 }
 
 interface CreateAccountResponse {
@@ -81,7 +82,7 @@ export function MumbleStatus() {
                 </div>
 
                 <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
-                    Connect to the tribe voice server. You need to be a member of the <strong>Fire</strong> tribe to access voice.
+                    Connect to the tribe voice server. You need to be a member of the <strong>{status?.required_tribe || '...'}</strong> tribe to access voice.
                 </p>
 
                 {error && (

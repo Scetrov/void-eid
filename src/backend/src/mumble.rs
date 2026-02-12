@@ -243,6 +243,7 @@ pub async fn verify_login(
 #[derive(Debug, Serialize)]
 pub struct MumbleStatusResponse {
     pub username: Option<String>,
+    pub required_tribe: String,
 }
 
 pub async fn get_status(
@@ -263,13 +264,17 @@ pub async fn get_status(
                 StatusCode::OK,
                 Json(MumbleStatusResponse {
                     username: Some(username),
+                    required_tribe: state.mumble_required_tribe.clone(),
                 }),
             )
                 .into_response()
         }
         Ok(None) => (
             StatusCode::OK,
-            Json(MumbleStatusResponse { username: None }),
+            Json(MumbleStatusResponse {
+                username: None,
+                required_tribe: state.mumble_required_tribe.clone(),
+            }),
         )
             .into_response(),
         Err(e) => (
