@@ -304,6 +304,10 @@ div[data-radix-popper-content-wrapper] {
 
 /* Dashboard Layout with Container Queries */
 .dashboard-container {
+  display: flex; /* Flexbox layout */
+  flex-direction: column; /* Stack children vertically */
+  min-height: 100vh; /* Ensure full viewport height */
+
   padding: 2rem;
   width: 100%;
 
@@ -701,4 +705,143 @@ html[data-theme="dark"] tbody tr:hover {
 
 .roster-row:hover {
   background-color: rgba(255, 116, 0, 0.1) !important;
+}
+
+/* Footer Styles */
+.dashboard-footer {
+  margin-top: auto;
+  width: 100%;
+  padding-top: 2rem;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: flex-end; /* Right align */
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.footer-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-family: var(--font-heading);
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+  transition: all 0.2s ease;
+}
+
+.footer-link:hover {
+  color: var(--brand-orange);
+}
+
+.footer-copyright {
+  margin-left: 1.5rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-family: var(--font-heading);
+  opacity: 0.5;
+}
+
+/* Markdown Content Styles */
+.markdown-content {
+  font-family: var(--font-body);
+  line-height: 1.6;
+  color: var(--text-primary);
+  max-width: 800px; /* Readability */
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4 {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.markdown-content h1 {
+  font-size: 2.5rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+}
+
+.markdown-content h2 {
+  font-size: 1.8rem;
+}
+
+.markdown-content p {
+  margin-bottom: 1.5rem;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin-bottom: 1.5rem;
+  padding-left: 2rem;
+}
+
+.markdown-content li {
+  margin-bottom: 0.5rem;
+}
+
+.markdown-content a {
+  color: var(--brand-orange);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
+}
+
+.markdown-content a:hover {
+  border-bottom-color: var(--brand-orange);
+}
+
+.markdown-content strong {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.markdown-content blockquote {
+  border-left: 4px solid var(--brand-orange);
+  padding-left: 1rem;
+  margin-left: 0;
+  font-style: italic;
+  color: var(--text-secondary);
+  background: rgba(255, 116, 0, 0.05);
+  padding: 1rem;
+}
+
+/* Document Properties Table (Custom, since no utility classes) */
+.doc-metadata-container {
+    display: inline-block;
+    border: 1px solid var(--border-color);
+    margin-bottom: 2rem;
+}
+
+.doc-metadata-table {
+    width: auto;
+    border-collapse: collapse;
+}
+
+.doc-metadata-table th,
+.doc-metadata-table td {
+    text-align: left !important; /* Force left alignment */
+    padding: 0.5rem 1.5rem 0.5rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.doc-metadata-table th {
+    background-color: var(--bg-secondary);
+    font-weight: 700;
+    white-space: nowrap;
+    text-transform: uppercase;
+    font-family: var(--font-heading);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    letter-spacing: 0.05em;
+}
+
+.doc-metadata-table tr:last-child th,
+.doc-metadata-table tr:last-child td {
+    border-bottom: none;
 }

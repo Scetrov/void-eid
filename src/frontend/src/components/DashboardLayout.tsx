@@ -191,6 +191,25 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             )}
 
             {children}
+
+            <footer className="dashboard-footer">
+                <div className="dashed-line" />
+                <div className="footer-links">
+                    {Object.entries(__MARKDOWN_METADATA__).map(([slug, { title }]) => (
+                        <Link
+                            key={slug}
+                            to="/$page"
+                            params={{ page: slug }}
+                            className="footer-link"
+                        >
+                            {title}
+                        </Link>
+                    ))}
+                    <div className="footer-copyright">
+                        &copy; {new Date().getFullYear()} SCETROV
+                    </div>
+                </div>
+            </footer>
         </div>
     )
 }
