@@ -22,10 +22,11 @@ const frontendCommand = process.env.CI
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
+  timeout: 5_000,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: process.env.CI ? 'blob' : 'html',
+  reporter: process.env.CI ? 'blob' : [['html', { open: 'never' }]],
   use: {
     baseURL: process.env.BASE_URL || `http://localhost:${frontendPort}`,
     trace: 'on-first-retry',

@@ -35,6 +35,7 @@ pub struct NonceResponse {
 pub struct VerifyRequest {
     address: String,
     signature: String,
+    network: Option<String>,
 }
 
 #[utoipa::path(
@@ -132,6 +133,8 @@ pub async fn link_verify(
         ));
     }
 
+    let network = payload.network.unwrap_or_else(|| "mainnet".to_string());
+
     // Check availability (including soft-deleted)
     let existing: Option<FlatLinkedWallet> =
         sqlx::query_as("SELECT *, NULL as tribe FROM wallets WHERE address = ?")
@@ -145,12 +148,13 @@ pub async fn link_verify(
             return Err((StatusCode::BAD_REQUEST, "Wallet already linked".into()));
         }
 
-        // Re-link: Update user_id and clear deleted_at
+        // Re-link: Update user_id, network, and clear deleted_at
         sqlx::query(
-            "UPDATE wallets SET user_id = ?, verified_at = ?, deleted_at = NULL WHERE id = ?",
+            "UPDATE wallets SET user_id = ?, verified_at = ?, deleted_at = NULL, network = ? WHERE id = ?",
         )
         .bind(auth_user.user_id)
         .bind(Utc::now())
+        .bind(&network)
         .bind(&w.id)
         .execute(&state.db)
         .await
@@ -172,15 +176,17 @@ pub async fn link_verify(
     }
 
     // Link new wallet
-    let _ =
-        sqlx::query("INSERT INTO wallets (id, user_id, address, verified_at) VALUES (?, ?, ?, ?)")
-            .bind(Uuid::new_v4().to_string())
-            .bind(auth_user.user_id)
-            .bind(&address_str)
-            .bind(Utc::now())
-            .execute(&state.db)
-            .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let _ = sqlx::query(
+        "INSERT INTO wallets (id, user_id, address, verified_at, network) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind(Uuid::new_v4().to_string())
+    .bind(auth_user.user_id)
+    .bind(&address_str)
+    .bind(Utc::now())
+    .bind(&network)
+    .execute(&state.db)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     // Audit log
     let _ = log_audit(

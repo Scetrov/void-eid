@@ -22,6 +22,7 @@ export interface LinkedWallet {
     address: string;
     verifiedAt: string;
     deletedAt?: string;
+    network: string;
     tribes: string[];
 }
 
@@ -33,7 +34,7 @@ interface AuthContextType {
   setCurrentTribe: (tribe: string) => void;
   login: () => void;
   logout: () => void;
-  linkWallet: (address: string) => Promise<void>;
+  linkWallet: (address: string, network: string) => Promise<void>;
   unlinkWallet: (id: string) => Promise<void>;
   isLoading: boolean;
   error: string | null;
@@ -128,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(newToken);
   }, []);
 
-  const linkWallet = async (address: string) => {
+  const linkWallet = async (address: string, network: string) => {
     if (!token) {
         setError("You must be logged in to link a wallet.");
         return;
@@ -160,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ address, signature })
+            body: JSON.stringify({ address, signature, network })
         });
 
         if (!verifyRes.ok) {

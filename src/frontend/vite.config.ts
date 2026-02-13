@@ -89,14 +89,15 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            if (id.includes('@mysten')) return 'mysten';
-            if (id.includes('@tanstack')) return 'tanstack';
-            // Keep react in vendor or split carefully. Let's fallback to vendor for others to avoid cycles.
-            return 'vendor';
-          }
+      manualChunks: (id) => {
+        if (id.includes('node_modules')) {
+          if (id.includes('@mysten')) return 'mysten';
+          if (id.includes('@tanstack')) return 'tanstack';
+          if (id.includes('lucide-react')) return 'lucide';
+          if (id.includes('zod')) return 'zod';
+          return 'vendor';
         }
+      }
       }
     }
   }

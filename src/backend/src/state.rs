@@ -2,12 +2,16 @@ use crate::db::DbPool;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+// (User ID, Tribe) -> Last Viewed At
+pub type RosterViews = Arc<Mutex<HashMap<(i64, String), chrono::DateTime<chrono::Utc>>>>;
+
 #[derive(Clone)]
 pub struct AppState {
     pub db: DbPool,
     // Address -> Nonce
     pub wallet_nonces: Arc<Mutex<HashMap<String, String>>>,
     pub mumble_required_tribe: String,
+    pub roster_views: RosterViews,
 }
 
 impl AppState {
@@ -18,6 +22,7 @@ impl AppState {
             db,
             wallet_nonces: Arc::new(Mutex::new(HashMap::new())),
             mumble_required_tribe,
+            roster_views: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }

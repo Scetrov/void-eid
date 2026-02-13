@@ -103,6 +103,7 @@ pub async fn list_users(
                 verified_at: flat.verified_at,
                 deleted_at: flat.deleted_at,
                 tribes: flat.tribe.map(|t| vec![t]).unwrap_or_default(),
+                network: flat.network,
             });
         }
     }

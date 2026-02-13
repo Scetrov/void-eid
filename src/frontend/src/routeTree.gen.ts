@@ -28,7 +28,7 @@ const SuperAdminRoute = SuperAdminRouteImport.update({
   id: '/super-admin',
   path: '/super-admin',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/super-admin.lazy').then((d) => d.Route))
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -38,7 +38,7 @@ const HomeRoute = HomeRouteImport.update({
   id: '/home',
   path: '/home',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/home.lazy').then((d) => d.Route))
 const PageRoute = PageRouteImport.update({
   id: '/$page',
   path: '/$page',
@@ -58,7 +58,7 @@ const RosterIdRoute = RosterIdRouteImport.update({
   id: '/roster/$id',
   path: '/roster/$id',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/roster/$id.lazy').then((d) => d.Route))
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
