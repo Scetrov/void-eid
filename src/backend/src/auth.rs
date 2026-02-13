@@ -10,13 +10,24 @@ use axum::{
     Json,
 };
 use chrono::{Duration, Utc};
+use hex;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::env;
 
 use utoipa::{IntoParams, ToSchema};
+
+pub fn hash_identity(input: &str) -> String {
+    let pepper = std::env::var("IDENTITY_HASH_PEPPER")
+        .unwrap_or_else(|_| "void-eid-default-pepper".to_string());
+    let mut hasher = Sha256::new();
+    hasher.update(input.as_bytes());
+    hasher.update(pepper.as_bytes());
+    hex::encode(hasher.finalize())
+}
 
 #[derive(Deserialize, ToSchema, IntoParams)]
 pub struct CallbackParams {
@@ -69,7 +80,7 @@ pub async fn discord_login() -> impl IntoResponse {
 pub async fn discord_callback(
     Query(params): Query<CallbackParams>,
     State(state): State<AppState>,
-) -> Response {
+) -> Result<impl IntoResponse, Response> {
     let client_id = env::var("DISCORD_CLIENT_ID").expect("CID missing");
     let client_secret = env::var("DISCORD_CLIENT_SECRET").expect("Secret missing");
     let redirect_uri = env::var("DISCORD_REDIRECT_URI").expect("URI missing");
@@ -84,21 +95,18 @@ pub async fn discord_callback(
         ("redirect_uri", redirect_uri.as_str()),
     ];
 
-    let token_res = match client
+    let token_res = client
         .post("https://discord.com/api/oauth2/token")
         .form(&params)
         .send()
         .await
-    {
-        Ok(res) => res,
-        Err(_) => {
-            return (
+        .map_err(|_| {
+            (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Failed to connect to Discord",
             )
                 .into_response()
-        }
-    };
+        })?;
 
     if !token_res.status().is_success() {
         let status = token_res.status();
@@ -110,50 +118,40 @@ pub async fn discord_callback(
             "Discord token exchange failed: Status: {}, Body: {}",
             status, body
         );
-        return (
+        return Err((
             StatusCode::BAD_REQUEST,
             format!(
                 "Discord token exchange failed: Status: {}, Body: {}",
                 status, body
             ),
         )
-            .into_response();
+            .into_response());
     }
 
-    let token_data: Value = match token_res.json().await {
-        Ok(data) => data,
-        Err(_) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to parse token response",
-            )
-                .into_response()
-        }
-    };
+    let token_data: Value = token_res.json().await.map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to parse token response",
+        )
+            .into_response()
+    })?;
 
     let access_token = match token_data["access_token"].as_str() {
         Some(t) => t,
-        None => return (StatusCode::BAD_REQUEST, "No access token").into_response(),
+        None => return Err((StatusCode::BAD_REQUEST, "No access token").into_response()),
     };
 
-    let user_res = match client
+    let user_res = client
         .get("https://discord.com/api/users/@me")
         .header("Authorization", format!("Bearer {}", access_token))
         .send()
         .await
-    {
-        Ok(res) => res,
-        Err(_) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch user").into_response()
-        }
-    };
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch user").into_response())?;
 
-    let discord_user: Value = match user_res.json().await {
-        Ok(u) => u,
-        Err(_) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to parse user").into_response()
-        }
-    };
+    let discord_user: Value = user_res
+        .json()
+        .await
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to parse user").into_response())?;
 
     let discord_id = discord_user["id"].as_str().unwrap_or_default().to_string();
     let username = discord_user["username"]
@@ -174,6 +172,29 @@ pub async fn discord_callback(
     let super_admin_ids_str = env::var("SUPER_ADMIN_DISCORD_IDS").unwrap_or_default();
     let super_admin_ids: Vec<&str> = super_admin_ids_str.split(',').map(|s| s.trim()).collect();
     let is_super_admin = super_admin_ids.contains(&discord_id.as_str());
+
+    // Check if blacklisted
+    let discord_hash = hash_identity(&discord_id);
+    let blacklisted: Option<(String,)> =
+        sqlx::query_as("SELECT hash FROM identity_hashes WHERE hash = ?")
+            .bind(&discord_hash)
+            .fetch_optional(&state.db)
+            .await
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("DB Error: {}", e),
+                )
+                    .into_response()
+            })?;
+
+    if blacklisted.is_some() {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Account has been deleted and cannot be re-created",
+        )
+            .into_response());
+    }
 
     // Find or Create User
     let (user, admin_granted) = match sqlx::query_as::<_, User>(
@@ -249,11 +270,11 @@ pub async fn discord_callback(
             (new_user, is_initial_admin)
         }
         Err(e) => {
-            return (
+            return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("DB Error: {}", e),
             )
-                .into_response()
+                .into_response())
         }
     };
 
@@ -293,20 +314,16 @@ pub async fn discord_callback(
         exp: expiration,
     };
 
-    let token = match encode(
+    let token = encode(
         &Header::default(),
         &claims,
         &EncodingKey::from_secret(jwt_secret.as_bytes()),
-    ) {
-        Ok(t) => t,
-        Err(_) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, "Token generation failed").into_response()
-        }
-    };
+    )
+    .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Token generation failed").into_response())?;
 
     let frontend_url =
         env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
-    Redirect::to(&format!("{}/auth/callback?token={}", frontend_url, token)).into_response()
+    Ok(Redirect::to(&format!("{}/auth/callback?token={}", frontend_url, token)).into_response())
 }
 
 #[derive(Clone)]
@@ -446,6 +463,96 @@ pub async fn get_me(
         "wallets": wallets
     }))
     .into_response()
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/me",
+    responses(
+        (status = 200, description = "Account deleted and anonymized"),
+        (status = 401, description = "Unauthorized")
+    ),
+    security(
+        ("jwt" = [])
+    )
+)]
+pub async fn delete_me(
+    auth_user: AuthenticatedUser,
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let mut tx = state
+        .db
+        .begin()
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // 1. Fetch user and wallets
+    let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ?")
+        .bind(auth_user.user_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or((StatusCode::NOT_FOUND, "User not found".to_string()))?;
+
+    let wallets = sqlx::query_as::<_, crate::models::FlatLinkedWallet>(
+        "SELECT w.*, NULL as tribe FROM wallets w WHERE w.user_id = ? AND w.deleted_at IS NULL",
+    )
+    .bind(auth_user.user_id)
+    .fetch_all(&mut *tx)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // 2. Hash and Blacklist Discord ID
+    let discord_hash = hash_identity(&user.discord_id);
+    sqlx::query("INSERT OR IGNORE INTO identity_hashes (hash, type) VALUES (?, 'DISCORD')")
+        .bind(discord_hash)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // 3. Hash and Blacklist Wallets
+    for wallet in wallets {
+        let wallet_hash = hash_identity(&wallet.address);
+        sqlx::query("INSERT OR IGNORE INTO identity_hashes (hash, type) VALUES (?, 'WALLET')")
+            .bind(wallet_hash)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    }
+
+    // 4. Hard delete wallets (data scrubbing)
+    sqlx::query("DELETE FROM wallets WHERE user_id = ?")
+        .bind(auth_user.user_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // 5. Anonymize user row
+    let random_id = format!("deleted_{}", rand::random::<u64>());
+    sqlx::query("UPDATE users SET discord_id = ?, username = 'Deleted User', avatar = NULL, is_admin = 0 WHERE id = ?")
+        .bind(random_id)
+        .bind(auth_user.user_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // 6. Audit Log
+    let _ = log_audit(
+        &state.db,
+        AuditAction::DeleteUser,
+        auth_user.user_id,
+        None,
+        "User deleted their own account (GDPR)",
+    )
+    .await;
+
+    tx.commit()
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(
+        serde_json::json!({ "message": "Account deleted successfully" }),
+    ))
 }
 
 #[cfg(test)]
@@ -634,6 +741,21 @@ mod tests {
 
         let result: Result<i64, _> = claims.id.parse();
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_hash_identity_deterministic() {
+        std::env::set_var("IDENTITY_HASH_PEPPER", "test-pepper");
+        let hash1 = hash_identity("test-input");
+        let hash2 = hash_identity("test-input");
+        assert_eq!(hash1, hash2);
+
+        let hash3 = hash_identity("other-input");
+        assert_ne!(hash1, hash3);
+
+        std::env::set_var("IDENTITY_HASH_PEPPER", "other-pepper");
+        let hash4 = hash_identity("test-input");
+        assert_ne!(hash1, hash4);
     }
 }
 

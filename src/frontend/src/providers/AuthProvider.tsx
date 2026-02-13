@@ -39,6 +39,7 @@ interface AuthContextType {
   isLoading: boolean;
   error: string | null;
   setAuthToken: (token: string | null) => void;
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -207,6 +208,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
   };
 
+  const deleteAccount = async () => {
+      if (!token) return;
+      setIsLoading(true);
+      try {
+          const res = await fetch(`${API_URL}/api/me`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (!res.ok) throw new Error(`Failed to delete account: ${res.status} ${res.statusText}`);
+          logout();
+          window.location.href = '/login';
+      } catch (err: unknown) {
+          console.error(err);
+          if (err instanceof Error) {
+              setError(err.message);
+          } else {
+              setError('Failed to delete account');
+          }
+      } finally {
+          setIsLoading(false);
+      }
+  };
+
   return (
     <AuthContext.Provider value={{
       isAuthenticated: !!user,
@@ -220,7 +244,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       unlinkWallet,
       isLoading,
       error,
-      setAuthToken
+      setAuthToken,
+      deleteAccount
     }}>
       {children}
     </AuthContext.Provider>

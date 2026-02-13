@@ -85,6 +85,27 @@ pub async fn link_verify(
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let address_str = payload.address.to_lowercase();
 
+    // Check if blacklisted
+    let wallet_hash = crate::auth::hash_identity(&address_str);
+    let blacklisted: Option<(String,)> =
+        sqlx::query_as("SELECT hash FROM identity_hashes WHERE hash = ?")
+            .bind(&wallet_hash)
+            .fetch_optional(&state.db)
+            .await
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("DB Error: {}", e),
+                )
+            })?;
+
+    if blacklisted.is_some() {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "This wallet has been blacklisted due to account deletion".into(),
+        ));
+    }
+
     // Check Nonce
     let stored_nonce = {
         let mut nonces = state.wallet_nonces.lock().unwrap();
