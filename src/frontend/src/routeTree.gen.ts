@@ -49,7 +49,7 @@ const PageRoute = PageRouteImport.update({
   id: '/$page',
   path: '/$page',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/$page.lazy').then((d) => d.Route))
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
