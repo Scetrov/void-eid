@@ -24,28 +24,46 @@ export function ConfirmationModal({
 }: ConfirmationModalProps) {
     const [timeLeft, setTimeLeft] = useState(countdownSeconds);
 
+    // Reset countdown when modal is closed
     useEffect(() => {
         if (!isOpen) {
             setTimeLeft(countdownSeconds);
+        }
+    }, [isOpen, countdownSeconds]);
+
+    // Handle Escape key while modal is open
+    useEffect(() => {
+        if (!isOpen) {
             return;
         }
 
         const handleEscape = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onCancel();
+            if (e.key === 'Escape') {
+                onCancel();
+            }
         };
+
         window.addEventListener('keydown', handleEscape);
 
-        if (timeLeft <= 0) return;
+        return () => {
+            window.removeEventListener('keydown', handleEscape);
+        };
+    }, [isOpen, onCancel]);
 
-        const timer = setInterval(() => {
+    // Countdown timer logic
+    useEffect(() => {
+        if (!isOpen || timeLeft <= 0) {
+            return;
+        }
+
+        const timer = window.setInterval(() => {
             setTimeLeft((prev) => prev - 1);
         }, 1000);
 
         return () => {
-            clearInterval(timer);
-            window.removeEventListener('keydown', handleEscape);
+            window.clearInterval(timer);
         };
-    }, [isOpen, timeLeft, countdownSeconds, onCancel]);
+    }, [isOpen, timeLeft]);
 
     if (!isOpen) return null;
 

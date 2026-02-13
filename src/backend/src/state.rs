@@ -12,17 +12,21 @@ pub struct AppState {
     pub wallet_nonces: Arc<Mutex<HashMap<String, String>>>,
     pub mumble_required_tribe: String,
     pub roster_views: RosterViews,
+    pub identity_hash_pepper: String,
 }
 
 impl AppState {
     pub fn new(db: DbPool) -> Self {
         let mumble_required_tribe =
             std::env::var("MUMBLE_REQUIRED_TRIBE").unwrap_or_else(|_| "Fire".to_string());
+        let identity_hash_pepper = std::env::var("IDENTITY_HASH_PEPPER")
+            .expect("IDENTITY_HASH_PEPPER must be set for security and deterministic hashing");
         Self {
             db,
             wallet_nonces: Arc::new(Mutex::new(HashMap::new())),
             mumble_required_tribe,
             roster_views: Arc::new(Mutex::new(HashMap::new())),
+            identity_hash_pepper,
         }
     }
 }

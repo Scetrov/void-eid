@@ -86,7 +86,7 @@ pub async fn link_verify(
     let address_str = payload.address.to_lowercase();
 
     // Check if denylisted
-    let wallet_hash = crate::auth::hash_identity(&address_str);
+    let wallet_hash = crate::auth::hash_identity(&address_str, &state.identity_hash_pepper);
     let denylisted: Option<(String,)> =
         sqlx::query_as("SELECT hash FROM identity_hashes WHERE hash = ?")
             .bind(&wallet_hash)

@@ -20,9 +20,7 @@ use std::env;
 
 use utoipa::{IntoParams, ToSchema};
 
-pub fn hash_identity(input: &str) -> String {
-    let pepper = std::env::var("IDENTITY_HASH_PEPPER")
-        .expect("IDENTITY_HASH_PEPPER must be set for security and deterministic hashing");
+pub fn hash_identity(input: &str, pepper: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(input.as_bytes());
     hasher.update(pepper.as_bytes());
@@ -174,7 +172,7 @@ pub async fn discord_callback(
     let is_super_admin = super_admin_ids.contains(&discord_id.as_str());
 
     // Check if denylisted
-    let discord_hash = hash_identity(&discord_id);
+    let discord_hash = hash_identity(&discord_id, &state.identity_hash_pepper);
     let denylisted: Option<(String,)> =
         sqlx::query_as("SELECT hash FROM identity_hashes WHERE hash = ?")
             .bind(&discord_hash)
@@ -491,9 +489,8 @@ pub async fn delete_me(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
         .ok_or((StatusCode::NOT_FOUND, "User not found".to_string()))?;
-
     let wallets = sqlx::query_as::<_, crate::models::FlatLinkedWallet>(
-        "SELECT w.*, NULL as tribe FROM wallets w WHERE w.user_id = ? AND w.deleted_at IS NULL",
+        "SELECT w.*, NULL as tribe FROM wallets w WHERE w.user_id = ?",
     )
     .bind(auth_user.user_id)
     .fetch_all(&mut *tx)
@@ -501,7 +498,7 @@ pub async fn delete_me(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     // 2. Hash and Denylist Discord ID
-    let discord_hash = hash_identity(&user.discord_id);
+    let discord_hash = hash_identity(&user.discord_id, &state.identity_hash_pepper);
     sqlx::query("INSERT OR IGNORE INTO identity_hashes (hash, type) VALUES (?, 'DISCORD')")
         .bind(discord_hash)
         .execute(&mut *tx)
@@ -510,7 +507,8 @@ pub async fn delete_me(
 
     // 3. Hash and Denylist Wallets
     for wallet in wallets {
-        let wallet_hash = hash_identity(&wallet.address);
+        let normalized_address = wallet.address.to_lowercase();
+        let wallet_hash = hash_identity(&normalized_address, &state.identity_hash_pepper);
         sqlx::query("INSERT OR IGNORE INTO identity_hashes (hash, type) VALUES (?, 'WALLET')")
             .bind(wallet_hash)
             .execute(&mut *tx)
@@ -766,18 +764,131 @@ mod tests {
 
     #[test]
     fn test_hash_identity_deterministic() {
-        std::env::set_var("IDENTITY_HASH_PEPPER", "test-pepper");
-        let hash1 = hash_identity("test-input");
-        let hash2 = hash_identity("test-input");
+        let pepper1 = "test-pepper";
+        let hash1 = hash_identity("test-input", pepper1);
+        let hash2 = hash_identity("test-input", pepper1);
         assert_eq!(hash1, hash2);
 
-        let hash3 = hash_identity("other-input");
+        let hash3 = hash_identity("other-input", pepper1);
         assert_ne!(hash1, hash3);
 
-        std::env::set_var("IDENTITY_HASH_PEPPER", "other-pepper");
-        let hash4 = hash_identity("test-input");
+        let pepper2 = "other-pepper";
+        let hash4 = hash_identity("test-input", pepper2);
         assert_ne!(hash1, hash4);
     }
+}
+
+#[tokio::test]
+async fn test_delete_account_full_flow() {
+    use crate::audit::AuditAction;
+    use crate::db::init_db;
+    use crate::models::User;
+    use uuid::Uuid;
+
+    let pepper = "test-pepper";
+    std::env::set_var("IDENTITY_HASH_PEPPER", pepper);
+    std::env::set_var("DATABASE_URL", "sqlite::memory:");
+    let db = init_db().await.expect("Failed to init DB");
+    let state = AppState::new(db.clone());
+
+    // 1. Create a user with wallets and associations
+    let user_id = rand::random::<i64>().abs();
+    let discord_id = format!("discord_{}", user_id);
+    let wallet_address = "0xTestWalletAddress".to_lowercase();
+    let wallet_id = Uuid::new_v4().to_string();
+
+    sqlx::query("INSERT INTO users (id, discord_id, username, discriminator) VALUES (?, ?, 'TestUser', '0000')")
+            .bind(user_id).bind(&discord_id).execute(&db).await.unwrap();
+
+    sqlx::query("INSERT INTO wallets (id, user_id, address, verified_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)")
+            .bind(&wallet_id).bind(user_id).bind(&wallet_address).execute(&db).await.unwrap();
+
+    sqlx::query("INSERT INTO user_tribes (user_id, tribe, wallet_id, is_admin) VALUES (?, 'TestTribe', ?, 1)")
+            .bind(user_id).bind(&wallet_id).execute(&db).await.unwrap();
+
+    sqlx::query("INSERT INTO mumble_accounts (user_id, username, password_hash) VALUES (?, 'testmumble', 'hash')")
+            .bind(user_id).execute(&db).await.unwrap();
+
+    sqlx::query("INSERT INTO notes (id, tribe, author_id, target_user_id, content) VALUES (?, 'TestTribe', ?, ?, 'Test content')")
+            .bind(Uuid::new_v4().to_string()).bind(user_id).bind(user_id).execute(&db).await.unwrap();
+
+    // 2. Run delete_me
+    let auth_user = AuthenticatedUser {
+        user_id,
+        is_super_admin: false,
+    };
+    delete_me(auth_user, State(state))
+        .await
+        .expect("delete_me failed");
+
+    // 3. Verify Verifications
+    // User anonymized
+    let user: User = sqlx::query_as("SELECT * FROM users WHERE id = ?")
+        .bind(user_id)
+        .fetch_one(&db)
+        .await
+        .unwrap();
+    assert!(user.discord_id.starts_with("deleted_"));
+    assert_eq!(user.username, "Deleted User");
+    assert!(!user.is_admin);
+
+    // Denylist populated
+    let discord_hash = hash_identity(&discord_id, pepper);
+    let wallet_hash = hash_identity(&wallet_address, pepper);
+    let _dh: (String,) =
+        sqlx::query_as("SELECT hash FROM identity_hashes WHERE hash = ? AND type = 'DISCORD'")
+            .bind(discord_hash)
+            .fetch_one(&db)
+            .await
+            .unwrap();
+    let _wh: (String,) =
+        sqlx::query_as("SELECT hash FROM identity_hashes WHERE hash = ? AND type = 'WALLET'")
+            .bind(wallet_hash)
+            .fetch_one(&db)
+            .await
+            .unwrap();
+
+    // Data scrubbed
+    let wallet_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM wallets WHERE user_id = ?")
+        .bind(user_id)
+        .fetch_one(&db)
+        .await
+        .unwrap();
+    assert_eq!(wallet_count.0, 0);
+
+    let tribe_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM user_tribes WHERE user_id = ?")
+        .bind(user_id)
+        .fetch_one(&db)
+        .await
+        .unwrap();
+    assert_eq!(tribe_count.0, 0);
+
+    let mumble_count: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM mumble_accounts WHERE user_id = ?")
+            .bind(user_id)
+            .fetch_one(&db)
+            .await
+            .unwrap();
+    assert_eq!(mumble_count.0, 0);
+
+    let note_count: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM notes WHERE target_user_id = ? OR author_id = ?")
+            .bind(user_id)
+            .bind(user_id)
+            .fetch_one(&db)
+            .await
+            .unwrap();
+    assert_eq!(note_count.0, 0);
+
+    // Audit log exists
+    let audit: (String,) = sqlx::query_as(
+        "SELECT action FROM audit_logs WHERE actor_id = ? ORDER BY created_at DESC LIMIT 1",
+    )
+    .bind(user_id)
+    .fetch_one(&db)
+    .await
+    .unwrap();
+    assert_eq!(audit.0, AuditAction::DeleteUser.as_str());
 }
 
 #[derive(Debug)]

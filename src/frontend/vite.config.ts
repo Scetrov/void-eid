@@ -12,7 +12,7 @@ const getMarkdownMetadata = () => {
   const staticDir = path.resolve(__dirname, 'static')
   if (!fs.existsSync(staticDir)) return {}
 
-    const files = fs.readdirSync(staticDir).filter(file => file.endsWith('.md'))
+  const files = fs.readdirSync(staticDir).filter(file => file.endsWith('.md'))
   const metadata: Record<string, { title: string; lastUpdated: string }> = {}
 
   files.forEach(file => {
