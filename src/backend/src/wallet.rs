@@ -85,9 +85,9 @@ pub async fn link_verify(
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let address_str = payload.address.to_lowercase();
 
-    // Check if blacklisted
+    // Check if denylisted
     let wallet_hash = crate::auth::hash_identity(&address_str);
-    let blacklisted: Option<(String,)> =
+    let denylisted: Option<(String,)> =
         sqlx::query_as("SELECT hash FROM identity_hashes WHERE hash = ?")
             .bind(&wallet_hash)
             .fetch_optional(&state.db)
@@ -99,10 +99,10 @@ pub async fn link_verify(
                 )
             })?;
 
-    if blacklisted.is_some() {
+    if denylisted.is_some() {
         return Err((
             StatusCode::FORBIDDEN,
-            "This wallet has been blacklisted due to account deletion".into(),
+            "This wallet has been denylisted due to account deletion".into(),
         ));
     }
 

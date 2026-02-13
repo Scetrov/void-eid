@@ -89,7 +89,7 @@ export function ConfirmationModal({
                     </button>
                 </div>
 
-                <div style={{ color: 'var(--text-primary)', lineHeight: '1.6', fontSize: '1rem' }}>
+                <div style={{ color: 'var(--text-primary)', lineHeight: '1.6', fontSize: '1rem', whiteSpace: 'pre-wrap' }}>
                     {message}
                 </div>
 

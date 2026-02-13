@@ -213,6 +213,11 @@ img {
   border-color: var(--brand-orange);
 }
 
+.card-static::before,
+.card-static::after {
+  display: none;
+}
+
 /* Notifications Banners (Independent of .card) */
 .notification-banner {
   background: var(--panel-bg);
@@ -813,35 +818,35 @@ html[data-theme="dark"] tbody tr:hover {
 
 /* Document Properties Table (Custom, since no utility classes) */
 .doc-metadata-container {
-    display: inline-block;
-    border: 1px solid var(--border-color);
-    margin-bottom: 2rem;
+  display: inline-block;
+  border: 1px solid var(--border-color);
+  margin-bottom: 2rem;
 }
 
 .doc-metadata-table {
-    width: auto;
-    border-collapse: collapse;
+  width: auto;
+  border-collapse: collapse;
 }
 
 .doc-metadata-table th,
 .doc-metadata-table td {
-    text-align: left !important; /* Force left alignment */
-    padding: 0.5rem 1.5rem 0.5rem 1rem;
-    border-bottom: 1px solid var(--border-color);
+  text-align: left !important; /* Force left alignment */
+  padding: 0.5rem 1.5rem 0.5rem 1rem;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .doc-metadata-table th {
-    background-color: var(--bg-secondary);
-    font-weight: 700;
-    white-space: nowrap;
-    text-transform: uppercase;
-    font-family: var(--font-heading);
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    letter-spacing: 0.05em;
+  background-color: var(--bg-secondary);
+  font-weight: 700;
+  white-space: nowrap;
+  text-transform: uppercase;
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.05em;
 }
 
 .doc-metadata-table tr:last-child th,
 .doc-metadata-table tr:last-child td {
-    border-bottom: none;
+  border-bottom: none;
 }

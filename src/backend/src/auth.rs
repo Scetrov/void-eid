@@ -173,9 +173,9 @@ pub async fn discord_callback(
     let super_admin_ids: Vec<&str> = super_admin_ids_str.split(',').map(|s| s.trim()).collect();
     let is_super_admin = super_admin_ids.contains(&discord_id.as_str());
 
-    // Check if blacklisted
+    // Check if denylisted
     let discord_hash = hash_identity(&discord_id);
-    let blacklisted: Option<(String,)> =
+    let denylisted: Option<(String,)> =
         sqlx::query_as("SELECT hash FROM identity_hashes WHERE hash = ?")
             .bind(&discord_hash)
             .fetch_optional(&state.db)
@@ -188,12 +188,10 @@ pub async fn discord_callback(
                     .into_response()
             })?;
 
-    if blacklisted.is_some() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            "Account has been deleted and cannot be re-created",
-        )
-            .into_response());
+    if denylisted.is_some() {
+        let frontend_url =
+            env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
+        return Ok(Redirect::to(&format!("{}/deleted", frontend_url)).into_response());
     }
 
     // Find or Create User
@@ -502,7 +500,7 @@ pub async fn delete_me(
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    // 2. Hash and Blacklist Discord ID
+    // 2. Hash and Denylist Discord ID
     let discord_hash = hash_identity(&user.discord_id);
     sqlx::query("INSERT OR IGNORE INTO identity_hashes (hash, type) VALUES (?, 'DISCORD')")
         .bind(discord_hash)
@@ -510,7 +508,7 @@ pub async fn delete_me(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    // 3. Hash and Blacklist Wallets
+    // 3. Hash and Denylist Wallets
     for wallet in wallets {
         let wallet_hash = hash_identity(&wallet.address);
         sqlx::query("INSERT OR IGNORE INTO identity_hashes (hash, type) VALUES (?, 'WALLET')")

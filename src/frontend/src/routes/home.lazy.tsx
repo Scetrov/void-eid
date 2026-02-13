@@ -389,7 +389,9 @@ function Home() {
             <ConfirmationModal
                 isOpen={isDeleteModalOpen}
                 title="Delete Profile"
-                message="Are you absolutely sure you want to delete your profile? This will permanently blacklist your Discord ID and Wallet Addresses from this platform."
+                message={`This action is irreversible, and designed to enable your Right to be Forgotten / Erasure under the General Data Protection Regulation (GDPR).
+
+Are you absolutely sure you want to delete your profile? This will permanently block your Discord ID and Wallet Addresses from this platform and as such is irreversible.`}
                 confirmText="Delete Profile"
                 onConfirm={() => {
                     deleteAccount();
