@@ -15,6 +15,7 @@ use utoipa_scalar::{Scalar, Servable};
 #[derive(OpenApi)]
 #[openapi(
     paths(
+        auth::discord_login,
         auth::discord_callback,
         auth::get_me,
         auth::delete_me,
