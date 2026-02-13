@@ -22,7 +22,7 @@ use utoipa::{IntoParams, ToSchema};
 
 pub fn hash_identity(input: &str) -> String {
     let pepper = std::env::var("IDENTITY_HASH_PEPPER")
-        .unwrap_or_else(|_| "void-eid-default-pepper".to_string());
+        .expect("IDENTITY_HASH_PEPPER must be set for security and deterministic hashing");
     let mut hasher = Sha256::new();
     hasher.update(input.as_bytes());
     hasher.update(pepper.as_bytes());
@@ -534,7 +534,34 @@ pub async fn delete_me(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    // 6. Audit Log
+    // 6. Scrub associated data
+    // Delete tribe associations
+    sqlx::query("DELETE FROM user_tribes WHERE user_id = ?")
+        .bind(auth_user.user_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // Delete mumble account
+    sqlx::query("DELETE FROM mumble_accounts WHERE user_id = ?")
+        .bind(auth_user.user_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // Delete notes (where user is author or target)
+    sqlx::query("DELETE FROM notes WHERE target_user_id = ? OR author_id = ?")
+        .bind(auth_user.user_id)
+        .bind(auth_user.user_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    tx.commit()
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // 7. Audit Log (After commit to avoid SQLite deadlock)
     let _ = log_audit(
         &state.db,
         AuditAction::DeleteUser,
@@ -543,10 +570,6 @@ pub async fn delete_me(
         "User deleted their own account (GDPR)",
     )
     .await;
-
-    tx.commit()
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     Ok(Json(
         serde_json::json!({ "message": "Account deleted successfully" }),

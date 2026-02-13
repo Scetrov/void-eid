@@ -218,7 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
           if (!res.ok) throw new Error(`Failed to delete account: ${res.status} ${res.statusText}`);
           logout();
-          window.location.href = '/login';
+          window.location.href = '/deleted';
       } catch (err: unknown) {
           console.error(err);
           if (err instanceof Error) {

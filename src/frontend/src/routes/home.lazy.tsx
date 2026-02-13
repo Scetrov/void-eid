@@ -393,9 +393,13 @@ function Home() {
 
 Are you absolutely sure you want to delete your profile? This will permanently block your Discord ID and Wallet Addresses from this platform and as such is irreversible.`}
                 confirmText="Delete Profile"
-                onConfirm={() => {
-                    deleteAccount();
-                    setIsDeleteModalOpen(false);
+                onConfirm={async () => {
+                    try {
+                        await deleteAccount();
+                        setIsDeleteModalOpen(false);
+                    } catch (err) {
+                        console.error('Failed to delete account:', err);
+                    }
                 }}
                 onCancel={() => setIsDeleteModalOpen(false)}
                 countdownSeconds={30}

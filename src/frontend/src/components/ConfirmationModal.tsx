@@ -30,14 +30,22 @@ export function ConfirmationModal({
             return;
         }
 
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onCancel();
+        };
+        window.addEventListener('keydown', handleEscape);
+
         if (timeLeft <= 0) return;
 
         const timer = setInterval(() => {
             setTimeLeft((prev) => prev - 1);
         }, 1000);
 
-        return () => clearInterval(timer);
-    }, [isOpen, timeLeft, countdownSeconds]);
+        return () => {
+            clearInterval(timer);
+            window.removeEventListener('keydown', handleEscape);
+        };
+    }, [isOpen, timeLeft, countdownSeconds, onCancel]);
 
     if (!isOpen) return null;
 
@@ -56,23 +64,30 @@ export function ConfirmationModal({
             backdropFilter: 'blur(4px)',
             padding: '1rem'
         }}>
-            <div className="card" style={{
-                maxWidth: '500px',
-                width: '100%',
-                padding: '2rem',
-                border: '1px solid var(--border-color)',
-                background: 'var(--panel-bg)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '1.5rem'
-            }}>
+            <div
+                className="card"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="modal-title"
+                style={{
+                    maxWidth: '500px',
+                    width: '100%',
+                    padding: '2rem',
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--panel-bg)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1.5rem'
+                }}
+            >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#ef4444' }}>
                         <AlertTriangle size={24} />
-                        <h3 style={{ margin: 0, color: '#ef4444' }}>{title}</h3>
+                        <h3 id="modal-title" style={{ margin: 0, color: '#ef4444' }}>{title}</h3>
                     </div>
                     <button
                         onClick={onCancel}
+                        aria-label="Close"
                         style={{
                             background: 'none',
                             border: 'none',
