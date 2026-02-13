@@ -20,9 +20,10 @@ We only use "Strictly Necessary" cookies required for the Service to function:
 
 | Name | Type | Purpose | Duration |
 | --- | --- | --- | --- |
-| `token` / `jwt` | First-Party | Stores your session authentication token after Discord login. | Session |
 | `__cf_bm` | Third-Party (Cloudflare) | Used by Cloudflare to distinguish between humans and bots. This is necessary for security. | 30 mins |
 | `cf_clearance` | Third-Party (Cloudflare) | Stores proof of passing a challenge (e.g., Captcha) to access the site. | Varies |
+
+We store your authentication token in your browser's `localStorage` under the key `sui_jwt`. This is not a cookie and is only used for keeping you logged in to this Service.
 
 ## 4. Managing Cookies
 
