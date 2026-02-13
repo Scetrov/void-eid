@@ -51,7 +51,7 @@ We do not sell your personal data. We share data only with the following infrast
 
 Under the GDPR and similar frameworks, you have the right to:
 
-* **Access:** Request a copy of the data we hold about you (Discord ID and linked Wallet), you can review this information in the service hompage (`/home`).
+* **Access:** Request a copy of the data we hold about you (Discord ID and linked Wallet), you can review this information in the service homepage (`/home`).
 * **Rectification:** Update your data (typically done by re-syncing your Discord profile).
 * **Erasure ("Right to be Forgotten"):** You may unlink your wallet and request deletion of your account. We support "soft-deletes" and unlinking capabilities.
 * **Portability:** Request your data in a structured, machine-readable format.
