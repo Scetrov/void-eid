@@ -4,6 +4,9 @@ import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 import fs from 'fs'
 import path from 'path'
 import { execSync } from 'child_process'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const getMarkdownMetadata = () => {
   const staticDir = path.resolve(__dirname, 'static')
