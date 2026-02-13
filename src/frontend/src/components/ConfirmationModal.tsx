@@ -64,8 +64,7 @@ export function ConfirmationModal({
                 background: 'var(--panel-bg)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '1.5rem',
-                boxShadow: '0 0 30px rgba(0, 0, 0, 0.5)'
+                gap: '1.5rem'
             }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#ef4444' }}>
