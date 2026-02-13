@@ -20,7 +20,7 @@ pub mod wallet;
 
 pub fn get_common_router() -> Router<AppState> {
     Router::new()
-        .route("/api/me", get(auth::get_me))
+        .route("/api/me", get(auth::get_me).delete(auth::delete_me))
         .route("/api/wallets/link-nonce", post(wallet::link_nonce))
         .route("/api/wallets/link-verify", post(wallet::link_verify))
         .route("/api/wallets/{id}", delete(wallet::unlink_wallet))

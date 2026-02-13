@@ -125,7 +125,6 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/api/auth/discord/login", get(auth::discord_login))
         .route("/api/auth/discord/callback", get(auth::discord_callback))
-        .route("/api/me", get(auth::get_me).delete(auth::delete_me))
         // Admin Routes
         .route("/api/admin/users", get(admin::list_users))
         .route("/api/admin/users/{id}", patch(admin::update_user))

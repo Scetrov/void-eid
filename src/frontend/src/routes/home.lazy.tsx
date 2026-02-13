@@ -8,6 +8,7 @@ import { Calendar, Layers, Wallet, Clock, ShieldAlert } from 'lucide-react'
 import DiscordLogo from "../assets/discord.svg";
 import { formatAddress, formatTimeAgo, formatLoginDate, getExplorerUrl, getNetworkLabel } from '../utils';
 import { SUI_NETWORK } from '../config';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 
 export const Route = createLazyFileRoute('/home')({
   component: Home,
@@ -22,6 +23,7 @@ function Home() {
     const { mutate: disconnect } = useDisconnectWallet()
     const [isLinking, setIsLinking] = useState(false)
     const [linkError, setLinkError] = useState<string|null>(null)
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
     if (!isAuthenticated || !user) {
         return (
@@ -376,17 +378,26 @@ function Home() {
                         <button
                             className="btn"
                             style={{ backgroundColor: '#ef4444', color: 'white', border: 'none' }}
-                            onClick={() => {
-                                if (window.confirm("Are you absolutely sure you want to delete your profile? This will permanently blacklist your Discord ID and Wallet Addresses from this platform.")) {
-                                    deleteAccount();
-                                }
-                            }}
+                            onClick={() => setIsDeleteModalOpen(true)}
                         >
                             Delete Profile
                         </button>
                     </div>
                 </div>
             </div>
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                title="Delete Profile"
+                message="Are you absolutely sure you want to delete your profile? This will permanently blacklist your Discord ID and Wallet Addresses from this platform."
+                confirmText="Delete Profile"
+                onConfirm={() => {
+                    deleteAccount();
+                    setIsDeleteModalOpen(false);
+                }}
+                onCancel={() => setIsDeleteModalOpen(false)}
+                countdownSeconds={30}
+            />
         </DashboardLayout>
     )
 }

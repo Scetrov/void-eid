@@ -1,0 +1,123 @@
+import { useState, useEffect } from 'react';
+import { AlertTriangle, X } from 'lucide-react';
+
+interface ConfirmationModalProps {
+    isOpen: boolean;
+    onConfirm: () => void;
+    onCancel: () => void;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    countdownSeconds?: number;
+}
+
+export function ConfirmationModal({
+    isOpen,
+    onConfirm,
+    onCancel,
+    title,
+    message,
+    confirmText = 'Confirm',
+    cancelText = 'Cancel',
+    countdownSeconds = 30
+}: ConfirmationModalProps) {
+    const [timeLeft, setTimeLeft] = useState(countdownSeconds);
+
+    useEffect(() => {
+        if (!isOpen) {
+            setTimeLeft(countdownSeconds);
+            return;
+        }
+
+        if (timeLeft <= 0) return;
+
+        const timer = setInterval(() => {
+            setTimeLeft((prev) => prev - 1);
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [isOpen, timeLeft, countdownSeconds]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            backdropFilter: 'blur(4px)',
+            padding: '1rem'
+        }}>
+            <div className="card" style={{
+                maxWidth: '500px',
+                width: '100%',
+                padding: '2rem',
+                border: '1px solid var(--border-color)',
+                background: 'var(--panel-bg)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1.5rem',
+                boxShadow: '0 0 30px rgba(0, 0, 0, 0.5)'
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#ef4444' }}>
+                        <AlertTriangle size={24} />
+                        <h3 style={{ margin: 0, color: '#ef4444' }}>{title}</h3>
+                    </div>
+                    <button
+                        onClick={onCancel}
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--text-secondary)',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <div style={{ color: 'var(--text-primary)', lineHeight: '1.6', fontSize: '1rem' }}>
+                    {message}
+                </div>
+
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                    <button
+                        className="btn btn-secondary"
+                        onClick={onCancel}
+                        style={{ flex: 1 }}
+                    >
+                        {cancelText}
+                    </button>
+                    <button
+                        className="btn btn-primary"
+                        onClick={onConfirm}
+                        disabled={timeLeft > 0}
+                        style={{
+                            flex: 1,
+                            backgroundColor: timeLeft > 0 ? 'rgba(239, 68, 68, 0.1)' : '#ef4444',
+                            color: timeLeft > 0 ? '#ef4444' : 'white',
+                            borderColor: '#ef4444',
+                            opacity: timeLeft > 0 ? 0.7 : 1,
+                            cursor: timeLeft > 0 ? 'not-allowed' : 'pointer'
+                        }}
+                    >
+                        {timeLeft > 0 ? `${confirmText} (${timeLeft}s)` : confirmText}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
