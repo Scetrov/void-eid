@@ -16,7 +16,9 @@ VoID eID is a verification tool that allows users to cryptographically link thei
 
 ## 3. User Responsibilities
 
-* **Security:** You are responsible for maintaining the security of your Discord account and your Sui Wallet private keys. We never ask for your private keys or seed phrases.
+* **Security:** You are responsible for maintaining the security of your Discord account and your Sui Wallet private keys.
+  * We never ask for your private keys or seed phrases.
+  * We never ask for your Discord password.
 * **Authorized Use:** You agree not to use the Service for any illegal purpose or to bypass security measures.
 * **Wallet Ownership:** You represent that you are the lawful owner of the wallet address you are linking.
 
@@ -26,7 +28,7 @@ You acknowledge that:
 
 * Blockchain transactions are irreversible.
 * We have no control over the Sui Network, Discord, or third-party wallets (e.g., Slush, Suiet).
-* The Service is provided "AS IS" without warranties regarding the uptime or availability of the underlying blockchain network.
+* The Service is provided "AS IS" without warranties regarding the uptime or availability of the underlying blockchain network, Discord API or underlying infrastructure.
 
 ## 5. Termination
 
@@ -39,5 +41,3 @@ To the maximum extent permitted by law, the VoID eID team shall not be liable fo
 ## 7. Governing Law
 
 These Terms shall be governed by the laws of England and Wales (The United Kingdom of Great Britain and Northern Ireland), without regard to its conflict of law provisions.
-
----
