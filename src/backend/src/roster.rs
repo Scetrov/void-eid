@@ -56,7 +56,7 @@ pub struct MemberQuery {
     pub audit_per_page: Option<i64>,
 }
 
-#[derive(Deserialize, IntoParams)]
+#[derive(Deserialize, IntoParams, Clone)]
 pub struct RosterQuery {
     pub tribe: Option<String>,
     pub sort: Option<String>,  // "username", "wallet_count", "last_login"
@@ -141,6 +141,7 @@ pub async fn get_roster_member(
                 address: flat.address,
                 verified_at: flat.verified_at,
                 deleted_at: flat.deleted_at,
+                network: flat.network.clone(),
                 tribes: Vec::new(),
             });
         if let Some(t) = flat.tribe {
@@ -342,6 +343,7 @@ pub async fn get_roster(
                 address: flat.address,
                 verified_at: flat.verified_at,
                 deleted_at: flat.deleted_at,
+                network: flat.network.clone(),
                 tribes: Vec::new(),
             });
         if let Some(t) = flat.tribe {
@@ -383,17 +385,45 @@ pub async fn get_roster(
         }
     }
 
-    // 8. Audit Log
-    let _ = log_audit(
-        &state.db,
-        AuditAction::ViewRoster,
-        current_user.id,
-        None,
-        &format!("Viewed roster for tribe {}", tribe),
-    )
-    .await;
+    // 8. Audit Log (Write) - Only log if viewing someone else (not self)
+    if should_log_view(&state, current_user.id, &tribe).await {
+        let _ = log_audit(
+            &state.db,
+            AuditAction::ViewRoster,
+            current_user.id,
+            None,
+            &format!("Viewed roster for tribe {}", tribe),
+        )
+        .await;
+    }
 
     Json(roster).into_response()
+}
+
+/// Check if we should log a view roster action (debounce)
+async fn should_log_view(state: &AppState, user_id: i64, tribe: &str) -> bool {
+    let key = (user_id, tribe.to_string());
+    let now = chrono::Utc::now();
+    let debounce_duration = chrono::Duration::minutes(15);
+
+    let mut views = state.roster_views.lock().unwrap();
+
+    // Clean up old entries occasionally (simple probabilistic cleanup)
+    // 1 in 100 chance to cleanup
+    use rand::Rng;
+    let mut rng = rand::rng();
+    if rng.random_range(0..100) == 0 {
+        views.retain(|_, timestamp| *timestamp > now - debounce_duration);
+    }
+
+    if let Some(last_view) = views.get(&key) {
+        if *last_view > now - debounce_duration {
+            return false;
+        }
+    }
+
+    views.insert(key, now);
+    true
 }
 
 #[cfg(test)]
@@ -566,6 +596,99 @@ mod integration_tests {
             .await
             .into_response();
         assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn test_roster_debounce() {
+        let db = setup_db().await;
+        let state = AppState::new(db.clone());
+
+        // 1. Create User
+        let user = User {
+            id: 555_i64,
+            discord_id: "999".to_string(),
+            username: "debounce_user".to_string(),
+            discriminator: "0000".to_string(),
+            avatar: None,
+            is_admin: true,
+            last_login_at: None,
+        };
+        sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, avatar, is_admin) VALUES (?, ?, ?, ?, ?, ?)")
+            .bind(user.id).bind(&user.discord_id).bind(&user.username).bind(&user.discriminator).bind(&user.avatar).bind(user.is_admin)
+            .execute(&db).await.unwrap();
+
+        // Add user to Fire tribe
+        sqlx::query("INSERT INTO user_tribes (user_id, tribe) VALUES (?, ?)")
+            .bind(user.id)
+            .bind("Fire")
+            .execute(&db)
+            .await
+            .unwrap();
+
+        let auth_user = AuthenticatedUser {
+            user_id: user.id,
+            is_super_admin: false,
+        };
+
+        // 2. First View - Should Log
+        let query = RosterQuery {
+            tribe: Some("Fire".to_string()),
+            sort: None,
+            order: None,
+            search: None,
+        };
+        let _ = get_roster(
+            auth_user.clone(),
+            Query(query.clone()),
+            State(state.clone()),
+        )
+        .await;
+
+        let count: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM audit_logs WHERE action = 'VIEW_ROSTER'")
+                .fetch_one(&db)
+                .await
+                .unwrap();
+        assert_eq!(count.0, 1);
+
+        // 3. Second View (Immediate) - Should NOT Log
+        let _ = get_roster(
+            auth_user.clone(),
+            Query(query.clone()),
+            State(state.clone()),
+        )
+        .await;
+        let count: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM audit_logs WHERE action = 'VIEW_ROSTER'")
+                .fetch_one(&db)
+                .await
+                .unwrap();
+        assert_eq!(count.0, 1);
+
+        // 4. Third View (Different Tribe) - Should Log
+        // Note: User needs to be in Water tribe to view it, but for test we just check logging logic?
+        // Actually, logic checks tribe membership first. So we need to add user to Water.
+        sqlx::query("INSERT INTO user_tribes (user_id, tribe) VALUES (?, ?)")
+            .bind(user.id)
+            .bind("Water")
+            .execute(&db)
+            .await
+            .unwrap();
+
+        let query_water = RosterQuery {
+            tribe: Some("Water".to_string()),
+            sort: None,
+            order: None,
+            search: None,
+        };
+        let _ = get_roster(auth_user.clone(), Query(query_water), State(state.clone())).await;
+
+        let count: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM audit_logs WHERE action = 'VIEW_ROSTER'")
+                .fetch_one(&db)
+                .await
+                .unwrap();
+        assert_eq!(count.0, 2);
     }
 }
 

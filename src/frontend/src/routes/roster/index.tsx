@@ -6,6 +6,8 @@ import { useState } from 'react'
 import { ArrowUpDown, Search, ShieldAlert } from 'lucide-react'
 import { DashboardLayout } from '../../components/DashboardLayout'
 
+import { useDebounce } from '../../hooks/useDebounce'
+
 export const Route = createFileRoute('/roster/')({
   component: RosterPage,
 })
@@ -26,19 +28,20 @@ interface RosterMember {
 function RosterPage() {
     const { user, token, isAuthenticated, currentTribe } = useAuth()
     const [search, setSearch] = useState('')
+    const debouncedSearch = useDebounce(search, 500)
     const [sort, setSort] = useState<'username' | 'wallet_count' | 'last_login'>('username')
     const [order, setOrder] = useState<'asc' | 'desc'>('asc')
     const navigate = useNavigate()
 
     // Fetch Roster
     const { data: roster, isLoading, error } = useQuery({
-        queryKey: ['roster', currentTribe, search, sort, order],
+        queryKey: ['roster', currentTribe, debouncedSearch, sort, order],
         queryFn: async () => {
             if (!token) throw new Error("No token");
 
             const params = new URLSearchParams();
             if (currentTribe) params.append('tribe', currentTribe);
-            if (search) params.append('search', search);
+            if (debouncedSearch) params.append('search', debouncedSearch);
             params.append('sort', sort);
             params.append('order', order);
 

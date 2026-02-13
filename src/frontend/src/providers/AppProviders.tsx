@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { AuthProvider } from './AuthProvider';
 import { ApiGuard } from '../components/ApiGuard';
 import '@mysten/dapp-kit/dist/index.css';
+import { SUI_NETWORK } from '../config';
 
 const { networkConfig } = createNetworkConfig({
 	localnet: {
@@ -30,8 +31,8 @@ const queryClient = new QueryClient();
 export function AppProviders({ children }: { children: ReactNode }) {
 	return (
 		<QueryClientProvider client={queryClient}>
-			<SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
-				<WalletProvider>
+			<SuiClientProvider networks={networkConfig} defaultNetwork={SUI_NETWORK}>
+				<WalletProvider autoConnect>
 					<ApiGuard>
 						<AuthProvider>
 							{children}

@@ -309,6 +309,7 @@ pub async fn discord_callback(
     Redirect::to(&format!("{}/auth/callback?token={}", frontend_url, token)).into_response()
 }
 
+#[derive(Clone)]
 pub struct AuthenticatedUser {
     pub user_id: i64,
     pub is_super_admin: bool,
@@ -397,6 +398,7 @@ pub async fn get_me(
                 address: flat.address,
                 verified_at: flat.verified_at,
                 deleted_at: flat.deleted_at,
+                network: flat.network,
                 tribes: Vec::new(),
             });
         if let Some(t) = flat.tribe {

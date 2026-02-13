@@ -62,7 +62,13 @@ pub struct LinkedWallet {
     pub address: String,
     pub verified_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,
+    #[serde(default = "default_network")]
+    pub network: String,
     pub tribes: Vec<String>,
+}
+
+fn default_network() -> String {
+    "mainnet".to_string()
 }
 
 // Internal helper for SQL mapping before grouping
@@ -73,5 +79,6 @@ pub struct FlatLinkedWallet {
     pub address: String,
     pub verified_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,
+    pub network: String,
     pub tribe: Option<String>,
 }
