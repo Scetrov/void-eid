@@ -242,6 +242,7 @@ jobs:
           DATABASE_URL: "sqlite::memory:"
           JWT_SECRET: ci-test-secret
           FRONTEND_URL: http://localhost:4173
+          IDENTITY_HASH_PEPPER: ci-test-pepper
 
       - name: Upload blob report
         uses: actions/upload-artifact@v6
