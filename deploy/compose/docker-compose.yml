@@ -31,7 +31,7 @@ services:
   frontend:
     image: ghcr.io/scetrov/void-eid/void-eid-frontend:latest
     ports:
-      - "5173:80"
+      - "5173:8080"
     env_file: .env
     environment:
     restart: unless-stopped
