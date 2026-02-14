@@ -324,7 +324,7 @@ pub async fn discord_callback(
     )
     .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Token generation failed").into_response())?;
 
-    // Generate auth code and store JWT temporarily (30s TTL)
+    // Generate auth code and store JWT temporarily (2 minute TTL for frontend exchange)
     let auth_code = Uuid::new_v4().to_string();
     state
         .auth_codes
@@ -371,8 +371,8 @@ pub async fn exchange_code(
     }
     .ok_or((StatusCode::BAD_REQUEST, "Invalid or expired code"))?;
 
-    // Validate code is not too old (30 second TTL)
-    if Utc::now() - created_at > Duration::seconds(30) {
+    // Validate code is not too old (2 minute TTL)
+    if Utc::now() - created_at > Duration::minutes(2) {
         return Err((StatusCode::BAD_REQUEST, "Code expired"));
     }
 

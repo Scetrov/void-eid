@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import z from 'zod'
 import { useAuth } from '../../providers/AuthProvider'
+import { API_URL } from '../../config'
 
 const searchSchema = z.object({
   code: z.string().optional(),
@@ -25,7 +26,7 @@ function AuthCallback() {
     }
 
     // Exchange code for JWT token
-    fetch('http://localhost:5038/api/auth/exchange', {
+    fetch(`${API_URL}/api/auth/exchange`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
