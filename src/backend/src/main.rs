@@ -1,10 +1,14 @@
 use axum::{
+    extract::ConnectInfo,
     routing::{delete, get, patch, post},
     Router,
 };
 use std::{net::SocketAddr, sync::Arc};
 use tower_governor::{
-    governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor, GovernorLayer,
+    errors::GovernorError,
+    governor::GovernorConfigBuilder,
+    key_extractor::{KeyExtractor, SmartIpKeyExtractor},
+    GovernorLayer,
 };
 use tower_http::cors::CorsLayer;
 use void_eid_backend::db::init_db;
@@ -14,6 +18,31 @@ use void_eid_backend::{admin, auth, models, mumble, notes, roster, wallet};
 
 use utoipa::OpenApi;
 use utoipa_scalar::{Scalar, Servable};
+
+/// Custom key extractor that falls back to a default value if IP extraction fails
+#[derive(Clone)]
+struct FallbackIpKeyExtractor;
+
+impl KeyExtractor for FallbackIpKeyExtractor {
+    type Key = String;
+
+    fn extract<T>(&self, req: &axum::http::Request<T>) -> Result<Self::Key, GovernorError> {
+        // Try SmartIpKeyExtractor first
+        let smart_extractor = SmartIpKeyExtractor;
+        if let Ok(ip) = smart_extractor.extract(req) {
+            return Ok(ip.to_string());
+        }
+
+        // Fallback 1: Try to get ConnectInfo
+        if let Some(ConnectInfo(addr)) = req.extensions().get::<ConnectInfo<SocketAddr>>() {
+            return Ok(addr.ip().to_string());
+        }
+
+        // Fallback 2: Use a default key for internal/unknown sources
+        // This ensures rate limiting still works but groups unknown requesters
+        Ok("fallback-internal".to_string())
+    }
+}
 
 #[derive(OpenApi)]
 #[openapi(
@@ -130,12 +159,12 @@ async fn main() -> anyhow::Result<()> {
         ]);
 
     // Rate limiting configuration for sensitive endpoints
-    // Use SmartIpKeyExtractor to handle both direct connections and proxied requests
+    // Use FallbackIpKeyExtractor to handle Docker networking gracefully
     let governor_conf = Arc::new(
         GovernorConfigBuilder::default()
             .per_second(2)
             .burst_size(5)
-            .key_extractor(SmartIpKeyExtractor)
+            .key_extractor(FallbackIpKeyExtractor)
             .finish()
             .expect("Failed to create rate limit config"),
     );
@@ -156,10 +185,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/wallets/link-verify", post(wallet::link_verify))
         .layer(rate_limit_layer.clone());
 
-    // Rate-limited internal routes
-    let internal_routes = Router::new()
-        .route("/api/internal/mumble/verify", post(mumble::verify_login))
-        .layer(rate_limit_layer);
+    // Internal routes (NO rate limiting - protected by INTERNAL_SECRET instead)
+    let internal_routes =
+        Router::new().route("/api/internal/mumble/verify", post(mumble::verify_login));
 
     let app = Router::new()
         .merge(auth_routes)
