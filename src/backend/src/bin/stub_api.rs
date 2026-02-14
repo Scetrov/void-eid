@@ -11,7 +11,7 @@ use sqlx::SqlitePool;
 use std::{env, net::SocketAddr};
 use tower_http::cors::CorsLayer;
 use uuid::Uuid;
-use void_eid_backend::{auth::Claims, db::init_db, state::AppState};
+use void_eid_backend::{auth::Claims, db::init_db, state::AppState, wallet};
 
 #[derive(Deserialize)]
 struct StubLoginParams {
@@ -186,6 +186,9 @@ async fn main() -> anyhow::Result<()> {
             "/api/auth/exchange",
             post(void_eid_backend::auth::exchange_code),
         )
+        // Wallet routes (not rate-limited in stub)
+        .route("/api/wallets/link-nonce", post(wallet::link_nonce))
+        .route("/api/wallets/link-verify", post(wallet::link_verify))
         // Mock the original login route to redirect to stub login?
         // Or just let the frontend call stub-login directly if in test mode.
         // Let's redirect /api/auth/discord/login to a page that auto-logs in as admin for convenience?

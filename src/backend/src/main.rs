@@ -2,7 +2,8 @@ use axum::{
     routing::{delete, get, patch, post},
     Router,
 };
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::Arc};
+use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
 use tower_http::cors::CorsLayer;
 use void_eid_backend::db::init_db;
 use void_eid_backend::state::AppState;
@@ -126,10 +127,40 @@ async fn main() -> anyhow::Result<()> {
             axum::http::header::CONTENT_TYPE,
         ]);
 
-    let app = Router::new()
+    // Rate limiting configuration for sensitive endpoints
+    let governor_conf = Arc::new(
+        GovernorConfigBuilder::default()
+            .per_second(2)
+            .burst_size(5)
+            .finish()
+            .expect("Failed to create rate limit config"),
+    );
+    let rate_limit_layer = GovernorLayer {
+        config: governor_conf,
+    };
+
+    // Rate-limited authentication routes
+    let auth_routes = Router::new()
         .route("/api/auth/discord/login", get(auth::discord_login))
         .route("/api/auth/discord/callback", get(auth::discord_callback))
         .route("/api/auth/exchange", post(auth::exchange_code))
+        .layer(rate_limit_layer.clone());
+
+    // Rate-limited wallet routes
+    let wallet_routes = Router::new()
+        .route("/api/wallets/link-nonce", post(wallet::link_nonce))
+        .route("/api/wallets/link-verify", post(wallet::link_verify))
+        .layer(rate_limit_layer.clone());
+
+    // Rate-limited internal routes
+    let internal_routes = Router::new()
+        .route("/api/internal/mumble/verify", post(mumble::verify_login))
+        .layer(rate_limit_layer);
+
+    let app = Router::new()
+        .merge(auth_routes)
+        .merge(wallet_routes)
+        .merge(internal_routes)
         // Admin Routes
         .route("/api/admin/users", get(admin::list_users))
         .route("/api/admin/users/{id}", patch(admin::update_user))
@@ -146,7 +177,6 @@ async fn main() -> anyhow::Result<()> {
         // Mumble routes
         .route("/api/mumble/account", post(mumble::create_account))
         .route("/api/mumble/status", get(mumble::get_status))
-        .route("/api/internal/mumble/verify", post(mumble::verify_login))
         .merge(void_eid_backend::get_common_router())
         .merge(Scalar::with_url("/docs", ApiDoc::openapi()))
         .layer(cors)
