@@ -8,13 +8,14 @@ import { Calendar, Layers, Wallet, Clock, ShieldAlert } from 'lucide-react'
 import DiscordLogo from "../assets/discord.svg";
 import { formatAddress, formatTimeAgo, formatLoginDate, getExplorerUrl, getNetworkLabel } from '../utils';
 import { SUI_NETWORK } from '../config';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 
 export const Route = createLazyFileRoute('/home')({
   component: Home,
 })
 
 function Home() {
-    const { isAuthenticated, user, linkWallet, unlinkWallet } = useAuth()
+    const { isAuthenticated, user, linkWallet, unlinkWallet, deleteAccount } = useAuth()
     const realAccount = useCurrentAccount()
     // Allow E2E tests to override the connected account
     const mockAccount = (window as unknown as { __MOCK_ACCOUNT__: unknown }).__MOCK_ACCOUNT__;
@@ -22,6 +23,7 @@ function Home() {
     const { mutate: disconnect } = useDisconnectWallet()
     const [isLinking, setIsLinking] = useState(false)
     const [linkError, setLinkError] = useState<string|null>(null)
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
     if (!isAuthenticated || !user) {
         return (
@@ -359,6 +361,51 @@ function Home() {
                     )}
                 </div>
             </div>
+            {/* Danger Zone */}
+            <div style={{ marginTop: '3rem', borderTop: '1px solid var(--glass-border)', paddingTop: '2rem' }}>
+                <h3 style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                    <ShieldAlert size={20} />
+                    Danger Zone
+                </h3>
+                <div className="card" style={{ border: '1px solid rgba(239, 68, 68, 0.2)', background: 'rgba(239, 68, 68, 0.05)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                            <h4 style={{ margin: 0, color: 'var(--text-primary)' }}>Delete Profile</h4>
+                            <p style={{ margin: '0.5rem 0 0 0', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                                Permanently delete your account and all associated data. This action cannot be undone.
+                            </p>
+                        </div>
+                        <button
+                            className="btn"
+                            style={{ backgroundColor: '#ef4444', color: 'white', border: 'none' }}
+                            onClick={() => setIsDeleteModalOpen(true)}
+                        >
+                            Delete Profile
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                title="Delete Profile"
+                message={`This action is irreversible, and designed to enable your Right to be Forgotten / Erasure under the General Data Protection Regulation (GDPR).
+
+Are you absolutely sure you want to delete your profile? This will permanently block your Discord ID and Wallet Addresses from this platform and as such is irreversible.`}
+                confirmText="Delete Profile"
+                onConfirm={async () => {
+                    try {
+                        await deleteAccount();
+                    } catch (err) {
+                        console.error('Failed to delete account:', err);
+                        alert('Failed to delete your profile. Please try again in a moment, or contact support if the problem persists.');
+                    } finally {
+                        setIsDeleteModalOpen(false);
+                    }
+                }}
+                onCancel={() => setIsDeleteModalOpen(false)}
+                countdownSeconds={30}
+            />
         </DashboardLayout>
     )
 }

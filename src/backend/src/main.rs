@@ -18,6 +18,7 @@ use utoipa_scalar::{Scalar, Servable};
         auth::discord_login,
         auth::discord_callback,
         auth::get_me,
+        auth::delete_me,
         wallet::link_nonce,
         wallet::link_verify,
         wallet::unlink_wallet,

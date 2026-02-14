@@ -30,6 +30,7 @@ jobs:
     env:
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: "sccache"
+      IDENTITY_HASH_PEPPER: ci-test-pepper
     steps:
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
@@ -242,6 +243,7 @@ jobs:
           DATABASE_URL: "sqlite::memory:"
           JWT_SECRET: ci-test-secret
           FRONTEND_URL: http://localhost:4173
+          IDENTITY_HASH_PEPPER: ci-test-pepper
 
       - name: Upload blob report
         uses: actions/upload-artifact@v6

@@ -23,6 +23,7 @@ pub enum AuditAction {
     SuperAdminCreateTribe,
     SuperAdminUpdateTribe,
     SuperAdminDeleteWallet,
+    DeleteUser,
 }
 
 impl AuditAction {
@@ -45,6 +46,7 @@ impl AuditAction {
             AuditAction::SuperAdminCreateTribe => "SUPER_ADMIN_CREATE_TRIBE",
             AuditAction::SuperAdminUpdateTribe => "SUPER_ADMIN_UPDATE_TRIBE",
             AuditAction::SuperAdminDeleteWallet => "SUPER_ADMIN_DELETE_WALLET",
+            AuditAction::DeleteUser => "DELETE_USER",
         }
     }
 }

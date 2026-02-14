@@ -13,6 +13,8 @@ import { Route as VoiceRouteImport } from './routes/voice'
 import { Route as SuperAdminRouteImport } from './routes/super-admin'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as HomeRouteImport } from './routes/home'
+import { Route as DeletedRouteImport } from './routes/deleted'
+import { Route as PageRouteImport } from './routes/$page'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RosterIndexRouteImport } from './routes/roster/index'
 import { Route as RosterIdRouteImport } from './routes/roster/$id'
@@ -38,6 +40,16 @@ const HomeRoute = HomeRouteImport.update({
   path: '/home',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/home.lazy').then((d) => d.Route))
+const DeletedRoute = DeletedRouteImport.update({
+  id: '/deleted',
+  path: '/deleted',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PageRoute = PageRouteImport.update({
+  id: '/$page',
+  path: '/$page',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/$page.lazy').then((d) => d.Route))
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -61,6 +73,8 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$page': typeof PageRoute
+  '/deleted': typeof DeletedRoute
   '/home': typeof HomeRoute
   '/login': typeof LoginRoute
   '/super-admin': typeof SuperAdminRoute
@@ -71,6 +85,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$page': typeof PageRoute
+  '/deleted': typeof DeletedRoute
   '/home': typeof HomeRoute
   '/login': typeof LoginRoute
   '/super-admin': typeof SuperAdminRoute
@@ -82,6 +98,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/$page': typeof PageRoute
+  '/deleted': typeof DeletedRoute
   '/home': typeof HomeRoute
   '/login': typeof LoginRoute
   '/super-admin': typeof SuperAdminRoute
@@ -94,6 +112,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/$page'
+    | '/deleted'
     | '/home'
     | '/login'
     | '/super-admin'
@@ -104,6 +124,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/$page'
+    | '/deleted'
     | '/home'
     | '/login'
     | '/super-admin'
@@ -114,6 +136,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/$page'
+    | '/deleted'
     | '/home'
     | '/login'
     | '/super-admin'
@@ -125,6 +149,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  PageRoute: typeof PageRoute
+  DeletedRoute: typeof DeletedRoute
   HomeRoute: typeof HomeRoute
   LoginRoute: typeof LoginRoute
   SuperAdminRoute: typeof SuperAdminRoute
@@ -164,6 +190,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HomeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/deleted': {
+      id: '/deleted'
+      path: '/deleted'
+      fullPath: '/deleted'
+      preLoaderRoute: typeof DeletedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$page': {
+      id: '/$page'
+      path: '/$page'
+      fullPath: '/$page'
+      preLoaderRoute: typeof PageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -197,6 +237,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  PageRoute: PageRoute,
+  DeletedRoute: DeletedRoute,
   HomeRoute: HomeRoute,
   LoginRoute: LoginRoute,
   SuperAdminRoute: SuperAdminRoute,

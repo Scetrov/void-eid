@@ -10,13 +10,22 @@ use axum::{
     Json,
 };
 use chrono::{Duration, Utc};
+use hex;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::env;
 
 use utoipa::{IntoParams, ToSchema};
+
+pub fn hash_identity(input: &str, pepper: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(input.as_bytes());
+    hasher.update(pepper.as_bytes());
+    hex::encode(hasher.finalize())
+}
 
 #[derive(Deserialize, ToSchema, IntoParams)]
 pub struct CallbackParams {
@@ -69,7 +78,7 @@ pub async fn discord_login() -> impl IntoResponse {
 pub async fn discord_callback(
     Query(params): Query<CallbackParams>,
     State(state): State<AppState>,
-) -> Response {
+) -> Result<impl IntoResponse, Response> {
     let client_id = env::var("DISCORD_CLIENT_ID").expect("CID missing");
     let client_secret = env::var("DISCORD_CLIENT_SECRET").expect("Secret missing");
     let redirect_uri = env::var("DISCORD_REDIRECT_URI").expect("URI missing");
@@ -84,21 +93,18 @@ pub async fn discord_callback(
         ("redirect_uri", redirect_uri.as_str()),
     ];
 
-    let token_res = match client
+    let token_res = client
         .post("https://discord.com/api/oauth2/token")
         .form(&params)
         .send()
         .await
-    {
-        Ok(res) => res,
-        Err(_) => {
-            return (
+        .map_err(|_| {
+            (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Failed to connect to Discord",
             )
                 .into_response()
-        }
-    };
+        })?;
 
     if !token_res.status().is_success() {
         let status = token_res.status();
@@ -110,50 +116,40 @@ pub async fn discord_callback(
             "Discord token exchange failed: Status: {}, Body: {}",
             status, body
         );
-        return (
+        return Err((
             StatusCode::BAD_REQUEST,
             format!(
                 "Discord token exchange failed: Status: {}, Body: {}",
                 status, body
             ),
         )
-            .into_response();
+            .into_response());
     }
 
-    let token_data: Value = match token_res.json().await {
-        Ok(data) => data,
-        Err(_) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to parse token response",
-            )
-                .into_response()
-        }
-    };
+    let token_data: Value = token_res.json().await.map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to parse token response",
+        )
+            .into_response()
+    })?;
 
     let access_token = match token_data["access_token"].as_str() {
         Some(t) => t,
-        None => return (StatusCode::BAD_REQUEST, "No access token").into_response(),
+        None => return Err((StatusCode::BAD_REQUEST, "No access token").into_response()),
     };
 
-    let user_res = match client
+    let user_res = client
         .get("https://discord.com/api/users/@me")
         .header("Authorization", format!("Bearer {}", access_token))
         .send()
         .await
-    {
-        Ok(res) => res,
-        Err(_) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch user").into_response()
-        }
-    };
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch user").into_response())?;
 
-    let discord_user: Value = match user_res.json().await {
-        Ok(u) => u,
-        Err(_) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to parse user").into_response()
-        }
-    };
+    let discord_user: Value = user_res
+        .json()
+        .await
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to parse user").into_response())?;
 
     let discord_id = discord_user["id"].as_str().unwrap_or_default().to_string();
     let username = discord_user["username"]
@@ -174,6 +170,27 @@ pub async fn discord_callback(
     let super_admin_ids_str = env::var("SUPER_ADMIN_DISCORD_IDS").unwrap_or_default();
     let super_admin_ids: Vec<&str> = super_admin_ids_str.split(',').map(|s| s.trim()).collect();
     let is_super_admin = super_admin_ids.contains(&discord_id.as_str());
+
+    // Check if denylisted
+    let discord_hash = hash_identity(&discord_id, &state.identity_hash_pepper);
+    let denylisted: Option<(String,)> =
+        sqlx::query_as("SELECT hash FROM identity_hashes WHERE hash = ?")
+            .bind(&discord_hash)
+            .fetch_optional(&state.db)
+            .await
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("DB Error: {}", e),
+                )
+                    .into_response()
+            })?;
+
+    if denylisted.is_some() {
+        let frontend_url =
+            env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
+        return Ok(Redirect::to(&format!("{}/deleted", frontend_url)).into_response());
+    }
 
     // Find or Create User
     let (user, admin_granted) = match sqlx::query_as::<_, User>(
@@ -249,11 +266,11 @@ pub async fn discord_callback(
             (new_user, is_initial_admin)
         }
         Err(e) => {
-            return (
+            return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("DB Error: {}", e),
             )
-                .into_response()
+                .into_response())
         }
     };
 
@@ -293,20 +310,16 @@ pub async fn discord_callback(
         exp: expiration,
     };
 
-    let token = match encode(
+    let token = encode(
         &Header::default(),
         &claims,
         &EncodingKey::from_secret(jwt_secret.as_bytes()),
-    ) {
-        Ok(t) => t,
-        Err(_) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, "Token generation failed").into_response()
-        }
-    };
+    )
+    .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Token generation failed").into_response())?;
 
     let frontend_url =
         env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
-    Redirect::to(&format!("{}/auth/callback?token={}", frontend_url, token)).into_response()
+    Ok(Redirect::to(&format!("{}/auth/callback?token={}", frontend_url, token)).into_response())
 }
 
 #[derive(Clone)]
@@ -446,6 +459,119 @@ pub async fn get_me(
         "wallets": wallets
     }))
     .into_response()
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/me",
+    responses(
+        (status = 200, description = "Account deleted and anonymized"),
+        (status = 401, description = "Unauthorized")
+    ),
+    security(
+        ("jwt" = [])
+    )
+)]
+pub async fn delete_me(
+    auth_user: AuthenticatedUser,
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let mut tx = state
+        .db
+        .begin()
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // 1. Fetch user and wallets
+    let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ?")
+        .bind(auth_user.user_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or((StatusCode::NOT_FOUND, "User not found".to_string()))?;
+    let wallets = sqlx::query_as::<_, crate::models::FlatLinkedWallet>(
+        "SELECT w.*, NULL as tribe FROM wallets w WHERE w.user_id = ?",
+    )
+    .bind(auth_user.user_id)
+    .fetch_all(&mut *tx)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // 2. Hash and Denylist Discord ID
+    let discord_hash = hash_identity(&user.discord_id, &state.identity_hash_pepper);
+    sqlx::query("INSERT OR IGNORE INTO identity_hashes (hash, type) VALUES (?, 'DISCORD')")
+        .bind(discord_hash)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // 3. Hash and Denylist Wallets
+    for wallet in wallets {
+        let normalized_address = wallet.address.to_lowercase();
+        let wallet_hash = hash_identity(&normalized_address, &state.identity_hash_pepper);
+        sqlx::query("INSERT OR IGNORE INTO identity_hashes (hash, type) VALUES (?, 'WALLET')")
+            .bind(wallet_hash)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    }
+
+    // 4. Hard delete wallets (data scrubbing)
+    sqlx::query("DELETE FROM wallets WHERE user_id = ?")
+        .bind(auth_user.user_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // 5. Anonymize user row
+    let random_id = format!("deleted_{}", rand::random::<u64>());
+    sqlx::query("UPDATE users SET discord_id = ?, username = 'Deleted User', avatar = NULL, is_admin = 0 WHERE id = ?")
+        .bind(random_id)
+        .bind(auth_user.user_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // 6. Scrub associated data
+    // Delete tribe associations
+    sqlx::query("DELETE FROM user_tribes WHERE user_id = ?")
+        .bind(auth_user.user_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // Delete mumble account
+    sqlx::query("DELETE FROM mumble_accounts WHERE user_id = ?")
+        .bind(auth_user.user_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // Delete notes (where user is author or target)
+    sqlx::query("DELETE FROM notes WHERE target_user_id = ? OR author_id = ?")
+        .bind(auth_user.user_id)
+        .bind(auth_user.user_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    tx.commit()
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // 7. Audit Log (After commit to avoid SQLite deadlock)
+    let _ = log_audit(
+        &state.db,
+        AuditAction::DeleteUser,
+        auth_user.user_id,
+        None,
+        "User deleted their own account (GDPR)",
+    )
+    .await;
+
+    Ok(Json(
+        serde_json::json!({ "message": "Account deleted successfully" }),
+    ))
 }
 
 #[cfg(test)]
@@ -635,6 +761,134 @@ mod tests {
         let result: Result<i64, _> = claims.id.parse();
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_hash_identity_deterministic() {
+        let pepper1 = "test-pepper";
+        let hash1 = hash_identity("test-input", pepper1);
+        let hash2 = hash_identity("test-input", pepper1);
+        assert_eq!(hash1, hash2);
+
+        let hash3 = hash_identity("other-input", pepper1);
+        assert_ne!(hash1, hash3);
+
+        let pepper2 = "other-pepper";
+        let hash4 = hash_identity("test-input", pepper2);
+        assert_ne!(hash1, hash4);
+    }
+}
+
+#[tokio::test]
+async fn test_delete_account_full_flow() {
+    use crate::audit::AuditAction;
+    use crate::db::init_db;
+    use crate::models::User;
+    use uuid::Uuid;
+
+    let pepper = "test-pepper";
+    std::env::set_var("IDENTITY_HASH_PEPPER", pepper);
+    std::env::set_var("DATABASE_URL", "sqlite::memory:");
+    let db = init_db().await.expect("Failed to init DB");
+    let state = AppState::new(db.clone());
+
+    // 1. Create a user with wallets and associations
+    let user_id = rand::random::<i64>().abs();
+    let discord_id = format!("discord_{}", user_id);
+    let wallet_address = "0xTestWalletAddress".to_lowercase();
+    let wallet_id = Uuid::new_v4().to_string();
+
+    sqlx::query("INSERT INTO users (id, discord_id, username, discriminator) VALUES (?, ?, 'TestUser', '0000')")
+            .bind(user_id).bind(&discord_id).execute(&db).await.unwrap();
+
+    sqlx::query("INSERT INTO wallets (id, user_id, address, verified_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)")
+            .bind(&wallet_id).bind(user_id).bind(&wallet_address).execute(&db).await.unwrap();
+
+    sqlx::query("INSERT INTO user_tribes (user_id, tribe, wallet_id, is_admin) VALUES (?, 'TestTribe', ?, 1)")
+            .bind(user_id).bind(&wallet_id).execute(&db).await.unwrap();
+
+    sqlx::query("INSERT INTO mumble_accounts (user_id, username, password_hash) VALUES (?, 'testmumble', 'hash')")
+            .bind(user_id).execute(&db).await.unwrap();
+
+    sqlx::query("INSERT INTO notes (id, tribe, author_id, target_user_id, content) VALUES (?, 'TestTribe', ?, ?, 'Test content')")
+            .bind(Uuid::new_v4().to_string()).bind(user_id).bind(user_id).execute(&db).await.unwrap();
+
+    // 2. Run delete_me
+    let auth_user = AuthenticatedUser {
+        user_id,
+        is_super_admin: false,
+    };
+    delete_me(auth_user, State(state))
+        .await
+        .expect("delete_me failed");
+
+    // 3. Verify Verifications
+    // User anonymized
+    let user: User = sqlx::query_as("SELECT * FROM users WHERE id = ?")
+        .bind(user_id)
+        .fetch_one(&db)
+        .await
+        .unwrap();
+    assert!(user.discord_id.starts_with("deleted_"));
+    assert_eq!(user.username, "Deleted User");
+    assert!(!user.is_admin);
+
+    // Denylist populated
+    let discord_hash = hash_identity(&discord_id, pepper);
+    let wallet_hash = hash_identity(&wallet_address, pepper);
+    let _dh: (String,) =
+        sqlx::query_as("SELECT hash FROM identity_hashes WHERE hash = ? AND type = 'DISCORD'")
+            .bind(discord_hash)
+            .fetch_one(&db)
+            .await
+            .unwrap();
+    let _wh: (String,) =
+        sqlx::query_as("SELECT hash FROM identity_hashes WHERE hash = ? AND type = 'WALLET'")
+            .bind(wallet_hash)
+            .fetch_one(&db)
+            .await
+            .unwrap();
+
+    // Data scrubbed
+    let wallet_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM wallets WHERE user_id = ?")
+        .bind(user_id)
+        .fetch_one(&db)
+        .await
+        .unwrap();
+    assert_eq!(wallet_count.0, 0);
+
+    let tribe_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM user_tribes WHERE user_id = ?")
+        .bind(user_id)
+        .fetch_one(&db)
+        .await
+        .unwrap();
+    assert_eq!(tribe_count.0, 0);
+
+    let mumble_count: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM mumble_accounts WHERE user_id = ?")
+            .bind(user_id)
+            .fetch_one(&db)
+            .await
+            .unwrap();
+    assert_eq!(mumble_count.0, 0);
+
+    let note_count: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM notes WHERE target_user_id = ? OR author_id = ?")
+            .bind(user_id)
+            .bind(user_id)
+            .fetch_one(&db)
+            .await
+            .unwrap();
+    assert_eq!(note_count.0, 0);
+
+    // Audit log exists
+    let audit: (String,) = sqlx::query_as(
+        "SELECT action FROM audit_logs WHERE actor_id = ? ORDER BY created_at DESC LIMIT 1",
+    )
+    .bind(user_id)
+    .fetch_one(&db)
+    .await
+    .unwrap();
+    assert_eq!(audit.0, AuditAction::DeleteUser.as_str());
 }
 
 #[derive(Debug)]
