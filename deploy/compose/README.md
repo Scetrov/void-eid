@@ -40,21 +40,37 @@ Register an application at https://discord.com/developers/applications
 
 ### Required Secrets (Generate Random Values)
 
-Generate secure random strings for these values:
+Generate secure random strings for these values using `openssl rand -base64 32`:
 
-- **`JWT_SECRET`**: Secret for signing JWT tokens (min 32 characters)
+- **`JWT_SECRET`**: Secret for signing JWT tokens
   ```bash
   openssl rand -base64 32
   ```
 
-- **`ICE_SECRET`**: Secret for Murmur ICE protocol (min 32 characters)
+- **`IDENTITY_HASH_PEPPER`**: Secret pepper for hashing denylisted identifiers
   ```bash
   openssl rand -base64 32
   ```
 
-- **`INTERNAL_SECRET`**: Secret for internal service communication (min 32 characters)
+- **`INTERNAL_SECRET`**: **REQUIRED** - Shared secret for backend-to-Murmur authenticator API calls
   ```bash
   openssl rand -base64 32
+  ```
+  ⚠️ The application will **fail to start** if this is not set.
+
+- **`ICE_SECRET_READ`**: **REQUIRED for Mumble** - ICE read secret for Murmur server
+  ```bash
+  openssl rand -base64 32
+  ```
+
+- **`ICE_SECRET_WRITE`**: **REQUIRED for Mumble** - ICE write secret for Murmur server
+  ```bash
+  openssl rand -base64 32
+  ```
+
+- **`ICE_SECRET`**: Legacy reference - set to same value as `ICE_SECRET_READ`
+  ```bash
+  # Use the same value as ICE_SECRET_READ
   ```
 
 ### Optional Configuration
