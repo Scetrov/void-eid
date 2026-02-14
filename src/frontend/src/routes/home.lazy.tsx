@@ -396,9 +396,11 @@ Are you absolutely sure you want to delete your profile? This will permanently b
                 onConfirm={async () => {
                     try {
                         await deleteAccount();
-                        setIsDeleteModalOpen(false);
                     } catch (err) {
                         console.error('Failed to delete account:', err);
+                        alert('Failed to delete your profile. Please try again in a moment, or contact support if the problem persists.');
+                    } finally {
+                        setIsDeleteModalOpen(false);
                     }
                 }}
                 onCancel={() => setIsDeleteModalOpen(false)}
