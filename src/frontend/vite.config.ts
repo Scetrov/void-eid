@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 import fs from 'fs'
 import path from 'path'
-import { execSync } from 'child_process'
+import { execFileSync } from 'child_process'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -20,7 +20,7 @@ const getMarkdownMetadata = () => {
     let lastUpdated = ''
     try {
       // Use git log to get the last commit date
-      lastUpdated = execSync(`git log -1 --format=%cd --date=iso-strict "${filePath}"`).toString().trim()
+      lastUpdated = execFileSync('git', ['log', '-1', '--format=%cd', '--date=iso-strict', filePath]).toString().trim()
     } catch (e) {
       console.warn(`Could not get git timestamp for ${file}`, e)
     }
