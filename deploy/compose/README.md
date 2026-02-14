@@ -2,12 +2,20 @@
 
 ## Quick Start
 
-1. **Copy the environment template:**
+This deployment uses the workspace root `.env` file (located at `/home/scetrov/source/void-eid/.env`).
+
+1. **Ensure `.env` is configured** in the workspace root (two levels up from this directory)
+   - The `.env` file should already exist with your configuration
+   - If not, copy from `.env.example` in the workspace root
+
+2. **Start the services:**
    ```bash
-   cp .env.sample .env
+   docker compose up -d
    ```
 
-2. **Configure required values in `.env`:**
+## Environment Configuration
+
+This compose file references `../../.env` (the workspace root `.env` file).
 
 ### Required Discord OAuth Configuration
 
