@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::env;
+use uuid::Uuid;
 
 use utoipa::{IntoParams, ToSchema};
 
@@ -30,6 +31,7 @@ pub fn hash_identity(input: &str, pepper: &str) -> String {
 #[derive(Deserialize, ToSchema, IntoParams)]
 pub struct CallbackParams {
     code: String,
+    state: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -50,16 +52,25 @@ pub struct Claims {
         (status = 302, description = "Redirect to Discord OAuth")
     )
 )]
-pub async fn discord_login() -> impl IntoResponse {
+pub async fn discord_login(State(state): State<AppState>) -> impl IntoResponse {
     let client_id = env::var("DISCORD_CLIENT_ID").expect("CID not set");
     let redirect_uri = env::var("DISCORD_REDIRECT_URI").expect("URI not set");
     let scope = "identify";
 
+    // Generate CSRF token
+    let state_token = Uuid::new_v4().to_string();
+    state
+        .oauth_states
+        .lock()
+        .unwrap()
+        .insert(state_token.clone(), Utc::now());
+
     let url = format!(
-        "https://discord.com/api/oauth2/authorize?client_id={}&redirect_uri={}&response_type=code&scope={}",
+        "https://discord.com/api/oauth2/authorize?client_id={}&redirect_uri={}&response_type=code&scope={}&state={}",
         client_id,
         urlencoding::encode(&redirect_uri),
-        scope
+        scope,
+        state_token
     );
 
     Redirect::to(&url)
@@ -79,6 +90,21 @@ pub async fn discord_callback(
     Query(params): Query<CallbackParams>,
     State(state): State<AppState>,
 ) -> Result<impl IntoResponse, Response> {
+    // Validate state token (CSRF protection)
+    let state_created_at = {
+        let mut states = state.oauth_states.lock().unwrap();
+        states.remove(&params.state)
+    };
+
+    let state_created_at = state_created_at.ok_or_else(|| {
+        (StatusCode::BAD_REQUEST, "Invalid or expired state token").into_response()
+    })?;
+
+    // Check if state token is too old (5 minute TTL)
+    if Utc::now() - state_created_at > Duration::minutes(5) {
+        return Err((StatusCode::BAD_REQUEST, "State token expired").into_response());
+    }
+
     let client_id = env::var("DISCORD_CLIENT_ID").expect("CID missing");
     let client_secret = env::var("DISCORD_CLIENT_SECRET").expect("Secret missing");
     let redirect_uri = env::var("DISCORD_REDIRECT_URI").expect("URI missing");
@@ -728,9 +754,10 @@ mod tests {
     #[test]
     fn test_callback_params_deserialization() {
         // Simulate query string parsing
-        let json = r#"{"code":"test_auth_code_12345"}"#;
+        let json = r#"{"code":"test_auth_code_12345","state":"test-state-token"}"#;
         let params: CallbackParams = serde_json::from_str(json).expect("Failed to deserialize");
         assert_eq!(params.code, "test_auth_code_12345");
+        assert_eq!(params.state, "test-state-token");
     }
 
     #[test]
