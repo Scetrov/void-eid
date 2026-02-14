@@ -537,10 +537,7 @@ mod integration_tests {
             .unwrap();
 
         // 4. Test as Admin
-        let auth_user = AuthenticatedUser {
-            user_id: admin.id,
-            is_super_admin: false,
-        };
+        let auth_user = AuthenticatedUser { user_id: admin.id };
         let query = RosterQuery {
             tribe: None,
             sort: None,
@@ -582,10 +579,7 @@ mod integration_tests {
             .await
             .unwrap();
 
-        let auth_user = AuthenticatedUser {
-            user_id: user.id,
-            is_super_admin: false,
-        };
+        let auth_user = AuthenticatedUser { user_id: user.id };
         let query = RosterQuery {
             tribe: None,
             sort: None,
@@ -626,10 +620,7 @@ mod integration_tests {
             .await
             .unwrap();
 
-        let auth_user = AuthenticatedUser {
-            user_id: user.id,
-            is_super_admin: false,
-        };
+        let auth_user = AuthenticatedUser { user_id: user.id };
 
         // 2. First View - Should Log
         let query = RosterQuery {

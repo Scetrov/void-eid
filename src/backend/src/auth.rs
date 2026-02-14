@@ -40,8 +40,6 @@ pub struct Claims {
     #[serde(rename = "discordId")]
     pub discord_id: String,
     pub username: String,
-    #[serde(default)]
-    pub is_super_admin: bool,
     pub exp: usize,
 }
 
@@ -185,11 +183,6 @@ pub async fn discord_callback(
     let initial_admin_id = env::var("INITIAL_ADMIN_ID").ok();
     let is_initial_admin = initial_admin_id.as_deref() == Some(&discord_id);
 
-    // Check for Super Admin
-    let super_admin_ids_str = env::var("SUPER_ADMIN_DISCORD_IDS").unwrap_or_default();
-    let super_admin_ids: Vec<&str> = super_admin_ids_str.split(',').map(|s| s.trim()).collect();
-    let is_super_admin = super_admin_ids.contains(&discord_id.as_str());
-
     // Check if denylisted
     let discord_hash = hash_identity(&discord_id, &state.identity_hash_pepper);
     let denylisted: Option<(String,)> =
@@ -321,7 +314,6 @@ pub async fn discord_callback(
         id: user.id.to_string(), // JWT ID as string
         discord_id: user.discord_id,
         username: user.username,
-        is_super_admin,
         exp: expiration,
     };
 
@@ -390,7 +382,6 @@ pub async fn exchange_code(
 #[derive(Clone)]
 pub struct AuthenticatedUser {
     pub user_id: i64,
-    pub is_super_admin: bool,
 }
 
 impl<S> FromRequestParts<S> for AuthenticatedUser
@@ -426,10 +417,7 @@ where
             .parse::<i64>()
             .map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid User ID in Token"))?;
 
-        Ok(AuthenticatedUser {
-            user_id,
-            is_super_admin: token_data.claims.is_super_admin,
-        })
+        Ok(AuthenticatedUser { user_id })
     }
 }
 
@@ -510,6 +498,11 @@ pub async fn get_me(
         .map(|ut| ut.tribe.clone())
         .collect();
 
+    // Re-validate super admin status from environment (don't trust JWT claim)
+    let super_admin_ids_str = std::env::var("SUPER_ADMIN_DISCORD_IDS").unwrap_or_default();
+    let super_admin_ids: Vec<&str> = super_admin_ids_str.split(',').map(|s| s.trim()).collect();
+    let is_super_admin = super_admin_ids.contains(&user.discord_id.as_str());
+
     Json(serde_json::json!({
         "id": user.id.to_string(),
         "discordId": user.discord_id,
@@ -519,7 +512,7 @@ pub async fn get_me(
         "tribes": tribes,
         "adminTribes": admin_tribes,
         "isAdmin": user.is_admin, // Keep for legacy/global support if valid
-        "isSuperAdmin": auth_user.is_super_admin,
+        "isSuperAdmin": is_super_admin,
         "lastLoginAt": user.last_login_at,
         "wallets": wallets
     }))
@@ -650,7 +643,6 @@ mod tests {
             id: "12345".to_string(),
             discord_id: "discord123".to_string(),
             username: "TestUser".to_string(),
-            is_super_admin: false,
             exp: 1234567890,
         };
 
@@ -679,7 +671,6 @@ mod tests {
             id: "98765".to_string(),
             discord_id: "987654321".to_string(),
             username: "RoundtripUser".to_string(),
-            is_super_admin: true,
             exp: 9999999999,
         };
 
@@ -701,7 +692,6 @@ mod tests {
             id: "1001".to_string(),
             discord_id: "discord_id_123".to_string(),
             username: "JwtTestUser".to_string(),
-            is_super_admin: false,
             exp: expiration,
         };
 
@@ -739,7 +729,6 @@ mod tests {
             id: "1001".to_string(),
             discord_id: "discord123".to_string(),
             username: "TestUser".to_string(),
-            is_super_admin: false,
             exp: expiration,
         };
 
@@ -769,7 +758,6 @@ mod tests {
             id: "1001".to_string(),
             discord_id: "discord123".to_string(),
             username: "ExpiredUser".to_string(),
-            is_super_admin: false,
             exp: expired,
         };
 
@@ -806,7 +794,6 @@ mod tests {
             id: "123456789".to_string(),
             discord_id: "discord123".to_string(),
             username: "TestUser".to_string(),
-            is_super_admin: false,
             exp: 9999999999,
         };
 
@@ -820,7 +807,6 @@ mod tests {
             id: "not-a-number".to_string(),
             discord_id: "discord123".to_string(),
             username: "TestUser".to_string(),
-            is_super_admin: false,
             exp: 9999999999,
         };
 
@@ -879,10 +865,7 @@ async fn test_delete_account_full_flow() {
             .bind(Uuid::new_v4().to_string()).bind(user_id).bind(user_id).execute(&db).await.unwrap();
 
     // 2. Run delete_me
-    let auth_user = AuthenticatedUser {
-        user_id,
-        is_super_admin: false,
-    };
+    let auth_user = AuthenticatedUser { user_id };
     delete_me(auth_user, State(state))
         .await
         .expect("delete_me failed");
