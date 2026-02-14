@@ -138,18 +138,11 @@ pub async fn discord_callback(
             .text()
             .await
             .unwrap_or_else(|_| "Failed to read error body".to_string());
-        println!(
+        eprintln!(
             "Discord token exchange failed: Status: {}, Body: {}",
             status, body
         );
-        return Err((
-            StatusCode::BAD_REQUEST,
-            format!(
-                "Discord token exchange failed: Status: {}, Body: {}",
-                status, body
-            ),
-        )
-            .into_response());
+        return Err((StatusCode::BAD_REQUEST, "Discord OAuth failed").into_response());
     }
 
     let token_data: Value = token_res.json().await.map_err(|_| {
@@ -205,11 +198,8 @@ pub async fn discord_callback(
             .fetch_optional(&state.db)
             .await
             .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("DB Error: {}", e),
-                )
-                    .into_response()
+                eprintln!("Database error checking denylist: {}", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
             })?;
 
     if denylisted.is_some() {
@@ -292,11 +282,10 @@ pub async fn discord_callback(
             (new_user, is_initial_admin)
         }
         Err(e) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("DB Error: {}", e),
-            )
-                .into_response())
+            eprintln!("Database error in discord_callback: {}", e);
+            return Err(
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
+            );
         }
     };
 

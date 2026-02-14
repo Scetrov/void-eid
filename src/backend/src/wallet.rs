@@ -93,9 +93,10 @@ pub async fn link_verify(
             .fetch_optional(&state.db)
             .await
             .map_err(|e| {
+                eprintln!("Database error inserting wallet: {}", e);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("DB Error: {}", e),
+                    "Internal server error".to_string(),
                 )
             })?;
 
