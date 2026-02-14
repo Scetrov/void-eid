@@ -1,5 +1,6 @@
 use axum::{
     extract::{Query, State},
+    http::StatusCode,
     response::{IntoResponse, Redirect},
     routing::{get, post},
     Router,
@@ -197,8 +198,8 @@ async fn main() -> anyhow::Result<()> {
             "/api/auth/discord/login",
             get(|| async { "Use /api/auth/stub-login?user_id=1001 for testing" }),
         )
-        // Add /docs endpoint for ApiGuard health check
-        .route("/docs", get(|| async { "Stub API OK" }))
+        // Health check endpoint for ApiGuard
+        .route("/ping", get(|| async { (StatusCode::OK, "pong") }))
         .merge(void_eid_backend::get_common_router())
         .layer(cors)
         .with_state(state);

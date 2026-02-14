@@ -1,5 +1,6 @@
 use axum::{
     extract::ConnectInfo,
+    http::StatusCode,
     routing::{delete, get, patch, post},
     Router,
 };
@@ -126,6 +127,11 @@ impl utoipa::Modify for SecurityAddon {
     }
 }
 
+/// Health check endpoint for frontend connection verification
+async fn ping() -> (StatusCode, &'static str) {
+    (StatusCode::OK, "pong")
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
@@ -190,6 +196,7 @@ async fn main() -> anyhow::Result<()> {
         Router::new().route("/api/internal/mumble/verify", post(mumble::verify_login));
 
     let app = Router::new()
+        .route("/ping", get(ping))
         .merge(auth_routes)
         .merge(wallet_routes)
         .merge(internal_routes)
