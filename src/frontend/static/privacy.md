@@ -53,7 +53,7 @@ Under the GDPR and similar frameworks, you have the right to:
 
 * **Access:** Request a copy of the data we hold about you (Discord ID and linked Wallet), you can review this information in the service homepage (`/home`).
 * **Rectification:** Update your data (typically done by re-syncing your Discord profile).
-* **Erasure ("Right to be Forgotten"):** You may unlink your wallet and request deletion of your account. We support "soft-deletes" and unlinking capabilities.
+* **Erasure ("Right to be Forgotten"):** You may delete your account, which will permanently remove your wallets and anonymize your user profile. You may also unlink your wallet without deleting your account.
 * **Portability:** Request your data in a structured, machine-readable format.
 
 To exercise these rights, please contact us using the compliance request form.

@@ -46,7 +46,7 @@ function AccountDeleted() {
               Your account has been permanently deleted at your request to fulfill your <a href="https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/individual-rights/individual-rights/right-to-erasure/" style={{ color: '#ef4444', textDecoration: 'underline', textUnderlineOffset: '4px', transition: 'opacity 0.2s' }} onMouseOver={(e) => e.currentTarget.style.opacity = '0.8'} onMouseOut={(e) => e.currentTarget.style.opacity = '1'}><strong>Right to be Forgotten / Right to erasure</strong></a> under GDPR.
             </p>
             <p>
-              As part of our commitment to your privacy, your Discord ID and associated Wallet Addresses have been completely delisted and barred from future use to ensure that this data cannot be re-processed or used to recreate a profile on this platform.
+              As part of our commitment to your privacy, your Discord ID and associated Wallet Addresses have been completely blocked and barred from future use to ensure that this data cannot be re-processed or used to recreate a profile on this platform.
             </p>
             <p>
               If you believe this to be in-error then please contact your tribe admins, however, please note there is no facility to restore a deleted account.
