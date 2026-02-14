@@ -112,10 +112,18 @@ class ServerAuthenticatorI(Murmur.ServerAuthenticator):
 def run():
     ice_host = os.environ.get("ICE_HOST", "127.0.0.1")
     ice_port = os.environ.get("ICE_PORT", "6502")
-    ice_secret = os.environ.get("ICE_SECRET", "")
+    ice_secret = os.environ.get("ICE_SECRET")
+
+    if not ice_secret:
+        logger.error("ERROR: ICE_SECRET environment variable is not set")
+        sys.exit(1)
 
     backend_url = os.environ.get("BACKEND_URL", "http://backend:3000/api/internal/mumble")
-    internal_secret = os.environ.get("INTERNAL_SECRET", "changeme")
+    internal_secret = os.environ.get("INTERNAL_SECRET")
+
+    if not internal_secret:
+        logger.error("ERROR: INTERNAL_SECRET environment variable is not set")
+        sys.exit(1)
 
     init_data = Ice.InitializationData()
     init_data.properties = Ice.createProperties()
@@ -126,12 +134,8 @@ def run():
 
     communicator = Ice.initialize(init_data)
 
-    if ice_secret:
-        logger.info(f"Using ICE Secret: {ice_secret}")
-        communicator.getImplicitContext().put("secret", ice_secret)
-    else:
-        logger.warning("ICE_SECRET env var is empty! Defaulting to 'secret'")
-        communicator.getImplicitContext().put("secret", "secret")
+    logger.info(f"Using ICE Secret from environment")
+    communicator.getImplicitContext().put("secret", ice_secret)
 
     logger.info(f"Connecting to Murmur Ice at {ice_host}:{ice_port}")
 

@@ -33,6 +33,6 @@ RUN getent group mumble-server || groupadd -r mumble-server && \
 # Create data dir
 RUN mkdir -p /data && chown -R mumble-server:mumble-server /data
 
-EXPOSE 64738/tcp 64738/udp 6502
+EXPOSE 64738/tcp 64738/udp
 
 CMD ["/app/start.sh"]
