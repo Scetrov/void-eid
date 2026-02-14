@@ -15,17 +15,29 @@ const getMarkdownMetadata = () => {
   const files = fs.readdirSync(staticDir).filter(file => file.endsWith('.md'))
   const metadata: Record<string, { title: string; lastUpdated: string }> = {}
 
+  // Check if git is available
+  let gitAvailable = false
+  try {
+    execFileSync('git', ['--version'], { stdio: 'ignore' })
+    gitAvailable = true
+  } catch {
+    // git not available, will use file system timestamps
+  }
+
   files.forEach(file => {
     const filePath = path.join(staticDir, file)
     let lastUpdated = ''
-    try {
-      // Use git log to get the last commit date
-      lastUpdated = execFileSync('git', ['log', '-1', '--format=%cd', '--date=iso-strict', filePath]).toString().trim()
-    } catch (e) {
-      console.warn(`Could not get git timestamp for ${file}`, e)
+
+    // Try git log only if git is available
+    if (gitAvailable) {
+      try {
+        lastUpdated = execFileSync('git', ['log', '-1', '--format=%cd', '--date=iso-strict', filePath]).toString().trim()
+      } catch {
+        // git log failed, will fall back to file system timestamp
+      }
     }
 
-    // fallback if git log returns empty (e.g. not committed yet)
+    // fallback if git log returns empty (e.g. not committed yet) or git not available
     if (!lastUpdated) {
         try {
             const stats = fs.statSync(filePath)
