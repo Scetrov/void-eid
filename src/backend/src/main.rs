@@ -3,7 +3,9 @@ use axum::{
     Router,
 };
 use std::{net::SocketAddr, sync::Arc};
-use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
+use tower_governor::{
+    governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor, GovernorLayer,
+};
 use tower_http::cors::CorsLayer;
 use void_eid_backend::db::init_db;
 use void_eid_backend::state::AppState;
@@ -128,10 +130,12 @@ async fn main() -> anyhow::Result<()> {
         ]);
 
     // Rate limiting configuration for sensitive endpoints
+    // Use SmartIpKeyExtractor to handle both direct connections and proxied requests
     let governor_conf = Arc::new(
         GovernorConfigBuilder::default()
             .per_second(2)
             .burst_size(5)
+            .key_extractor(SmartIpKeyExtractor)
             .finish()
             .expect("Failed to create rate limit config"),
     );
