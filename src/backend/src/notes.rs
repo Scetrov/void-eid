@@ -154,6 +154,14 @@ pub async fn create_note(
         return (StatusCode::BAD_REQUEST, "Note content cannot be empty").into_response();
     }
 
+    if payload.content.len() > 10_000 {
+        return (
+            StatusCode::BAD_REQUEST,
+            "Note content exceeds maximum length (10,000 characters)",
+        )
+            .into_response();
+    }
+
     let note_id = Uuid::new_v4().to_string();
     let now = Utc::now();
 
@@ -248,6 +256,14 @@ pub async fn edit_note(
 
     if payload.content.trim().is_empty() {
         return (StatusCode::BAD_REQUEST, "Note content cannot be empty").into_response();
+    }
+
+    if payload.content.len() > 10_000 {
+        return (
+            StatusCode::BAD_REQUEST,
+            "Note content exceeds maximum length (10,000 characters)",
+        )
+            .into_response();
     }
 
     let now = Utc::now();
