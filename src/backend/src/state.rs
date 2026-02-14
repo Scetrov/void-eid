@@ -11,11 +11,14 @@ pub type OAuthStates = Arc<Mutex<HashMap<String, chrono::DateTime<chrono::Utc>>>
 // Auth code -> (JWT token, Created At) (for secure token exchange)
 pub type AuthCodes = Arc<Mutex<HashMap<String, (String, chrono::DateTime<chrono::Utc>)>>>;
 
+// Wallet address -> (Nonce, Created At) (for signature verification)
+pub type WalletNonces = Arc<Mutex<HashMap<String, (String, chrono::DateTime<chrono::Utc>)>>>;
+
 #[derive(Clone)]
 pub struct AppState {
     pub db: DbPool,
-    // Address -> Nonce
-    pub wallet_nonces: Arc<Mutex<HashMap<String, String>>>,
+    // Address -> (Nonce, Created At)
+    pub wallet_nonces: WalletNonces,
     pub mumble_required_tribe: String,
     pub roster_views: RosterViews,
     pub identity_hash_pepper: String,
