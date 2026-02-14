@@ -13,6 +13,7 @@ All 12 security findings from the February 14, 2026 security audit have been suc
 **Risk Reduction:** Overall risk rating reduced from **MEDIUM** to **LOW**.
 
 The codebase now features:
+
 - Complete CSRF protection on OAuth2 flows
 - Secure credential handling (no tokens in URLs)
 - Mandatory strong secrets with no defaults
@@ -34,6 +35,7 @@ The codebase now features:
 **Commit:** `11d1ac9`
 
 **Implementation:**
+
 - Added OAuth2 state token generation using UUID v4 in `discord_login()`
 - State tokens stored in `AppState.oauth_states: Arc<Mutex<HashMap<String, DateTime>>>` with creation timestamp
 - Callback validates state token exists and is recent (< 10 minutes)
@@ -41,6 +43,7 @@ The codebase now features:
 - Returns 400 "Invalid or expired state token" if validation fails
 
 **Code Changes:**
+
 ```rust
 // In discord_login:
 let state_token = Uuid::new_v4().to_string();
@@ -68,6 +71,7 @@ if Utc::now() - state_created_at > Duration::minutes(10) {
 **Commit:** `a7ee560`
 
 **Implementation:**
+
 - Replaced direct JWT redirect with authorization code exchange pattern
 - Added `AppState.auth_codes: Arc<Mutex<HashMap<String, (String, DateTime)>>>` for temporary code storage
 - Auth codes valid for 30 seconds only
@@ -76,6 +80,7 @@ if Utc::now() - state_created_at > Duration::minutes(10) {
 - JWT never appears in URL, browser history, or logs
 
 **Code Changes:**
+
 ```rust
 // After generating JWT in discord_callback:
 let auth_code = Uuid::new_v4().to_string();
@@ -114,6 +119,7 @@ pub async fn exchange_code(
 **Commit:** `c698cb3`
 
 **Implementation:**
+
 - Removed all hardcoded `"secret"` values from murmur.ini, start.sh, and authenticator.py
 - Templated `icesecretread` and `icesecretwrite` in start.sh using environment variables
 - Added validation requiring `ICE_SECRET_READ` and `ICE_SECRET_WRITE` to be set
@@ -121,6 +127,7 @@ pub async fn exchange_code(
 - Updated authenticator.py to require `ICE_SECRET` environment variable
 
 **Code Changes:**
+
 ```bash
 # In start.sh:
 if [ -z "$ICE_SECRET_READ" ] || [ -z "$ICE_SECRET_WRITE" ]; then
@@ -150,12 +157,14 @@ if not ice_secret:
 **Commit:** `9cd8e56`
 
 **Implementation:**
+
 - Changed `INTERNAL_SECRET` handling from `.unwrap_or_else()` with default to `.expect()` that panics
 - Application now fails to start if `INTERNAL_SECRET` is not configured
 - No fallback to weak defaults
 - Consistent with `IDENTITY_HASH_PEPPER` validation pattern
 
 **Code Changes:**
+
 ```rust
 // In InternalSecret extractor (auth.rs):
 let configured_secret = env::var("INTERNAL_SECRET")
@@ -176,6 +185,7 @@ if secret_header != configured_secret {
 **Commits:** `34a4e3c`, `ae8ed8b`
 
 **Implementation:**
+
 - Added `tower_governor` crate (v0.6.0) for rate limiting
 - Configured rate limit: 2 requests/second with burst capacity of 5
 - Applied to authentication routes: `/api/auth/discord/login`, `/api/auth/discord/callback`, `/api/auth/exchange`
@@ -184,6 +194,7 @@ if secret_header != configured_secret {
 - Used `SmartIpKeyExtractor` for Docker/proxy compatibility (resolves Docker deployment issue)
 
 **Code Changes:**
+
 ```rust
 use tower_governor::{
     governor::GovernorConfigBuilder,
@@ -219,6 +230,7 @@ let auth_routes = Router::new()
 **Commit:** `cd39eed`
 
 **Implementation:**
+
 - Added non-root user `appuser` to backend Dockerfile
 - Added non-root user `appuser` to frontend Dockerfile
 - Frontend changed from port 80 to port 8080 (non-privileged)
@@ -227,6 +239,7 @@ let auth_routes = Router::new()
 - Chowned data directories to appuser
 
 **Code Changes:**
+
 ```dockerfile
 # Backend Dockerfile:
 RUN groupadd -r appuser && useradd -r -g appuser appuser
@@ -257,6 +270,7 @@ server {
 **Commit:** `c692a82`
 
 **Implementation:**
+
 - Sanitized all database error responses to generic "Internal server error"
 - Sanitized Discord API errors to "Authentication failed"
 - Removed `format!("DB Error: {}", e)` patterns
@@ -264,6 +278,7 @@ server {
 - Applied across auth.rs, wallet.rs, roster.rs
 
 **Code Changes:**
+
 ```rust
 // Before:
 .map_err(|e| {
@@ -292,6 +307,7 @@ server {
 **Commit:** `9c67121`
 
 **Implementation:**
+
 - Changed `wallet_nonces` from `HashMap<String, String>` to `HashMap<String, (String, DateTime)>`
 - Created `WalletNonces` type alias to satisfy clippy type_complexity warning
 - Added 5-minute TTL validation in `link_verify()`
@@ -299,6 +315,7 @@ server {
 - Prevents indefinite accumulation of unused nonces
 
 **Code Changes:**
+
 ```rust
 // In state.rs:
 pub type WalletNonces = Arc<Mutex<HashMap<String, (String, chrono::DateTime<chrono::Utc>)>>>;
@@ -331,6 +348,7 @@ if Utc::now() - created_at > Duration::minutes(5) {
 **Commit:** `25ec865`
 
 **Implementation:**
+
 - Added comprehensive security headers to nginx.conf
 - `X-Frame-Options: DENY` prevents clickjacking
 - `X-Content-Type-Options: nosniff` prevents MIME sniffing
@@ -339,6 +357,7 @@ if Utc::now() - created_at > Duration::minutes(5) {
 - All headers set with `always` flag to apply to all responses
 
 **Code Changes:**
+
 ```nginx
 server {
     listen 8080 default_server;
@@ -353,6 +372,7 @@ server {
 ```
 
 **CSP Policy Details:**
+
 - `default-src 'self'`: Only load resources from same origin
 - `script-src 'self'`: Only execute scripts from same origin (no inline)
 - `style-src 'self' 'unsafe-inline'`: Styles from same origin + inline (required for React/styled-components)
@@ -372,12 +392,14 @@ server {
 **Commit:** `fd0b9d7`
 
 **Implementation:**
+
 - Added maximum 10,000 character limit on note content
 - Added maximum 100 character limit on tribe names
 - Added maximum 100 character limit on username in admin operations
 - Returns 400 Bad Request with descriptive error when limits exceeded
 
 **Code Changes:**
+
 ```rust
 // In notes.rs create_note:
 if payload.content.len() > 10_000 {
@@ -399,6 +421,7 @@ if payload.username.len() > 100 {
 ```
 
 **Rationale:**
+
 - Note content: 10,000 chars accommodates detailed notes while preventing resource exhaustion
 - Tribe names: 100 chars matches Discord server name limits
 - Usernames: 100 chars matches Discord username + discriminator limits
@@ -413,6 +436,7 @@ if payload.username.len() > 100 {
 **Commit:** `7d85b86`
 
 **Implementation:**
+
 - Updated `.github/dependabot.yml` to manage GitHub Actions dependencies
 - Configured weekly automated updates for action SHAs
 - Added security labels to dependabot PRs
@@ -420,6 +444,7 @@ if payload.username.len() > 100 {
 - Enabled version updates for all ecosystems (cargo, npm, github-actions)
 
 **Code Changes:**
+
 ```yaml
 version: 2
 updates:
@@ -461,6 +486,7 @@ updates:
 **Commit:** `4805787`
 
 **Implementation:**
+
 - Removed `is_super_admin` field entirely from JWT `Claims` struct
 - Removed `is_super_admin` field from `AuthenticatedUser` struct
 - Updated `get_me()` endpoint to re-validate super admin status against `SUPER_ADMIN_DISCORD_IDS` environment variable on every request
@@ -468,6 +494,7 @@ updates:
 - Frontend always receives current admin status (no 24-hour lag)
 
 **Code Changes:**
+
 ```rust
 // Claims struct (simplified):
 pub struct Claims {
@@ -497,6 +524,7 @@ Json(json!({
 ```
 
 **Benefits:**
+
 - Eliminates 24-hour window where removed admins appear as admins
 - Consistent with `RequireSuperAdmin` middleware (which already re-validates)
 - Simpler JWT payload (smaller tokens)
@@ -511,16 +539,19 @@ Json(json!({
 Beyond the audit findings, the following improvements were made during remediation:
 
 ### Docker Compose Configuration
+
 - **Fixed empty environment stanzas** in docker-compose.yml (commit `cb69a3c`)
 - **Centralized .env configuration** to workspace root, removed duplicate .env files (commit `c6d08e3`)
 - **Created deployment documentation** at `deploy/compose/README.md` with setup instructions
 
 ### Frontend Build System
+
 - **Gracefully handle missing git** in vite.config.ts (commit `3e3269f`)
 - Frontend Docker build now works without git installed in container
 - Falls back to file system timestamps for markdown metadata
 
 ### Infrastructure
+
 - **SmartIpKeyExtractor for rate limiting** resolves Docker networking issues (commit `ae8ed8b`)
 - Properly handles `X-Forwarded-For` headers in proxied environments
 - Works in both direct connection and Docker Compose scenarios
@@ -532,17 +563,20 @@ Beyond the audit findings, the following improvements were made during remediati
 All changes verified with comprehensive testing:
 
 **Backend:**
+
 - ✅ 48 unit tests passing
 - ✅ Integration tests passing (roster, notes, wallet)
 - ✅ All tests run with required environment variables
 
 **Frontend:**
+
 - ✅ TypeScript compilation successful
 - ✅ ESLint checks passing
 - ✅ Production build successful
 - ✅ E2E tests updated for new auth flow
 
 **Pre-commit Hooks:**
+
 - ✅ Rust formatting (cargo fmt)
 - ✅ Rust linting (cargo clippy -D warnings)
 - ✅ Rust build verification
@@ -554,6 +588,7 @@ All changes verified with comprehensive testing:
 - ✅ YAML/JSON validation
 
 **Manual Testing:**
+
 - ✅ OAuth2 flow with state validation
 - ✅ Auth code exchange
 - ✅ Rate limiting behavior (429 responses)
@@ -568,22 +603,22 @@ All changes verified with comprehensive testing:
 
 ### NIST SP 800-53 (Updated)
 
-| Control                                    | Before      | After    | Notes                                               |
-| ------------------------------------------ | ----------- | -------- | --------------------------------------------------- |
-| **AC-7** (Unsuccessful Logon Attempts)     | **Fail**    | **Pass** | Rate limiting now implemented (SEC-05)              |
-| **IA-2** (Identification & Authentication) | **Partial** | **Pass** | CSRF protection added (SEC-01)                      |
-| **SC-8** (Transmission Confidentiality)    | **Partial** | **Pass** | No JWT in URLs (SEC-02), security headers (SEC-09)  |
-| **SI-10** (Information Input Validation)   | **Partial** | **Pass** | Length validation added (SEC-10)                    |
+| Control                                    | Before      | After    | Notes                                              |
+| ------------------------------------------ | ----------- | -------- | -------------------------------------------------- |
+| **AC-7** (Unsuccessful Logon Attempts)     | **Fail**    | **Pass** | Rate limiting now implemented (SEC-05)             |
+| **IA-2** (Identification & Authentication) | **Partial** | **Pass** | CSRF protection added (SEC-01)                     |
+| **SC-8** (Transmission Confidentiality)    | **Partial** | **Pass** | No JWT in URLs (SEC-02), security headers (SEC-09) |
+| **SI-10** (Information Input Validation)   | **Partial** | **Pass** | Length validation added (SEC-10)                   |
 
 All other controls remain **Pass** or **Partial** with no regressions.
 
 ### CIS Docker Benchmark v1.6 (Updated)
 
-| Control             | Before        | After    |
-| ------------------- | ------------- | -------- |
-| **4.1** Non-root    | **Fail**      | **Pass** |
-| **4.6** HEALTHCHECK | **Fail**      | N/A*     |
-| **5.12** Read-only  | **Fail**      | N/A*     |
+| Control             | Before   | After    |
+| ------------------- | -------- | -------- |
+| **4.1** Non-root    | **Fail** | **Pass** |
+| **4.6** HEALTHCHECK | **Fail** | N/A\*    |
+| **5.12** Read-only  | **Fail** | N/A\*    |
 
 \* Not implemented in this remediation cycle; flagged for future iteration.
 
@@ -596,9 +631,11 @@ All other controls remain **Pass** or **Partial** with no regressions.
 Before deploying the remediated code to production:
 
 1. **Generate Strong Secrets:**
+
    ```bash
    openssl rand -base64 32  # Generate for each secret
    ```
+
    Required secrets:
    - `JWT_SECRET`
    - `INTERNAL_SECRET`
@@ -612,6 +649,7 @@ Before deploying the remediated code to production:
    - Add production URL for deployed environment
 
 3. **Set Super Admin IDs:**
+
    ```bash
    export SUPER_ADMIN_DISCORD_IDS="123456789,987654321"
    ```
@@ -664,18 +702,21 @@ Monitor the following for security-relevant events:
 While all audit findings are resolved, consider these hardening measures for future iterations:
 
 ### High Value, Low Effort:
+
 1. **Add HEALTHCHECK directives** to Dockerfiles for orchestration readiness
 2. **Implement read-only root filesystem** in containers (mount /data as volume)
 3. **Add SBOM generation** to release workflow (cargo-sbom, syft)
 4. **Implement binary signing** with cosign/sigstore for release artifacts
 
 ### Medium Value, Medium Effort:
+
 5. **Add session management** with proper logout and token revocation
 6. **Implement account lockout** after N failed attempts (requires session tracking)
 7. **Add email verification** before Discord account linking (prevent account takeover)
 8. **Add webhook signature verification** for Discord webhooks if implemented
 
 ### Security Monitoring:
+
 9. **Add structured logging** with tracing crate for correlation
 10. **Integrate SIEM** collection (if enterprise deployment)
 11. **Add anomaly detection** on audit logs (ML-based or rule-based)
@@ -687,6 +728,7 @@ While all audit findings are resolved, consider these hardening measures for fut
 All 12 security audit findings have been successfully remediated through 16 commits with comprehensive testing. The codebase now implements defense-in-depth across authentication, authorization, infrastructure, and operational security domains.
 
 **Key Achievements:**
+
 - ✅ No credentials or sensitive data in URLs, logs, or browser history
 - ✅ Complete CSRF protection on all authentication flows
 - ✅ Mandatory strong secrets with startup validation
@@ -699,6 +741,7 @@ All 12 security audit findings have been successfully remediated through 16 comm
 - ✅ Automated dependency updates with SHA pinning
 
 **Risk Posture:**
+
 - Previous: **MEDIUM** (3 High, 6 Medium, 3 Low findings)
 - Current: **LOW** (all findings resolved, no known vulnerabilities)
 
@@ -731,12 +774,14 @@ c698cb3 - SEC-03: Externalize Murmur ICE secrets and remove hardcoded defaults
 ```
 
 **Total Lines Changed:**
+
 - Added: ~650 lines
 - Modified: ~420 lines
 - Deleted: ~180 lines
 - Files touched: 23
 
 **Testing Coverage:**
+
 - Backend: 48 unit tests, 100% passing
 - Frontend: TypeScript compilation + ESLint + production build successful
 - E2E: Updated for new auth flow
