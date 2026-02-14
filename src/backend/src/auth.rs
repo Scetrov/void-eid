@@ -343,9 +343,59 @@ pub async fn discord_callback(
     )
     .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Token generation failed").into_response())?;
 
+    // Generate auth code and store JWT temporarily (30s TTL)
+    let auth_code = Uuid::new_v4().to_string();
+    state
+        .auth_codes
+        .lock()
+        .unwrap()
+        .insert(auth_code.clone(), (token, Utc::now()));
+
     let frontend_url =
         env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
-    Ok(Redirect::to(&format!("{}/auth/callback?token={}", frontend_url, token)).into_response())
+    Ok(Redirect::to(&format!(
+        "{}/auth/callback?code={}",
+        frontend_url, auth_code
+    ))
+    .into_response())
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct ExchangeRequest {
+    pub code: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct ExchangeResponse {
+    pub token: String,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/auth/exchange",
+    request_body = ExchangeRequest,
+    responses(
+        (status = 200, description = "JWT token", body = ExchangeResponse),
+        (status = 400, description = "Invalid or expired code")
+    )
+)]
+pub async fn exchange_code(
+    State(state): State<AppState>,
+    Json(payload): Json<ExchangeRequest>,
+) -> Result<Json<ExchangeResponse>, (StatusCode, &'static str)> {
+    // Retrieve and remove auth code (one-time use)
+    let (token, created_at) = {
+        let mut codes = state.auth_codes.lock().unwrap();
+        codes.remove(&payload.code)
+    }
+    .ok_or((StatusCode::BAD_REQUEST, "Invalid or expired code"))?;
+
+    // Validate code is not too old (30 second TTL)
+    if Utc::now() - created_at > Duration::seconds(30) {
+        return Err((StatusCode::BAD_REQUEST, "Code expired"));
+    }
+
+    Ok(Json(ExchangeResponse { token }))
 }
 
 #[derive(Clone)]

@@ -1,7 +1,7 @@
 use axum::{
     extract::{Query, State},
     response::{IntoResponse, Redirect},
-    routing::get,
+    routing::{get, post},
     Router,
 };
 use chrono::Utc;
@@ -59,11 +59,22 @@ async fn stub_login(
     )
     .expect("Token generation failed");
 
+    // Generate auth code and store JWT temporarily (same as real auth flow)
+    let auth_code = Uuid::new_v4().to_string();
+    _state
+        .auth_codes
+        .lock()
+        .unwrap()
+        .insert(auth_code.clone(), (token, Utc::now()));
+
     let frontend_url =
         env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
 
     // Redirect to the same callback as real auth
-    Redirect::to(&format!("{}/auth/callback?token={}", frontend_url, token))
+    Redirect::to(&format!(
+        "{}/auth/callback?code={}",
+        frontend_url, auth_code
+    ))
 }
 
 async fn seed_db(pool: &SqlitePool) {
@@ -172,6 +183,10 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         // Stub Auth Route
         .route("/api/auth/stub-login", get(stub_login))
+        .route(
+            "/api/auth/exchange",
+            post(void_eid_backend::auth::exchange_code),
+        )
         // Mock the original login route to redirect to stub login?
         // Or just let the frontend call stub-login directly if in test mode.
         // Let's redirect /api/auth/discord/login to a page that auto-logs in as admin for convenience?

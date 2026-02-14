@@ -17,6 +17,7 @@ use utoipa_scalar::{Scalar, Servable};
     paths(
         auth::discord_login,
         auth::discord_callback,
+        auth::exchange_code,
         auth::get_me,
         auth::delete_me,
         wallet::link_nonce,
@@ -48,6 +49,8 @@ use utoipa_scalar::{Scalar, Servable};
             wallet::VerifyRequest,
             auth::CallbackParams,
             auth::Claims,
+            auth::ExchangeRequest,
+            auth::ExchangeResponse,
             admin::UserResponse,
             admin::UpdateUserRequest,
             admin::CreateTribeRequest,
@@ -126,6 +129,7 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/api/auth/discord/login", get(auth::discord_login))
         .route("/api/auth/discord/callback", get(auth::discord_callback))
+        .route("/api/auth/exchange", post(auth::exchange_code))
         // Admin Routes
         .route("/api/admin/users", get(admin::list_users))
         .route("/api/admin/users/{id}", patch(admin::update_user))

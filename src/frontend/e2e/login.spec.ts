@@ -26,7 +26,24 @@ test.describe('Login Page', () => {
 });
 
 test.describe('Auth Callback', () => {
-  test('should store token from query parameter', async ({ page }) => {
+  test('should exchange code for token', async ({ page }) => {
+    // Mock the /api/auth/exchange endpoint
+    await page.route('**/api/auth/exchange', async route => {
+      const request = route.request();
+      const postData = request.postDataJSON();
+
+      if (postData.code === 'test-auth-code') {
+        await route.fulfill({
+          json: { token: 'test-jwt-token' }
+        });
+      } else {
+        await route.fulfill({
+          status: 400,
+          json: { error: 'Invalid code' }
+        });
+      }
+    });
+
     // Mock the /api/me endpoint
     await page.route('**/api/me', async route => {
       await route.fulfill({
@@ -45,18 +62,18 @@ test.describe('Auth Callback', () => {
       });
     });
 
-    // Navigate to callback with token
-    await page.goto('/auth/callback?token=test-jwt-token');
+    // Navigate to callback with auth code
+    await page.goto('/auth/callback?code=test-auth-code');
 
     // Wait for redirect to /home (now using client-side routing)
     await page.waitForURL('**/home', { timeout: 5000 });
 
-    // Check localStorage was set
+    // Check localStorage was set with the exchanged token
     const token = await page.evaluate(() => localStorage.getItem('sui_jwt'));
     expect(token).toBe('test-jwt-token');
   });
 
-  test('should redirect to login when no token provided', async ({ page }) => {
+  test('should redirect to login when no code provided', async ({ page }) => {
     await page.goto('/auth/callback');
 
     // Should redirect to login page
