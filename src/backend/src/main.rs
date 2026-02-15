@@ -174,9 +174,7 @@ async fn main() -> anyhow::Result<()> {
             .finish()
             .expect("Failed to create rate limit config"),
     );
-    let rate_limit_layer = GovernorLayer {
-        config: governor_conf,
-    };
+    let rate_limit_layer = GovernorLayer::new(governor_conf);
 
     // Rate-limited authentication routes
     let auth_routes = Router::new()
