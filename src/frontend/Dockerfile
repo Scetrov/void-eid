@@ -30,9 +30,9 @@ RUN apt-get update && \
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 # Create required nginx directories with proper permissions
-RUN mkdir -p /var/cache/nginx /var/log/nginx /var/lib/nginx && \
-    chown -R appuser:appuser /var/cache/nginx /var/log/nginx /var/lib/nginx /usr/share/nginx/html && \
-    chmod -R 0755 /var/cache/nginx /var/log/nginx /var/lib/nginx
+RUN mkdir -p /var/cache/nginx /var/log/nginx /var/lib/nginx /run/nginx && \
+    chown -R appuser:appuser /var/cache/nginx /var/log/nginx /var/lib/nginx /run/nginx /usr/share/nginx/html && \
+    chmod -R 0755 /var/cache/nginx /var/log/nginx /var/lib/nginx /run/nginx
 
 # Forward request and error logs to docker log collector
 RUN ln -sf /dev/stdout /var/log/nginx/access.log \
@@ -41,7 +41,8 @@ RUN ln -sf /dev/stdout /var/log/nginx/access.log \
 # Copy built assets from builder stage
 COPY --from=builder --chown=appuser:appuser /app/dist /usr/share/nginx/html
 
-# Copy nginx config - replace the default site
+# Copy nginx configs — replace default main config for rootless compatibility
+COPY nginx.main.conf /etc/nginx/nginx.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Add entrypoint for runtime config
