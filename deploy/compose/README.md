@@ -2,7 +2,7 @@
 
 ## Quick Start
 
-This deployment uses the workspace root `.env` file (located at `/home/scetrov/source/void-eid/.env`).
+This deployment uses the workspace root `.env` file.
 
 1. **Ensure `.env` is configured** in the workspace root (two levels up from this directory)
    - The `.env` file should already exist with your configuration
@@ -68,9 +68,9 @@ Generate secure random strings for these values using `openssl rand -base64 32`:
   openssl rand -base64 32
   ```
 
-- **`ICE_SECRET`**: Legacy reference - set to same value as `ICE_SECRET_READ`
+- **`ICE_SECRET`**: Legacy reference - set to same value as `ICE_SECRET_WRITE`
   ```bash
-  # Use the same value as ICE_SECRET_READ
+  # Use the same value as ICE_SECRET_WRITE
   ```
 
 ### Optional Configuration
@@ -87,7 +87,7 @@ Generate secure random strings for these values using `openssl rand -base64 32`:
 
 ## Pre-configured Values (No Changes Needed)
 
-The following are already set correctly in `.env.sample`:
+The following are already set correctly in `.env.example` (repository root):
 
 - `DISCORD_REDIRECT_URI=http://localhost:5038/api/auth/discord/callback`
 - `FRONTEND_URL=http://localhost:5173`

@@ -83,7 +83,7 @@ Environment variables (`.env`):
 | `INTERNAL_SECRET`           | Shared secret for Backend-to-Murmur Authenticator communication        | **Required** ⚠️           |
 | `ICE_SECRET_READ`           | ICE read secret for Murmur server (required if running Mumble)         | **Required for Mumble**   |
 | `ICE_SECRET_WRITE`          | ICE write secret for Murmur server (required if running Mumble)        | **Required for Mumble**   |
-| `ICE_SECRET`                | Legacy ICE secret reference (set to same value as `ICE_SECRET_READ`)   | **Required for Mumble**   |
+| `ICE_SECRET`                | Legacy ICE secret reference (set to same value as `ICE_SECRET_WRITE`)  | **Required for Mumble**   |
 
 ⚠️ **Security Notice**: As of the 2026-02-14 security audit remediation, `INTERNAL_SECRET`, `ICE_SECRET_READ`, and `ICE_SECRET_WRITE` **must** be set to strong random values. The application will fail to start if `INTERNAL_SECRET` is missing. Generate secrets using:
 ```bash

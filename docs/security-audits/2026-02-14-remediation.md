@@ -38,7 +38,7 @@ The codebase now features:
 
 - Added OAuth2 state token generation using UUID v4 in `discord_login()`
 - State tokens stored in `AppState.oauth_states: Arc<Mutex<HashMap<String, DateTime>>>` with creation timestamp
-- Callback validates state token exists and is recent (< 10 minutes)
+- Callback validates state token exists and is recent (5 minutes)
 - State token removed after single use (prevents replay)
 - Returns 400 "Invalid or expired state token" if validation fails
 
@@ -56,7 +56,7 @@ state.oauth_states.lock().unwrap().insert(state_token.clone(), Utc::now());
 let state_created_at = state.oauth_states.lock().unwrap().remove(&params.state)
     .ok_or_else(|| (StatusCode::BAD_REQUEST, "Invalid or expired state token"))?;
 
-if Utc::now() - state_created_at > Duration::minutes(10) {
+if Utc::now() - state_created_at > Duration::minutes(5) {
     return Err((StatusCode::BAD_REQUEST, "State token expired"));
 }
 ```
@@ -74,7 +74,7 @@ if Utc::now() - state_created_at > Duration::minutes(10) {
 
 - Replaced direct JWT redirect with authorization code exchange pattern
 - Added `AppState.auth_codes: Arc<Mutex<HashMap<String, (String, DateTime)>>>` for temporary code storage
-- Auth codes valid for 30 seconds only
+- Auth codes valid for 2 minutes only
 - New `/api/auth/exchange` POST endpoint exchanges code for JWT in response body
 - Frontend updated to call exchange endpoint from callback route
 - JWT never appears in URL, browser history, or logs
@@ -88,8 +88,8 @@ state.auth_codes.lock().unwrap()
     .insert(auth_code.clone(), (token, Utc::now()));
 
 // Redirect with code instead of token:
-Redirect::to(&format!("{}/auth/callback?code={}&state={}",
-    frontend_url, auth_code, params.state))
+Redirect::to(&format!("{}/auth/callback?code={}",
+    frontend_url, auth_code))
 
 // New exchange endpoint:
 pub async fn exchange_code(
@@ -100,8 +100,8 @@ pub async fn exchange_code(
         .remove(&payload.code)
         .ok_or_else(|| (StatusCode::BAD_REQUEST, "Invalid or expired code"))?;
 
-    // Validate 30-second TTL
-    if Utc::now() - created_at > Duration::seconds(30) {
+    // Validate 2-minute TTL
+    if Utc::now() - created_at > Duration::minutes(2) {
         return Err((StatusCode::BAD_REQUEST, "Code expired"));
     }
 
@@ -190,23 +190,39 @@ if secret_header != configured_secret {
 - Configured rate limit: 2 requests/second with burst capacity of 5
 - Applied to authentication routes: `/api/auth/discord/login`, `/api/auth/discord/callback`, `/api/auth/exchange`
 - Applied to wallet routes: `/api/wallets/link-nonce`, `/api/wallets/link-verify`
-- Applied to internal route: `/api/internal/mumble/verify`
-- Used `SmartIpKeyExtractor` for Docker/proxy compatibility (resolves Docker deployment issue)
+- Internal route (`/api/internal/mumble/verify`) protected by `INTERNAL_SECRET` header instead
+- Used `FallbackIpKeyExtractor` for Docker/proxy compatibility (resolves Docker deployment issue)
 
 **Code Changes:**
 
 ```rust
 use tower_governor::{
     governor::GovernorConfigBuilder,
-    key_extractor::SmartIpKeyExtractor,
+    key_extractor::KeyExtractor,
     GovernorLayer
 };
+
+// Custom extractor with fallback for Docker environments
+#[derive(Clone)]
+struct FallbackIpKeyExtractor;
+
+impl KeyExtractor for FallbackIpKeyExtractor {
+    type Key = String;
+    fn extract<T>(&self, req: &axum::http::Request<T>) -> Result<Self::Key, GovernorError> {
+        // Try smart extraction first, fallback to constant key if needed
+        let smart_extractor = SmartIpKeyExtractor;
+        if let Ok(ip) = smart_extractor.extract(req) {
+            return Ok(ip.to_string());
+        }
+        Ok("fallback-internal".to_string())
+    }
+}
 
 let governor_conf = Arc::new(
     GovernorConfigBuilder::default()
         .per_second(2)
         .burst_size(5)
-        .key_extractor(SmartIpKeyExtractor)  // Handles X-Forwarded-For
+        .key_extractor(FallbackIpKeyExtractor)
         .finish()
         .expect("Failed to create rate limit config"),
 );
@@ -220,7 +236,7 @@ let auth_routes = Router::new()
     .layer(rate_limit_layer.clone());
 ```
 
-**Testing:** Verified rate limiter returns 429 Too Many Requests after burst exhausted; SmartIpKeyExtractor resolves "Unable To Extract Key" error in Docker.
+**Testing:** Verified rate limiter returns 429 Too Many Requests after burst exhausted; FallbackIpKeyExtractor provides graceful fallback in Docker/proxy scenarios.
 
 ---
 

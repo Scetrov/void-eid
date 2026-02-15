@@ -94,7 +94,7 @@ If deploying with Mumble voice integration, also set:
 
 - `ICE_SECRET_READ`: ICE read secret for Murmur server (generate via `openssl rand -base64 32`)
 - `ICE_SECRET_WRITE`: ICE write secret for Murmur server (generate via `openssl rand -base64 32`)
-- `ICE_SECRET`: Legacy reference, set to same value as `ICE_SECRET_READ`
+- `ICE_SECRET`: Legacy reference, set to same value as `ICE_SECRET_WRITE`
 - `MUMBLE_REQUIRED_TRIBE`: Tribe name required for Mumble access (default: `Fire`)
 
 ### Optional Variables
