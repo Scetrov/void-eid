@@ -411,7 +411,7 @@ async fn should_log_view(state: &AppState, user_id: i64, tribe: &str) -> bool {
 
     // Clean up old entries occasionally (simple probabilistic cleanup)
     // 1 in 100 chance to cleanup
-    use rand::Rng;
+    use rand::RngExt;
     let mut rng = rand::rng();
     if rng.random_range(0..100) == 0 {
         views.retain(|_, timestamp| *timestamp > now - debounce_duration);
