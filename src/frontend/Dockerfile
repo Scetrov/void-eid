@@ -39,14 +39,14 @@ RUN ln -sf /dev/stdout /var/log/nginx/access.log \
     && ln -sf /dev/stderr /var/log/nginx/error.log
 
 # Copy built assets from builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder --chown=appuser:appuser /app/dist /usr/share/nginx/html
 
 # Copy nginx config - replace the default site
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Add entrypoint for runtime config
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh && chown appuser:appuser /entrypoint.sh
+COPY --chown=appuser:appuser entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Switch to non-root user
 USER appuser
