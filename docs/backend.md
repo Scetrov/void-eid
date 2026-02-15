@@ -73,7 +73,7 @@ Environment variables (`.env`):
 | `JWT_SECRET`                | Secret key for signing JWTs (generate via `openssl rand -base64 32`)  | **Required**            |
 | `DISCORD_CLIENT_ID`         | OAuth2 Client ID from Discord                                         | **Required**            |
 | `DISCORD_CLIENT_SECRET`     | OAuth2 Client Secret                                                  | **Required**            |
-| `DISCORD_REDIRECT_URI`      | Oauth2 Redirect URI (e.g., `http://localhost:5038/api/auth/callback`) | **Required**            |
+| `DISCORD_REDIRECT_URI`      | Oauth2 Redirect URI (e.g., `http://localhost:5038/api/auth/discord/callback`) | **Required**            |
 | `FRONTEND_URL`              | URL of the frontend (for CORS and redirects)                          | `http://localhost:5173` |
 | `PORT`                      | Port to listen on                                                     | `5038`                  |
 | `INITIAL_ADMIN_ID`          | Discord ID of the initial admin user                                  | _Optional_              |
