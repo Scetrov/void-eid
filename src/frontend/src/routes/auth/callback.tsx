@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import z from 'zod'
 import { useAuth } from '../../providers/AuthProvider'
 import { API_URL } from '../../config'
@@ -18,12 +18,19 @@ function AuthCallback() {
   const navigate = useNavigate()
   const { setAuthToken } = useAuth()
   const [error, setError] = useState<string | null>(null)
+  const hasExchangedRef = useRef(false)
 
   useEffect(() => {
     if (!code) {
       navigate({ to: '/login' })
       return
     }
+
+    // Prevent double-invocation in React Strict Mode
+    if (hasExchangedRef.current) {
+      return
+    }
+    hasExchangedRef.current = true
 
     // Exchange code for JWT token
     fetch(`${API_URL}/api/auth/exchange`, {

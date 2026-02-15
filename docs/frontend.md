@@ -84,3 +84,22 @@ Create a `.env` file in `src/sui` if needed (Vite requires `VITE_` prefix for cl
 | Variable       | Description                              |
 | -------------- | ---------------------------------------- |
 | `VITE_API_URL` | URL of the backend API (if not proxying) |
+
+## Troubleshooting
+
+### Auth Loop: Logged In Then Bounced to Login
+
+**Symptom**: After Discord OAuth callback, you see a 400 error for `/api/auth/exchange` and get redirected back to login.
+
+**Cause**: React 19 Strict Mode double-invokes effects in development. The auth code is consumed on first call, second call fails.
+
+**Fix**: The callback route (`src/routes/auth/callback.tsx`) uses a `useRef` to prevent duplicate exchange attempts. If you see this, ensure the ref pattern is implemented:
+
+```tsx
+const hasExchangedRef = useRef(false)
+// ... in useEffect:
+if (hasExchangedRef.current) return
+hasExchangedRef.current = true
+```
+
+**Note**: Auth codes have a **2-minute TTL** from creation. If you see `"Code expired"` errors, the code took longer than 2 minutes to exchange (unlikely in normal flow).

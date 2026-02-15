@@ -14,8 +14,8 @@ fi
 
 # Template murmur.ini with ICE secrets using sed for idempotent updates
 echo "Configuring Murmur with ICE secrets from environment..."
-sed -i "s/^icesecretread=.*/icesecretread=${ICE_SECRET_READ}/" /etc/murmur.ini
-sed -i "s/^icesecretwrite=.*/icesecretwrite=${ICE_SECRET_WRITE}/" /etc/murmur.ini
+sed -i "s|^icesecretread=.*|icesecretread=${ICE_SECRET_READ}|" /etc/murmur.ini
+sed -i "s|^icesecretwrite=.*|icesecretwrite=${ICE_SECRET_WRITE}|" /etc/murmur.ini
 
 # Fix permissions for data dir
 chown -R mumble-server:mumble-server /data

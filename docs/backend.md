@@ -32,6 +32,7 @@ Full API documentation is available via Scalar UI at `/docs` when the server is 
 
 - `GET /api/auth/discord/login`: Redirects user to Discord OAuth authorization URL.
 - `GET /api/auth/discord/callback`: Handles the OAuth callback, creates/updates user, and issues a JWT.
+- `POST /api/auth/exchange`: Exchanges a one-time auth code for a JWT token (2-minute TTL, single-use).
 - `GET /api/me`: Returns the currently authenticated user's profile.
 
 ### Wallet Management (`/api/wallets`)
@@ -95,8 +96,12 @@ openssl rand -base64 32
 1. **Discord Login**: User clicks "Login with Discord". Frontend opens `/api/auth/discord/login`.
 2. **Redirect**: Backend redirects to Discord.
 3. **Callback**: Discord redirects back to `/api/auth/discord/callback` with a code.
-4. **Token Exchange**: Backend exchanges code for access token, fetches user info from Discord.
-5. **Session**: Backend mints a JWT and returns it (often as a cookie or query param to frontend).
+4. **Token Exchange**: Backend exchanges code for Discord access token, fetches user info from Discord.
+5. **Auth Code Generation**: Backend generates a one-time auth code with **2-minute TTL** and redirects frontend to `/auth/callback?code=<code>`.
+6. **Code Exchange**: Frontend calls `POST /api/auth/exchange` with the code to retrieve the JWT.
+7. **Session**: Frontend stores JWT and uses it for authenticated requests.
+
+**Note**: Auth codes are single-use and expire after 2 minutes. The frontend must exchange them immediately to prevent expiration.
 
 ## Wallet Linking Flow
 
