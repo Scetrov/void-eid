@@ -25,11 +25,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@playwright/test": "^1.58.1",
+    "@playwright/test": "^1.58.2",
     "@tanstack/router-devtools": "^1.160.0",
     "@tanstack/router-plugin": "^1.158.0",
     "@types/node": "^22.0.0",
-    "@types/react": "^19.0.0",
+    "@types/react": "^19.2.14",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^5.1.4",
     "eslint": "^9.19.0",
