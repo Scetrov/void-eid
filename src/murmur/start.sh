@@ -32,8 +32,7 @@ echo "Ice is ready."
 
 # Start Authenticator
 echo "Starting Authenticator..."
-# ICE_SECRET env var is used by authenticator.py (needs WRITE secret to modify server)
-export ICE_SECRET="${ICE_SECRET_WRITE}"
+# authenticator.py uses ICE_SECRET_WRITE to modify server
 python3 /app/authenticator.py &
 AUTH_PID=$!
 

@@ -68,11 +68,6 @@ Generate secure random strings for these values using `openssl rand -base64 32`:
   openssl rand -base64 32
   ```
 
-- **`ICE_SECRET`**: Legacy reference - set to same value as `ICE_SECRET_WRITE`
-  ```bash
-  # Use the same value as ICE_SECRET_WRITE
-  ```
-
 ### Optional Configuration
 
 - **`SUPER_ADMIN_DISCORD_IDS`**: Comma-separated Discord IDs for super admins

@@ -112,10 +112,10 @@ class ServerAuthenticatorI(Murmur.ServerAuthenticator):
 def run():
     ice_host = os.environ.get("ICE_HOST", "127.0.0.1")
     ice_port = os.environ.get("ICE_PORT", "6502")
-    ice_secret = os.environ.get("ICE_SECRET")
+    ice_secret = os.environ.get("ICE_SECRET_WRITE")
 
     if not ice_secret:
-        logger.error("ERROR: ICE_SECRET environment variable is not set")
+        logger.error("ERROR: ICE_SECRET_WRITE environment variable is not set")
         sys.exit(1)
 
     backend_url = os.environ.get("BACKEND_URL", "http://backend:3000/api/internal/mumble")

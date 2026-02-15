@@ -124,7 +124,7 @@ pub async fn exchange_code(
 - Templated `icesecretread` and `icesecretwrite` in start.sh using environment variables
 - Added validation requiring `ICE_SECRET_READ` and `ICE_SECRET_WRITE` to be set
 - Removed port 6502 from Murmur Dockerfile EXPOSE directive
-- Updated authenticator.py to require `ICE_SECRET` environment variable
+- Updated authenticator.py to require `ICE_SECRET_WRITE` environment variable
 
 **Code Changes:**
 
@@ -142,9 +142,9 @@ sed -i "s/^icesecretwrite=.*/icesecretwrite=${ICE_SECRET_WRITE}/" /murmur/murmur
 
 ```python
 # In authenticator.py:
-ice_secret = os.environ.get("ICE_SECRET")
+ice_secret = os.environ.get("ICE_SECRET_WRITE")
 if not ice_secret:
-    raise ValueError("ICE_SECRET environment variable must be set")
+    raise ValueError("ICE_SECRET_WRITE environment variable must be set")
 ```
 
 **Documentation:** Updated .env.example with instructions to generate secrets via `openssl rand -base64 32`.
