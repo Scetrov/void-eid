@@ -55,11 +55,15 @@ pub async fn link_nonce(
     Json(payload): Json<NonceRequest>,
 ) -> impl IntoResponse {
     let nonce = Uuid::new_v4().to_string();
-    let mut nonces = state.wallet_nonces.lock().unwrap();
-    nonces.insert(
-        payload.address.to_lowercase(),
-        (nonce.clone(), chrono::Utc::now()),
-    );
+
+    // Prune expired nonces before inserting (prevent unbounded growth)
+    {
+        let mut nonces = state.wallet_nonces.lock().unwrap();
+        let now = Utc::now();
+        let ttl = chrono::Duration::minutes(5);
+        nonces.retain(|_, (_, created_at)| now.signed_duration_since(*created_at) <= ttl);
+        nonces.insert(payload.address.to_lowercase(), (nonce.clone(), now));
+    }
 
     Json(NonceResponse { nonce })
 }

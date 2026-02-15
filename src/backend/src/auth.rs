@@ -57,11 +57,15 @@ pub async fn discord_login(State(state): State<AppState>) -> impl IntoResponse {
 
     // Generate CSRF token
     let state_token = Uuid::new_v4().to_string();
-    state
-        .oauth_states
-        .lock()
-        .unwrap()
-        .insert(state_token.clone(), Utc::now());
+
+    // Prune expired state tokens before inserting (prevent unbounded growth)
+    {
+        let mut states = state.oauth_states.lock().unwrap();
+        let now = Utc::now();
+        let ttl = Duration::minutes(5);
+        states.retain(|_, created_at| now.signed_duration_since(*created_at) <= ttl);
+        states.insert(state_token.clone(), now);
+    }
 
     let url = format!(
         "https://discord.com/api/oauth2/authorize?client_id={}&redirect_uri={}&response_type=code&scope={}&state={}",
@@ -326,11 +330,15 @@ pub async fn discord_callback(
 
     // Generate auth code and store JWT temporarily (2 minute TTL for frontend exchange)
     let auth_code = Uuid::new_v4().to_string();
-    state
-        .auth_codes
-        .lock()
-        .unwrap()
-        .insert(auth_code.clone(), (token, Utc::now()));
+
+    // Prune expired auth codes before inserting (prevent unbounded growth)
+    {
+        let mut codes = state.auth_codes.lock().unwrap();
+        let now = Utc::now();
+        let ttl = Duration::minutes(2);
+        codes.retain(|_, (_, created_at)| now.signed_duration_since(*created_at) <= ttl);
+        codes.insert(auth_code.clone(), (token, now));
+    }
 
     let frontend_url =
         env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
