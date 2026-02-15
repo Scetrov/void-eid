@@ -23,13 +23,27 @@ export function ConfirmationModal({
     countdownSeconds = 30
 }: ConfirmationModalProps) {
     const [timeLeft, setTimeLeft] = useState(countdownSeconds);
+    const [openVersion, setOpenVersion] = useState(0);
 
-    // Reset countdown when modal is closed
+    // Track when modal opens to trigger reset
     useEffect(() => {
-        if (!isOpen) {
-            setTimeLeft(countdownSeconds);
+        if (isOpen) {
+            const timer = setTimeout(() => {
+                setOpenVersion(v => v + 1);
+            }, 0);
+            return () => clearTimeout(timer);
         }
-    }, [isOpen, countdownSeconds]);
+    }, [isOpen]);
+
+    // Reset countdown when modal opens (via openVersion change)
+    useEffect(() => {
+        if (openVersion > 0) {
+            const timer = setTimeout(() => {
+                setTimeLeft(countdownSeconds);
+            }, 0);
+            return () => clearTimeout(timer);
+        }
+    }, [openVersion, countdownSeconds]);
 
     // Handle Escape key while modal is open
     useEffect(() => {
