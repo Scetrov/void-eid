@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@mysten/dapp-kit": "^1.0.1",
-    "@mysten/sui": "^2.2.0",
+    "@mysten/sui": "^2.4.0",
     "@tanstack/react-query": "^5.90.20",
     "@tanstack/react-router": "^1.158.0",
     "lucide-react": "^0.563.0",
