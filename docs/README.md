@@ -2,7 +2,6 @@
 
 ![VoID eID Logo](../src/frontend/public/logo.png)
 
-
 A modern web application integrating Discord authentication with Sui blockchain wallet verification, featuring a Rust backend and a React frontend.
 
 ## Overview
@@ -35,14 +34,28 @@ Void eID provides a seamless way to link Discord identities with Sui Wallets. It
 ### Backend Setup
 
 1. Navigate to `src/backend`.
-2. Copy `.env.example` to `.env` (create one if missing) and populate:
+2. Copy `.env.example` to `.env` and populate **required** variables:
+
    ```env
    DATABASE_URL=sqlite:void-eid.db
-   DISCORD_CLIENT_ID=your_id
-   DISCORD_CLIENT_SECRET=your_secret
-   JWT_SECRET=your_jwt_secret
+   DISCORD_CLIENT_ID=your_discord_client_id
+   DISCORD_CLIENT_SECRET=your_discord_client_secret
+   DISCORD_REDIRECT_URI=http://localhost:5038/api/auth/discord/callback
+   JWT_SECRET=your_jwt_secret_minimum_32_characters
+   IDENTITY_HASH_PEPPER=your_random_pepper_string
+   INTERNAL_SECRET=your_random_internal_secret
    PORT=5038
    ```
+
+   **Generate secrets** using: `openssl rand -base64 32`
+
+   If running **Mumble**, also set:
+
+   ```env
+   ICE_SECRET_READ=your_ice_read_secret
+   ICE_SECRET_WRITE=your_ice_write_secret
+   ```
+
 3. Run the backend:
    ```bash
    cargo run

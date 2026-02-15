@@ -32,6 +32,7 @@ Full API documentation is available via Scalar UI at `/docs` when the server is 
 
 - `GET /api/auth/discord/login`: Redirects user to Discord OAuth authorization URL.
 - `GET /api/auth/discord/callback`: Handles the OAuth callback, creates/updates user, and issues a JWT.
+- `POST /api/auth/exchange`: Exchanges a one-time auth code for a JWT token (2-minute TTL, single-use).
 - `GET /api/me`: Returns the currently authenticated user's profile.
 
 ### Wallet Management (`/api/wallets`)
@@ -66,29 +67,41 @@ Then edit the generated `.sql` file.
 
 Environment variables (`.env`):
 
-| Variable                    | Description                                                            | Default                   |
-| --------------------------- | ---------------------------------------------------------------------- | ------------------------- |
-| `DATABASE_URL`              | Connection string for SQLite                                           | `sqlite:void-eid.db`      |
-| `JWT_SECRET`                | Secret key for signing JWTs                                            | _Required_                |
-| `DISCORD_CLIENT_ID`         | OAuth2 Client ID from Discord                                          | _Required_                |
-| `DISCORD_CLIENT_SECRET`     | OAuth2 Client Secret                                                   | _Required_                |
-| `DISCORD_REDIRECT_URI`      | Oauth2 Redirect URI (e.g., `http://localhost:5038/api/auth/callback`)  | _Required_                |
-| `FRONTEND_URL`              | URL of the frontend (for CORS and redirects)                           | `http://localhost:5173`   |
-| `PORT`                      | Port to listen on                                                      | `5038`                    |
-| `INITIAL_ADMIN_ID`          | Discord ID of the initial admin user                                   | _Optional_                |
-| `SUPER_ADMIN_DISCORD_IDS`   | Comma-separated list of Super Admin Discord IDs                        | _Optional_                |
-| `SUPER_ADMIN_AUDIT_WEBHOOK` | Discord Webhook URL for critical audit alerts                          | _Optional_                |
-| `MUMBLE_REQUIRED_TRIBE`     | The tribe name required to create a Mumble account                     | `Fire`                    |
-| `INTERNAL_SECRET`           | Shared secret for Backend-to-Murmur Authenticator communication        | `secret`                  |
-| `ICE_SECRET`                | Shared secret for Ice (Murmur) communication                           | _Optional_                |
+| Variable                    | Description                                                                   | Default/Required        |
+| --------------------------- | ----------------------------------------------------------------------------- | ----------------------- |
+| `DATABASE_URL`              | Connection string for SQLite                                                  | `sqlite:void-eid.db`    |
+| `JWT_SECRET`                | Secret key for signing JWTs (generate via `openssl rand -base64 32`)          | **Required**            |
+| `DISCORD_CLIENT_ID`         | OAuth2 Client ID from Discord                                                 | **Required**            |
+| `DISCORD_CLIENT_SECRET`     | OAuth2 Client Secret                                                          | **Required**            |
+| `DISCORD_REDIRECT_URI`      | Oauth2 Redirect URI (e.g., `http://localhost:5038/api/auth/discord/callback`) | **Required**            |
+| `FRONTEND_URL`              | URL of the frontend (for CORS and redirects)                                  | `http://localhost:5173` |
+| `PORT`                      | Port to listen on                                                             | `5038`                  |
+| `INITIAL_ADMIN_ID`          | Discord ID of the initial admin user                                          | _Optional_              |
+| `SUPER_ADMIN_DISCORD_IDS`   | Comma-separated list of Super Admin Discord IDs                               | _Optional_              |
+| `SUPER_ADMIN_AUDIT_WEBHOOK` | Discord Webhook URL for critical audit alerts                                 | _Optional_              |
+| `IDENTITY_HASH_PEPPER`      | Secret pepper for hashing denylisted identifiers                              | **Required**            |
+| `MUMBLE_REQUIRED_TRIBE`     | The tribe name required to create a Mumble account                            | `Fire`                  |
+| `INTERNAL_SECRET`           | Shared secret for Backend-to-Murmur Authenticator communication               | **Required** ⚠️         |
+| `ICE_SECRET_READ`           | ICE read secret for Murmur server (required if running Mumble)                | **Required for Mumble** |
+| `ICE_SECRET_WRITE`          | ICE write secret for Murmur server (required if running Mumble)               | **Required for Mumble** |
+
+⚠️ **Security Notice**: As of the 2026-02-14 security audit remediation, `INTERNAL_SECRET`, `ICE_SECRET_READ`, and `ICE_SECRET_WRITE` **must** be set to strong random values. The application will fail to start if `INTERNAL_SECRET` is missing. Generate secrets using:
+
+```bash
+openssl rand -base64 32
+```
 
 ## Authentication Flow
 
 1. **Discord Login**: User clicks "Login with Discord". Frontend opens `/api/auth/discord/login`.
 2. **Redirect**: Backend redirects to Discord.
 3. **Callback**: Discord redirects back to `/api/auth/discord/callback` with a code.
-4. **Token Exchange**: Backend exchanges code for access token, fetches user info from Discord.
-5. **Session**: Backend mints a JWT and returns it (often as a cookie or query param to frontend).
+4. **Token Exchange**: Backend exchanges code for Discord access token, fetches user info from Discord.
+5. **Auth Code Generation**: Backend generates a one-time auth code with **2-minute TTL** and redirects frontend to `/auth/callback?code=<code>`.
+6. **Code Exchange**: Frontend calls `POST /api/auth/exchange` with the code to retrieve the JWT.
+7. **Session**: Frontend stores JWT and uses it for authenticated requests.
+
+**Note**: Auth codes are single-use and expire after 2 minutes. The frontend must exchange them immediately to prevent expiration.
 
 ## Wallet Linking Flow
 

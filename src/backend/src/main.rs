@@ -1,8 +1,16 @@
 use axum::{
+    extract::ConnectInfo,
+    http::StatusCode,
     routing::{delete, get, patch, post},
     Router,
 };
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::Arc};
+use tower_governor::{
+    errors::GovernorError,
+    governor::GovernorConfigBuilder,
+    key_extractor::{KeyExtractor, SmartIpKeyExtractor},
+    GovernorLayer,
+};
 use tower_http::cors::CorsLayer;
 use void_eid_backend::db::init_db;
 use void_eid_backend::state::AppState;
@@ -12,11 +20,37 @@ use void_eid_backend::{admin, auth, models, mumble, notes, roster, wallet};
 use utoipa::OpenApi;
 use utoipa_scalar::{Scalar, Servable};
 
+/// Custom key extractor that falls back to a default value if IP extraction fails
+#[derive(Clone)]
+struct FallbackIpKeyExtractor;
+
+impl KeyExtractor for FallbackIpKeyExtractor {
+    type Key = String;
+
+    fn extract<T>(&self, req: &axum::http::Request<T>) -> Result<Self::Key, GovernorError> {
+        // Try SmartIpKeyExtractor first
+        let smart_extractor = SmartIpKeyExtractor;
+        if let Ok(ip) = smart_extractor.extract(req) {
+            return Ok(ip.to_string());
+        }
+
+        // Fallback 1: Try to get ConnectInfo
+        if let Some(ConnectInfo(addr)) = req.extensions().get::<ConnectInfo<SocketAddr>>() {
+            return Ok(addr.ip().to_string());
+        }
+
+        // Fallback 2: Use a default key for internal/unknown sources
+        // This ensures rate limiting still works but groups unknown requesters
+        Ok("fallback-internal".to_string())
+    }
+}
+
 #[derive(OpenApi)]
 #[openapi(
     paths(
         auth::discord_login,
         auth::discord_callback,
+        auth::exchange_code,
         auth::get_me,
         auth::delete_me,
         wallet::link_nonce,
@@ -48,6 +82,8 @@ use utoipa_scalar::{Scalar, Servable};
             wallet::VerifyRequest,
             auth::CallbackParams,
             auth::Claims,
+            auth::ExchangeRequest,
+            auth::ExchangeResponse,
             admin::UserResponse,
             admin::UpdateUserRequest,
             admin::CreateTribeRequest,
@@ -91,6 +127,11 @@ impl utoipa::Modify for SecurityAddon {
     }
 }
 
+/// Health check endpoint for frontend connection verification
+async fn ping() -> (StatusCode, &'static str) {
+    (StatusCode::OK, "pong")
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
@@ -123,9 +164,42 @@ async fn main() -> anyhow::Result<()> {
             axum::http::header::CONTENT_TYPE,
         ]);
 
-    let app = Router::new()
+    // Rate limiting configuration for sensitive endpoints
+    // Use FallbackIpKeyExtractor to handle Docker networking gracefully
+    let governor_conf = Arc::new(
+        GovernorConfigBuilder::default()
+            .per_second(2)
+            .burst_size(5)
+            .key_extractor(FallbackIpKeyExtractor)
+            .finish()
+            .expect("Failed to create rate limit config"),
+    );
+    let rate_limit_layer = GovernorLayer {
+        config: governor_conf,
+    };
+
+    // Rate-limited authentication routes
+    let auth_routes = Router::new()
         .route("/api/auth/discord/login", get(auth::discord_login))
         .route("/api/auth/discord/callback", get(auth::discord_callback))
+        .route("/api/auth/exchange", post(auth::exchange_code))
+        .layer(rate_limit_layer.clone());
+
+    // Rate-limited wallet routes
+    let wallet_routes = Router::new()
+        .route("/api/wallets/link-nonce", post(wallet::link_nonce))
+        .route("/api/wallets/link-verify", post(wallet::link_verify))
+        .layer(rate_limit_layer.clone());
+
+    // Internal routes (NO rate limiting - protected by INTERNAL_SECRET instead)
+    let internal_routes =
+        Router::new().route("/api/internal/mumble/verify", post(mumble::verify_login));
+
+    let app = Router::new()
+        .route("/ping", get(ping))
+        .merge(auth_routes)
+        .merge(wallet_routes)
+        .merge(internal_routes)
         // Admin Routes
         .route("/api/admin/users", get(admin::list_users))
         .route("/api/admin/users/{id}", patch(admin::update_user))
@@ -142,7 +216,6 @@ async fn main() -> anyhow::Result<()> {
         // Mumble routes
         .route("/api/mumble/account", post(mumble::create_account))
         .route("/api/mumble/status", get(mumble::get_status))
-        .route("/api/internal/mumble/verify", post(mumble::verify_login))
         .merge(void_eid_backend::get_common_router())
         .merge(Scalar::with_url("/docs", ApiDoc::openapi()))
         .layer(cors)
@@ -156,7 +229,11 @@ async fn main() -> anyhow::Result<()> {
     println!("Listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await?;
 
     Ok(())
 }

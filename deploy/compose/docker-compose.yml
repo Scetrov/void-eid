@@ -3,7 +3,7 @@ services:
     image: ghcr.io/scetrov/void-eid/void-eid-backend:latest
     ports:
       - "5038:5038"
-    env_file: .env
+    env_file: ../../.env
     environment:
       - PORT=5038
     volumes:
@@ -17,8 +17,7 @@ services:
     ports:
       - "64738:64738/tcp"
       - "64738:64738/udp"
-    env_file: .env
-    environment:
+    env_file: ../../.env
     volumes:
       - murmur-data:/data
     restart: unless-stopped
@@ -31,9 +30,8 @@ services:
   frontend:
     image: ghcr.io/scetrov/void-eid/void-eid-frontend:latest
     ports:
-      - "5173:80"
-    env_file: .env
-    environment:
+      - "5173:8080"
+    env_file: ../../.env
     restart: unless-stopped
     networks:
       - shared_net

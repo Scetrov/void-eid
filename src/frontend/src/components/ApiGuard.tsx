@@ -16,12 +16,11 @@ export function ApiGuard({ children }: ApiGuardProps) {
         let isMounted = true;
         const checkApi = async () => {
             try {
-                // Try fetching the /docs endpoint which should be publicly available
-                // and returns 200 OK HTML content
+                // Try fetching the /ping endpoint which returns a simple 200 OK
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
 
-                const res = await fetch(`${API_URL}/docs`, {
+                const res = await fetch(`${API_URL}/ping`, {
                     method: 'GET',
                     signal: controller.signal
                 });

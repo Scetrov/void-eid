@@ -1,5 +1,25 @@
 {
     "chat.tools.terminal.autoApprove": {
         "bun": true
-    }
+    },
+    "cSpell.words": [
+        "appuser",
+        "backdoors",
+        "changeme",
+        "chrono",
+        "CISA",
+        "clickjacking",
+        "Dockerfiles",
+        "eprintln",
+        "HEALTHCHECK",
+        "HSTS",
+        "icesecretread",
+        "icesecretwrite",
+        "jlumbroso",
+        "nosniff",
+        "Referer",
+        "sigstore",
+        "trixie",
+        "urlencoding"
+    ]
 }

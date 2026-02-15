@@ -365,6 +365,14 @@ pub async fn create_tribe(
         return StatusCode::BAD_REQUEST.into_response();
     }
 
+    if payload.name.len() > 100 {
+        return (
+            StatusCode::BAD_REQUEST,
+            "Tribe name exceeds maximum length (100 characters)",
+        )
+            .into_response();
+    }
+
     let mut tx = match state.db.begin().await {
         Ok(tx) => tx,
         Err(e) => {
@@ -555,6 +563,16 @@ pub async fn add_user_to_tribe(
     };
 
     let admin_id = get_admin_id(&state.db, &admin.discord_id).await;
+
+    // Validate username length
+    if payload.username.len() > 100 {
+        let _ = tx.rollback().await;
+        return (
+            StatusCode::BAD_REQUEST,
+            "Username exceeds maximum length (100 characters)",
+        )
+            .into_response();
+    }
 
     // 1. Find user by username (case-insensitive)
     let user =

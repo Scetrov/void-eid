@@ -55,8 +55,15 @@ pub async fn link_nonce(
     Json(payload): Json<NonceRequest>,
 ) -> impl IntoResponse {
     let nonce = Uuid::new_v4().to_string();
-    let mut nonces = state.wallet_nonces.lock().unwrap();
-    nonces.insert(payload.address.to_lowercase(), nonce.clone());
+
+    // Prune expired nonces before inserting (prevent unbounded growth)
+    {
+        let mut nonces = state.wallet_nonces.lock().unwrap();
+        let now = Utc::now();
+        let ttl = chrono::Duration::minutes(5);
+        nonces.retain(|_, (_, created_at)| now.signed_duration_since(*created_at) <= ttl);
+        nonces.insert(payload.address.to_lowercase(), (nonce.clone(), now));
+    }
 
     Json(NonceResponse { nonce })
 }
@@ -93,9 +100,10 @@ pub async fn link_verify(
             .fetch_optional(&state.db)
             .await
             .map_err(|e| {
+                eprintln!("Database error inserting wallet: {}", e);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("DB Error: {}", e),
+                    "Internal server error".to_string(),
                 )
             })?;
 
@@ -106,13 +114,19 @@ pub async fn link_verify(
         ));
     }
 
-    // Check Nonce
+    // Check Nonce and validate TTL
     let stored_nonce = {
         let mut nonces = state.wallet_nonces.lock().unwrap();
-        nonces
-            .remove(&address_str)
-            .ok_or((StatusCode::BAD_REQUEST, "Nonce invalid or expired".into()))?
-    };
+        nonces.remove(&address_str)
+    }
+    .ok_or((StatusCode::BAD_REQUEST, "Nonce invalid or expired".into()))?;
+
+    // Validate nonce age (5 minute TTL)
+    if chrono::Utc::now() - stored_nonce.1 > chrono::Duration::minutes(5) {
+        return Err((StatusCode::BAD_REQUEST, "Nonce expired".into()));
+    }
+
+    let stored_nonce = stored_nonce.0; // Extract the actual nonce string
 
     // Verify Signature
     let sig_bytes = STANDARD
@@ -371,14 +385,15 @@ mod tests {
 
     #[test]
     fn test_nonce_storage_and_retrieval() {
-        let nonces: Mutex<HashMap<String, String>> = Mutex::new(HashMap::new());
+        let nonces: Mutex<HashMap<String, (String, chrono::DateTime<chrono::Utc>)>> =
+            Mutex::new(HashMap::new());
         let address = "0xtest".to_lowercase();
         let nonce = Uuid::new_v4().to_string();
 
         // Store
         {
             let mut map = nonces.lock().unwrap();
-            map.insert(address.clone(), nonce.clone());
+            map.insert(address.clone(), (nonce.clone(), chrono::Utc::now()));
         }
 
         // Retrieve and remove
@@ -386,7 +401,8 @@ mod tests {
             let mut map = nonces.lock().unwrap();
             let stored = map.remove(&address);
             assert!(stored.is_some());
-            assert_eq!(stored.unwrap(), nonce);
+            let (stored_nonce, _timestamp) = stored.unwrap();
+            assert_eq!(stored_nonce, nonce);
         }
 
         // Verify it's gone

@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::env;
+use uuid::Uuid;
 
 use utoipa::{IntoParams, ToSchema};
 
@@ -30,6 +31,7 @@ pub fn hash_identity(input: &str, pepper: &str) -> String {
 #[derive(Deserialize, ToSchema, IntoParams)]
 pub struct CallbackParams {
     code: String,
+    state: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -38,8 +40,6 @@ pub struct Claims {
     #[serde(rename = "discordId")]
     pub discord_id: String,
     pub username: String,
-    #[serde(default)]
-    pub is_super_admin: bool,
     pub exp: usize,
 }
 
@@ -50,16 +50,29 @@ pub struct Claims {
         (status = 302, description = "Redirect to Discord OAuth")
     )
 )]
-pub async fn discord_login() -> impl IntoResponse {
+pub async fn discord_login(State(state): State<AppState>) -> impl IntoResponse {
     let client_id = env::var("DISCORD_CLIENT_ID").expect("CID not set");
     let redirect_uri = env::var("DISCORD_REDIRECT_URI").expect("URI not set");
     let scope = "identify";
 
+    // Generate CSRF token
+    let state_token = Uuid::new_v4().to_string();
+
+    // Prune expired state tokens before inserting (prevent unbounded growth)
+    {
+        let mut states = state.oauth_states.lock().unwrap();
+        let now = Utc::now();
+        let ttl = Duration::minutes(5);
+        states.retain(|_, created_at| now.signed_duration_since(*created_at) <= ttl);
+        states.insert(state_token.clone(), now);
+    }
+
     let url = format!(
-        "https://discord.com/api/oauth2/authorize?client_id={}&redirect_uri={}&response_type=code&scope={}",
+        "https://discord.com/api/oauth2/authorize?client_id={}&redirect_uri={}&response_type=code&scope={}&state={}",
         client_id,
         urlencoding::encode(&redirect_uri),
-        scope
+        scope,
+        state_token
     );
 
     Redirect::to(&url)
@@ -79,6 +92,21 @@ pub async fn discord_callback(
     Query(params): Query<CallbackParams>,
     State(state): State<AppState>,
 ) -> Result<impl IntoResponse, Response> {
+    // Validate state token (CSRF protection)
+    let state_created_at = {
+        let mut states = state.oauth_states.lock().unwrap();
+        states.remove(&params.state)
+    };
+
+    let state_created_at = state_created_at.ok_or_else(|| {
+        (StatusCode::BAD_REQUEST, "Invalid or expired state token").into_response()
+    })?;
+
+    // Check if state token is too old (5 minute TTL)
+    if Utc::now() - state_created_at > Duration::minutes(5) {
+        return Err((StatusCode::BAD_REQUEST, "State token expired").into_response());
+    }
+
     let client_id = env::var("DISCORD_CLIENT_ID").expect("CID missing");
     let client_secret = env::var("DISCORD_CLIENT_SECRET").expect("Secret missing");
     let redirect_uri = env::var("DISCORD_REDIRECT_URI").expect("URI missing");
@@ -112,18 +140,11 @@ pub async fn discord_callback(
             .text()
             .await
             .unwrap_or_else(|_| "Failed to read error body".to_string());
-        println!(
+        eprintln!(
             "Discord token exchange failed: Status: {}, Body: {}",
             status, body
         );
-        return Err((
-            StatusCode::BAD_REQUEST,
-            format!(
-                "Discord token exchange failed: Status: {}, Body: {}",
-                status, body
-            ),
-        )
-            .into_response());
+        return Err((StatusCode::BAD_REQUEST, "Discord OAuth failed").into_response());
     }
 
     let token_data: Value = token_res.json().await.map_err(|_| {
@@ -166,11 +187,6 @@ pub async fn discord_callback(
     let initial_admin_id = env::var("INITIAL_ADMIN_ID").ok();
     let is_initial_admin = initial_admin_id.as_deref() == Some(&discord_id);
 
-    // Check for Super Admin
-    let super_admin_ids_str = env::var("SUPER_ADMIN_DISCORD_IDS").unwrap_or_default();
-    let super_admin_ids: Vec<&str> = super_admin_ids_str.split(',').map(|s| s.trim()).collect();
-    let is_super_admin = super_admin_ids.contains(&discord_id.as_str());
-
     // Check if denylisted
     let discord_hash = hash_identity(&discord_id, &state.identity_hash_pepper);
     let denylisted: Option<(String,)> =
@@ -179,11 +195,8 @@ pub async fn discord_callback(
             .fetch_optional(&state.db)
             .await
             .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("DB Error: {}", e),
-                )
-                    .into_response()
+                eprintln!("Database error checking denylist: {}", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
             })?;
 
     if denylisted.is_some() {
@@ -266,11 +279,10 @@ pub async fn discord_callback(
             (new_user, is_initial_admin)
         }
         Err(e) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("DB Error: {}", e),
-            )
-                .into_response())
+            eprintln!("Database error in discord_callback: {}", e);
+            return Err(
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
+            );
         }
     };
 
@@ -306,7 +318,6 @@ pub async fn discord_callback(
         id: user.id.to_string(), // JWT ID as string
         discord_id: user.discord_id,
         username: user.username,
-        is_super_admin,
         exp: expiration,
     };
 
@@ -317,15 +328,68 @@ pub async fn discord_callback(
     )
     .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Token generation failed").into_response())?;
 
+    // Generate auth code and store JWT temporarily (2 minutes TTL for frontend exchange)
+    let auth_code = Uuid::new_v4().to_string();
+
+    // Prune expired auth codes before inserting (prevent unbounded growth)
+    {
+        let mut codes = state.auth_codes.lock().unwrap();
+        let now = Utc::now();
+        let ttl = Duration::minutes(2);
+        codes.retain(|_, (_, created_at)| now.signed_duration_since(*created_at) <= ttl);
+        codes.insert(auth_code.clone(), (token, now));
+    }
+
     let frontend_url =
         env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
-    Ok(Redirect::to(&format!("{}/auth/callback?token={}", frontend_url, token)).into_response())
+    Ok(Redirect::to(&format!(
+        "{}/auth/callback?code={}",
+        frontend_url, auth_code
+    ))
+    .into_response())
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct ExchangeRequest {
+    pub code: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct ExchangeResponse {
+    pub token: String,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/auth/exchange",
+    request_body = ExchangeRequest,
+    responses(
+        (status = 200, description = "JWT token", body = ExchangeResponse),
+        (status = 400, description = "Invalid or expired code")
+    )
+)]
+pub async fn exchange_code(
+    State(state): State<AppState>,
+    Json(payload): Json<ExchangeRequest>,
+) -> Result<Json<ExchangeResponse>, (StatusCode, &'static str)> {
+    // Retrieve and remove auth code (one-time use)
+    let (token, created_at) = {
+        let mut codes = state.auth_codes.lock().unwrap();
+        codes.remove(&payload.code)
+    }
+    .ok_or((StatusCode::BAD_REQUEST, "Invalid or expired code"))?;
+
+    // Validate code is not too old (2 minutes TTL)
+    if Utc::now() - created_at > Duration::minutes(2) {
+        return Err((StatusCode::BAD_REQUEST, "Code expired"));
+    }
+
+    Ok(Json(ExchangeResponse { token }))
 }
 
 #[derive(Clone)]
 pub struct AuthenticatedUser {
     pub user_id: i64,
-    pub is_super_admin: bool,
 }
 
 impl<S> FromRequestParts<S> for AuthenticatedUser
@@ -361,10 +425,7 @@ where
             .parse::<i64>()
             .map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid User ID in Token"))?;
 
-        Ok(AuthenticatedUser {
-            user_id,
-            is_super_admin: token_data.claims.is_super_admin,
-        })
+        Ok(AuthenticatedUser { user_id })
     }
 }
 
@@ -445,6 +506,11 @@ pub async fn get_me(
         .map(|ut| ut.tribe.clone())
         .collect();
 
+    // Re-validate super admin status from environment (don't trust JWT claim)
+    let super_admin_ids_str = std::env::var("SUPER_ADMIN_DISCORD_IDS").unwrap_or_default();
+    let super_admin_ids: Vec<&str> = super_admin_ids_str.split(',').map(|s| s.trim()).collect();
+    let is_super_admin = super_admin_ids.contains(&user.discord_id.as_str());
+
     Json(serde_json::json!({
         "id": user.id.to_string(),
         "discordId": user.discord_id,
@@ -454,7 +520,7 @@ pub async fn get_me(
         "tribes": tribes,
         "adminTribes": admin_tribes,
         "isAdmin": user.is_admin, // Keep for legacy/global support if valid
-        "isSuperAdmin": auth_user.is_super_admin,
+        "isSuperAdmin": is_super_admin,
         "lastLoginAt": user.last_login_at,
         "wallets": wallets
     }))
@@ -585,7 +651,6 @@ mod tests {
             id: "12345".to_string(),
             discord_id: "discord123".to_string(),
             username: "TestUser".to_string(),
-            is_super_admin: false,
             exp: 1234567890,
         };
 
@@ -614,7 +679,6 @@ mod tests {
             id: "98765".to_string(),
             discord_id: "987654321".to_string(),
             username: "RoundtripUser".to_string(),
-            is_super_admin: true,
             exp: 9999999999,
         };
 
@@ -636,7 +700,6 @@ mod tests {
             id: "1001".to_string(),
             discord_id: "discord_id_123".to_string(),
             username: "JwtTestUser".to_string(),
-            is_super_admin: false,
             exp: expiration,
         };
 
@@ -674,7 +737,6 @@ mod tests {
             id: "1001".to_string(),
             discord_id: "discord123".to_string(),
             username: "TestUser".to_string(),
-            is_super_admin: false,
             exp: expiration,
         };
 
@@ -704,7 +766,6 @@ mod tests {
             id: "1001".to_string(),
             discord_id: "discord123".to_string(),
             username: "ExpiredUser".to_string(),
-            is_super_admin: false,
             exp: expired,
         };
 
@@ -728,9 +789,10 @@ mod tests {
     #[test]
     fn test_callback_params_deserialization() {
         // Simulate query string parsing
-        let json = r#"{"code":"test_auth_code_12345"}"#;
+        let json = r#"{"code":"test_auth_code_12345","state":"test-state-token"}"#;
         let params: CallbackParams = serde_json::from_str(json).expect("Failed to deserialize");
         assert_eq!(params.code, "test_auth_code_12345");
+        assert_eq!(params.state, "test-state-token");
     }
 
     #[test]
@@ -740,7 +802,6 @@ mod tests {
             id: "123456789".to_string(),
             discord_id: "discord123".to_string(),
             username: "TestUser".to_string(),
-            is_super_admin: false,
             exp: 9999999999,
         };
 
@@ -754,7 +815,6 @@ mod tests {
             id: "not-a-number".to_string(),
             discord_id: "discord123".to_string(),
             username: "TestUser".to_string(),
-            is_super_admin: false,
             exp: 9999999999,
         };
 
@@ -813,10 +873,7 @@ async fn test_delete_account_full_flow() {
             .bind(Uuid::new_v4().to_string()).bind(user_id).bind(user_id).execute(&db).await.unwrap();
 
     // 2. Run delete_me
-    let auth_user = AuthenticatedUser {
-        user_id,
-        is_super_admin: false,
-    };
+    let auth_user = AuthenticatedUser { user_id };
     delete_me(auth_user, State(state))
         .await
         .expect("delete_me failed");
@@ -906,8 +963,7 @@ where
             .get("X-Internal-Secret")
             .and_then(|h| h.to_str().ok());
 
-        let configured_secret =
-            env::var("INTERNAL_SECRET").unwrap_or_else(|_| "secret".to_string());
+        let configured_secret = env::var("INTERNAL_SECRET").expect("INTERNAL_SECRET must be set");
 
         match secret_header {
             Some(s) if s == configured_secret => Ok(InternalSecret(s.to_string())),

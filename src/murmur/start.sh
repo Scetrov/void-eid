@@ -1,6 +1,22 @@
 #!/bin/bash
 set -e
 
+# Validate required secrets are set
+if [ -z "$ICE_SECRET_READ" ]; then
+    echo "ERROR: ICE_SECRET_READ environment variable is not set"
+    exit 1
+fi
+
+if [ -z "$ICE_SECRET_WRITE" ]; then
+    echo "ERROR: ICE_SECRET_WRITE environment variable is not set"
+    exit 1
+fi
+
+# Template murmur.ini with ICE secrets using sed for idempotent updates
+echo "Configuring Murmur with ICE secrets from environment..."
+sed -i "s|^icesecretread=.*|icesecretread=${ICE_SECRET_READ}|" /etc/murmur.ini
+sed -i "s|^icesecretwrite=.*|icesecretwrite=${ICE_SECRET_WRITE}|" /etc/murmur.ini
+
 # Fix permissions for data dir
 chown -R mumble-server:mumble-server /data
 
@@ -16,7 +32,7 @@ echo "Ice is ready."
 
 # Start Authenticator
 echo "Starting Authenticator..."
-export ICE_SECRET="secret"
+# authenticator.py uses ICE_SECRET_WRITE to modify server
 python3 /app/authenticator.py &
 AUTH_PID=$!
 

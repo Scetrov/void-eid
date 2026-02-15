@@ -1,7 +1,8 @@
 use axum::{
     extract::{Query, State},
+    http::StatusCode,
     response::{IntoResponse, Redirect},
-    routing::get,
+    routing::{get, post},
     Router,
 };
 use chrono::Utc;
@@ -11,7 +12,7 @@ use sqlx::SqlitePool;
 use std::{env, net::SocketAddr};
 use tower_http::cors::CorsLayer;
 use uuid::Uuid;
-use void_eid_backend::{auth::Claims, db::init_db, state::AppState};
+use void_eid_backend::{auth::Claims, db::init_db, state::AppState, wallet};
 
 #[derive(Deserialize)]
 struct StubLoginParams {
@@ -48,7 +49,6 @@ async fn stub_login(
         id: user.id.to_string(), // Serialize i64 ID to string for JWT
         discord_id: user.discord_id,
         username: user.username,
-        is_super_admin: false,
         exp: expiration,
     };
 
@@ -59,11 +59,22 @@ async fn stub_login(
     )
     .expect("Token generation failed");
 
+    // Generate auth code and store JWT temporarily (same as real auth flow)
+    let auth_code = Uuid::new_v4().to_string();
+    _state
+        .auth_codes
+        .lock()
+        .unwrap()
+        .insert(auth_code.clone(), (token, Utc::now()));
+
     let frontend_url =
         env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
 
     // Redirect to the same callback as real auth
-    Redirect::to(&format!("{}/auth/callback?token={}", frontend_url, token))
+    Redirect::to(&format!(
+        "{}/auth/callback?code={}",
+        frontend_url, auth_code
+    ))
 }
 
 async fn seed_db(pool: &SqlitePool) {
@@ -172,6 +183,13 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         // Stub Auth Route
         .route("/api/auth/stub-login", get(stub_login))
+        .route(
+            "/api/auth/exchange",
+            post(void_eid_backend::auth::exchange_code),
+        )
+        // Wallet routes (not rate-limited in stub)
+        .route("/api/wallets/link-nonce", post(wallet::link_nonce))
+        .route("/api/wallets/link-verify", post(wallet::link_verify))
         // Mock the original login route to redirect to stub login?
         // Or just let the frontend call stub-login directly if in test mode.
         // Let's redirect /api/auth/discord/login to a page that auto-logs in as admin for convenience?
@@ -180,8 +198,8 @@ async fn main() -> anyhow::Result<()> {
             "/api/auth/discord/login",
             get(|| async { "Use /api/auth/stub-login?user_id=1001 for testing" }),
         )
-        // Add /docs endpoint for ApiGuard health check
-        .route("/docs", get(|| async { "Stub API OK" }))
+        // Health check endpoint for ApiGuard
+        .route("/ping", get(|| async { (StatusCode::OK, "pong") }))
         .merge(void_eid_backend::get_common_router())
         .layer(cors)
         .with_state(state);

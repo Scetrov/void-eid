@@ -299,11 +299,12 @@ pub async fn get_roster(
     let members = match q.fetch_all(&state.db).await {
         Ok(m) => m,
         Err(e) => {
+            eprintln!("Database error fetching roster members: {}", e);
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("DB Error: {}", e),
+                "Internal server error".to_string(),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -536,10 +537,7 @@ mod integration_tests {
             .unwrap();
 
         // 4. Test as Admin
-        let auth_user = AuthenticatedUser {
-            user_id: admin.id,
-            is_super_admin: false,
-        };
+        let auth_user = AuthenticatedUser { user_id: admin.id };
         let query = RosterQuery {
             tribe: None,
             sort: None,
@@ -581,10 +579,7 @@ mod integration_tests {
             .await
             .unwrap();
 
-        let auth_user = AuthenticatedUser {
-            user_id: user.id,
-            is_super_admin: false,
-        };
+        let auth_user = AuthenticatedUser { user_id: user.id };
         let query = RosterQuery {
             tribe: None,
             sort: None,
@@ -625,10 +620,7 @@ mod integration_tests {
             .await
             .unwrap();
 
-        let auth_user = AuthenticatedUser {
-            user_id: user.id,
-            is_super_admin: false,
-        };
+        let auth_user = AuthenticatedUser { user_id: user.id };
 
         // 2. First View - Should Log
         let query = RosterQuery {
