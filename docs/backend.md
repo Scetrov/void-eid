@@ -67,23 +67,23 @@ Then edit the generated `.sql` file.
 
 Environment variables (`.env`):
 
-| Variable                    | Description                                                           | Default/Required        |
-| --------------------------- | --------------------------------------------------------------------- | ----------------------- |
-| `DATABASE_URL`              | Connection string for SQLite                                          | `sqlite:void-eid.db`    |
-| `JWT_SECRET`                | Secret key for signing JWTs (generate via `openssl rand -base64 32`)  | **Required**            |
-| `DISCORD_CLIENT_ID`         | OAuth2 Client ID from Discord                                         | **Required**            |
-| `DISCORD_CLIENT_SECRET`     | OAuth2 Client Secret                                                  | **Required**            |
+| Variable                    | Description                                                                   | Default/Required        |
+| --------------------------- | ----------------------------------------------------------------------------- | ----------------------- |
+| `DATABASE_URL`              | Connection string for SQLite                                                  | `sqlite:void-eid.db`    |
+| `JWT_SECRET`                | Secret key for signing JWTs (generate via `openssl rand -base64 32`)          | **Required**            |
+| `DISCORD_CLIENT_ID`         | OAuth2 Client ID from Discord                                                 | **Required**            |
+| `DISCORD_CLIENT_SECRET`     | OAuth2 Client Secret                                                          | **Required**            |
 | `DISCORD_REDIRECT_URI`      | Oauth2 Redirect URI (e.g., `http://localhost:5038/api/auth/discord/callback`) | **Required**            |
-| `FRONTEND_URL`              | URL of the frontend (for CORS and redirects)                          | `http://localhost:5173` |
-| `PORT`                      | Port to listen on                                                     | `5038`                  |
-| `INITIAL_ADMIN_ID`          | Discord ID of the initial admin user                                  | _Optional_              |
-| `SUPER_ADMIN_DISCORD_IDS`   | Comma-separated list of Super Admin Discord IDs                       | _Optional_              |
-| `SUPER_ADMIN_AUDIT_WEBHOOK` | Discord Webhook URL for critical audit alerts                         | _Optional_              |
-| `IDENTITY_HASH_PEPPER`      | Secret pepper for hashing denylisted identifiers                      | **Required**            |
-| `MUMBLE_REQUIRED_TRIBE`     | The tribe name required to create a Mumble account                    | `Fire`                  |
-| `INTERNAL_SECRET`           | Shared secret for Backend-to-Murmur Authenticator communication       | **Required** ⚠️         |
-| `ICE_SECRET_READ`           | ICE read secret for Murmur server (required if running Mumble)        | **Required for Mumble** |
-| `ICE_SECRET_WRITE`          | ICE write secret for Murmur server (required if running Mumble)       | **Required for Mumble** |
+| `FRONTEND_URL`              | URL of the frontend (for CORS and redirects)                                  | `http://localhost:5173` |
+| `PORT`                      | Port to listen on                                                             | `5038`                  |
+| `INITIAL_ADMIN_ID`          | Discord ID of the initial admin user                                          | _Optional_              |
+| `SUPER_ADMIN_DISCORD_IDS`   | Comma-separated list of Super Admin Discord IDs                               | _Optional_              |
+| `SUPER_ADMIN_AUDIT_WEBHOOK` | Discord Webhook URL for critical audit alerts                                 | _Optional_              |
+| `IDENTITY_HASH_PEPPER`      | Secret pepper for hashing denylisted identifiers                              | **Required**            |
+| `MUMBLE_REQUIRED_TRIBE`     | The tribe name required to create a Mumble account                            | `Fire`                  |
+| `INTERNAL_SECRET`           | Shared secret for Backend-to-Murmur Authenticator communication               | **Required** ⚠️         |
+| `ICE_SECRET_READ`           | ICE read secret for Murmur server (required if running Mumble)                | **Required for Mumble** |
+| `ICE_SECRET_WRITE`          | ICE write secret for Murmur server (required if running Mumble)               | **Required for Mumble** |
 
 ⚠️ **Security Notice**: As of the 2026-02-14 security audit remediation, `INTERNAL_SECRET`, `ICE_SECRET_READ`, and `ICE_SECRET_WRITE` **must** be set to strong random values. The application will fail to start if `INTERNAL_SECRET` is missing. Generate secrets using:
 

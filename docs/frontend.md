@@ -13,7 +13,7 @@ The frontend is a Single Page Application (SPA) built with React 19 and Vite. It
 
 ## Project Structure (`src/frontend`)
 
-```
+```text
 src/
 ├── components/     # Reusable UI components (Buttons, Cards, Modals)
 ├── hooks/          # Custom React hooks
@@ -96,10 +96,10 @@ Create a `.env` file in `src/sui` if needed (Vite requires `VITE_` prefix for cl
 **Fix**: The callback route (`src/routes/auth/callback.tsx`) uses a `useRef` to prevent duplicate exchange attempts. If you see this, ensure the ref pattern is implemented:
 
 ```tsx
-const hasExchangedRef = useRef(false)
+const hasExchangedRef = useRef(false);
 // ... in useEffect:
-if (hasExchangedRef.current) return
-hasExchangedRef.current = true
+if (hasExchangedRef.current) return;
+hasExchangedRef.current = true;
 ```
 
 **Note**: Auth codes have a **2-minute TTL** from creation. If you see `"Code expired"` errors, the code took longer than 2 minutes to exchange (unlikely in normal flow).
