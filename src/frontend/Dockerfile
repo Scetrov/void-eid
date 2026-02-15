@@ -30,8 +30,9 @@ RUN apt-get update && \
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 # Create required nginx directories with proper permissions
-RUN mkdir -p /var/cache/nginx /var/log/nginx /var/lib/nginx /run/nginx && \
-    chown -R appuser:appuser /var/cache/nginx /var/log/nginx /var/lib/nginx /run/nginx /usr/share/nginx/html
+RUN mkdir -p /var/cache/nginx /var/log/nginx /var/lib/nginx && \
+    chown -R appuser:appuser /var/cache/nginx /var/log/nginx /var/lib/nginx /usr/share/nginx/html && \
+    chmod -R 0755 /var/cache/nginx /var/log/nginx /var/lib/nginx
 
 # Forward request and error logs to docker log collector
 RUN ln -sf /dev/stdout /var/log/nginx/access.log \
