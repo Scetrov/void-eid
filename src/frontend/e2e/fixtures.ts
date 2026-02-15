@@ -26,11 +26,28 @@ async function loginAs(page: Page, userId: number) {
       throw new Error(`Redirect response (${response.status()}) but no location header`);
     }
 
-    // Extract token from redirect URL
+    // Extract code from redirect URL
     const url = new URL(location, `http://localhost:${FRONTEND_PORT}`);
-    const token = url.searchParams.get('token');
+    const code = url.searchParams.get('code');
+    if (!code) {
+      throw new Error(`No code found in redirect URL: ${location}`);
+    }
+
+    // Exchange code for token
+    const exchangeResponse = await context.request.post(
+      `${API_URL}/api/auth/exchange`,
+      {
+        data: { code }
+      }
+    );
+
+    if (!exchangeResponse.ok()) {
+      throw new Error(`Failed to exchange code: ${exchangeResponse.status()} ${await exchangeResponse.text()}`);
+    }
+
+    const { token } = await exchangeResponse.json();
     if (!token) {
-      throw new Error(`No token found in redirect URL: ${location}`);
+      throw new Error('No token in exchange response');
     }
 
     // Navigate to the frontend and set the token
