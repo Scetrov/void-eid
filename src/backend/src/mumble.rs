@@ -6,7 +6,7 @@ use axum::{
     response::IntoResponse,
 };
 use bcrypt::{hash, verify, DEFAULT_COST};
-use rand::{distr::Alphanumeric, Rng};
+use rand::{distr::Alphanumeric, RngExt};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::Row;
