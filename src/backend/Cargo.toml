@@ -21,7 +21,7 @@ dotenvy = "0.15.7"
 jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
 rand = "0.10.0"
 chrono = { version = "0.4.38", features = ["serde"] }
-anyhow = "1.0.101"
+anyhow = "1.0.102"
 base64 = "0.22.1"
 urlencoding = "2.1.3"
 
