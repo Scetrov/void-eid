@@ -213,13 +213,13 @@ jobs:
         working-directory: src/frontend
 
       - name: Download stub_api artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: stub_api
           path: src/backend/target/release
 
       - name: Download frontend-dist artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: frontend-dist
           path: src/frontend/dist
@@ -273,7 +273,7 @@ jobs:
         working-directory: src/frontend
 
       - name: Download all blob reports
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: src/frontend/all-blob-reports
           pattern: blob-report-*
@@ -359,7 +359,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download backend binary
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: backend-bin
           path: src/backend

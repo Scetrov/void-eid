@@ -71,7 +71,7 @@ jobs:
 
       - name: Download artifact
         if: ${{ matrix.artifact_name != '' }}
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.context }}/${{ matrix.download_path }}
@@ -114,13 +114,13 @@ jobs:
           fetch-depth: 0
 
       - name: Download backend artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: backend-bin
           path: release-assets/backend
 
       - name: Download frontend artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: frontend-dist
           path: release-assets/frontend
