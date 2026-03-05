@@ -103,14 +103,14 @@ jobs:
         working-directory: src/backend
 
       - name: Upload backend binary
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: backend-bin
           path: src/backend/target/release/void-eid-backend
           retention-days: 1
 
       - name: Upload stub_api artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: stub_api
           path: src/backend/target/release/stub_api
@@ -156,7 +156,7 @@ jobs:
         working-directory: src/frontend
 
       - name: Upload dist artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-dist
           path: src/frontend/dist
@@ -246,7 +246,7 @@ jobs:
           IDENTITY_HASH_PEPPER: ci-test-pepper
 
       - name: Upload blob report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: blob-report-${{ matrix.project }}
@@ -284,7 +284,7 @@ jobs:
         working-directory: src/frontend
 
       - name: Upload merged HTML report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: src/frontend/playwright-report
