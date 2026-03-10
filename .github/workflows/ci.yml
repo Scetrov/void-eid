@@ -163,7 +163,7 @@ jobs:
           retention-days: 1
 
       - name: Build Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: src/frontend
           file: src/frontend/Dockerfile
@@ -183,7 +183,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Build Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: src/murmur
           file: src/murmur/Dockerfile
@@ -335,7 +335,7 @@ jobs:
             type=semver,pattern={{version}},value=${{ inputs.version }},enable=${{ inputs.is_release || 'false' }}
 
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
@@ -388,7 +388,7 @@ jobs:
             type=semver,pattern={{version}},value=${{ inputs.version }},enable=${{ inputs.is_release || 'false' }}
 
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: src/backend
           file: src/backend/Dockerfile
