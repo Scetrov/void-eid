@@ -27,7 +27,7 @@
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.58.2",
     "@tanstack/router-devtools": "^1.166.3",
-    "@tanstack/router-plugin": "^1.164.0",
+    "@tanstack/router-plugin": "^1.166.7",
     "@types/node": "^25.3.5",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.0.0",
