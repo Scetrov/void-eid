@@ -15,7 +15,7 @@
     "@mysten/dapp-kit": "^1.0.3",
     "@mysten/sui": "^2.6.0",
     "@tanstack/react-query": "^5.90.21",
-    "@tanstack/react-router": "^1.158.0",
+    "@tanstack/react-router": "^1.167.3",
     "lucide-react": "^0.577.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
