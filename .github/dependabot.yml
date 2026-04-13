@@ -6,6 +6,10 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
     open-pull-requests-limit: 10
     commit-message:
       prefix: "ci"
@@ -21,6 +25,10 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    groups:
+      rust-dependencies:
+        patterns:
+          - "*"
     open-pull-requests-limit: 10
     commit-message:
       prefix: "deps(backend)"
@@ -35,6 +43,10 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    groups:
+      frontend-dependencies:
+        patterns:
+          - "*"
     open-pull-requests-limit: 10
     commit-message:
       prefix: "deps(frontend)"
