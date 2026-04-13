@@ -54,7 +54,7 @@ jobs:
           sed -i 's/^version = ".*"/version = "${{ inputs.version }}"/' src/backend/Cargo.toml
 
       - name: Configure sccache
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             if (process.env.ACTIONS_CACHE_URL) {
