@@ -99,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
       if (token) {
-          fetchUser(token);
+          void (async () => { await fetchUser(token); })();
       }
   }, [token, fetchUser]);
 

@@ -380,7 +380,7 @@ pub async fn get_roster(
 
     // 7. Post-processing sort if by wallet count
     if let Some("wallet_count") = query.sort.as_deref() {
-        roster.sort_by(|a, b| a.wallets.len().cmp(&b.wallets.len()));
+        roster.sort_by_key(|a| a.wallets.len());
         if let Some("desc") = query.order.as_deref() {
             roster.reverse();
         }

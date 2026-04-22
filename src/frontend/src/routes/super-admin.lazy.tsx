@@ -150,7 +150,7 @@ function SuperAdminDashboard() {
 
     useEffect(() => {
         if (user?.isSuperAdmin && token) {
-            void fetchData()
+            void (async () => { await fetchData(); })();
         }
     }, [user, token, fetchData])
 

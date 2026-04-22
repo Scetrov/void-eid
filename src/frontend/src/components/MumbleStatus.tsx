@@ -37,7 +37,7 @@ export function MumbleStatus() {
     }, [token]);
 
     useEffect(() => {
-        fetchStatus();
+        void (async () => { await fetchStatus(); })();
     }, [token, fetchStatus]);
 
     const handleCreateOrReset = async () => {
