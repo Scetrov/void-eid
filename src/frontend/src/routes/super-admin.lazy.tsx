@@ -149,10 +149,38 @@ function SuperAdminDashboard() {
     }, [token]);
 
     useEffect(() => {
-        if (user?.isSuperAdmin && token) {
-            void fetchData()
-        }
-    }, [user, token, fetchData])
+        if (!user?.isSuperAdmin || !token) return;
+        let cancelled = false;
+        const loadData = async () => {
+            setIsLoading(true);
+            setGlobalError(null);
+            try {
+                const resUsers = await fetch(`${API_URL}/api/admin/users`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!resUsers.ok) throw new Error("Failed to fetch users");
+                const dataUsers = await resUsers.json();
+
+                const resTribes = await fetch(`${API_URL}/api/admin/tribes`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!resTribes.ok) throw new Error("Failed to fetch tribes");
+                const dataTribes = await resTribes.json();
+
+                if (!cancelled) {
+                    setUsers(dataUsers);
+                    setTribes(dataTribes);
+                }
+            } catch (e: unknown) {
+                console.error(e);
+                if (!cancelled) setGlobalError("Failed to load data");
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        };
+        void loadData();
+        return () => { cancelled = true; };
+    }, [user?.isSuperAdmin, token])
 
     // --- Actions ---
 

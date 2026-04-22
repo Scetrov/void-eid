@@ -98,10 +98,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-      if (token) {
-          fetchUser(token);
-      }
-  }, [token, fetchUser]);
+      if (!token) return;
+      let cancelled = false;
+      const loadUser = async () => {
+          try {
+              const res = await fetch(`${API_URL}/api/me`, {
+                  headers: { 'Authorization': `Bearer ${token}` }
+              });
+              if (res.ok) {
+                  const userData = await res.json();
+                  if (cancelled) return;
+                  setUser(userData);
+                  if (userData.adminTribes && userData.adminTribes.length === 1) {
+                      const adminTribe = userData.adminTribes[0];
+                      setCurrentTribeState(adminTribe);
+                      localStorage.setItem('current_tribe', adminTribe);
+                  } else if (userData.tribes && userData.tribes.length === 1) {
+                      setCurrentTribeState(userData.tribes[0]);
+                      localStorage.setItem('current_tribe', userData.tribes[0]);
+                  } else if (userData.tribes && userData.tribes.length > 1) {
+                      const savedTribe = localStorage.getItem('current_tribe');
+                      if (savedTribe && userData.tribes.includes(savedTribe)) {
+                          setCurrentTribeState(savedTribe);
+                      } else {
+                          setCurrentTribeState(null);
+                          localStorage.removeItem('current_tribe');
+                      }
+                  }
+              } else {
+                  localStorage.removeItem('sui_jwt');
+                  if (!cancelled) {
+                      setToken(null);
+                      setUser(null);
+                  }
+              }
+          } catch (e) {
+              console.error('Failed to fetch user', e);
+          }
+      };
+      void loadUser();
+      return () => { cancelled = true; };
+  }, [token]);
 
   const login = () => {
     // Redirect to backend Discord Login

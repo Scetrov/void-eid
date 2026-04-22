@@ -37,8 +37,24 @@ export function MumbleStatus() {
     }, [token]);
 
     useEffect(() => {
-        fetchStatus();
-    }, [token, fetchStatus]);
+        if (!token) return;
+        let cancelled = false;
+        const loadStatus = async () => {
+            try {
+                const res = await fetch(`${API_URL}/api/mumble/status`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (!cancelled) setStatus(data);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        };
+        void loadStatus();
+        return () => { cancelled = true; };
+    }, [token]);
 
     const handleCreateOrReset = async () => {
         if (!token) return;
