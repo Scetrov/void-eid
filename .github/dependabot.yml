@@ -6,6 +6,8 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    cooldown:
+      default-days: 5
     groups:
       github-actions:
         patterns:
@@ -25,6 +27,8 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    cooldown:
+      default-days: 5
     groups:
       rust-dependencies:
         patterns:
@@ -43,6 +47,8 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    cooldown:
+      default-days: 5
     groups:
       frontend-dependencies:
         patterns:
