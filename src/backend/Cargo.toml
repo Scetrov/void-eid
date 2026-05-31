@@ -17,7 +17,7 @@ sqlx = { version = "0.8.6", features = [
 ] }
 tower-http = { version = "0.6.11", features = ["cors"] }
 tower_governor = "0.8.0"
-reqwest = { version = "0.13.3", features = ["json", "form", "multipart"] }
+reqwest = { version = "0.13.4", features = ["json", "form", "multipart"] }
 dotenvy = "0.15.7"
 jsonwebtoken = { version = "10.4.0", features = ["rust_crypto"] }
 rand = "0.10.1"
