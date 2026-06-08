@@ -68,7 +68,7 @@ jobs:
         uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.96.0
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           components: clippy, rustfmt
 
