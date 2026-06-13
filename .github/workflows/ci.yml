@@ -51,7 +51,12 @@ jobs:
       - name: Patch version
         if: ${{ inputs.version }}
         run: |
-          sed -i 's/^version = ".*"/version = "${{ inputs.version }}"/' src/backend/Cargo.toml
+          VERSION="${{ inputs.version }}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.+-]+)?$ ]]; then
+            echo "Error: Invalid version format. Must be a valid semantic version."
+            exit 1
+          fi
+          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" src/backend/Cargo.toml
 
       - name: Configure sccache
         uses: actions/github-script@v9
@@ -136,7 +141,12 @@ jobs:
       - name: Patch version
         if: ${{ inputs.version }}
         run: |
-          sed -i 's/"version": ".*"/"version": "${{ inputs.version }}"/' src/frontend/package.json
+          VERSION="${{ inputs.version }}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.+-]+)?$ ]]; then
+            echo "Error: Invalid version format. Must be a valid semantic version."
+            exit 1
+          fi
+          jq --arg v "$VERSION" '.version = $v' src/frontend/package.json > tmp.json && mv tmp.json src/frontend/package.json
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
