@@ -1,5 +1,5 @@
 # Builder stage
-FROM docker.io/oven/bun:latest AS builder
+FROM docker.io/oven/bun:1.2.5 AS builder
 WORKDIR /app
 
 # Copy package.json and lockfile (if exists)
