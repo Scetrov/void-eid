@@ -9,13 +9,13 @@ fi
 
 echo "Building Frontend with Bun..."
 cd src/frontend
-bun install
+bun install --frozen-lockfile
 bun run build
 cd ../..
 
 echo "Building Backend..."
 cd src/backend
-cargo build --release
+cargo build --release --locked
 cd ../..
 
 echo "Build Complete!"

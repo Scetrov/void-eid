@@ -1,9 +1,9 @@
-FROM docker.io/library/rust:1.96.0 AS development
+FROM docker.io/library/rust:1.96.0@sha256:f4d1e78866618fe7155aa6eaea26f9f6270d105e4918ee2c2f2dd5b2c11cc815 AS development
 
 WORKDIR /usr/src/app
 
 # Install cargo-watch
-RUN cargo install cargo-watch
+RUN cargo install cargo-watch --version 8.5.3 --locked
 
 # Copy manifests
 COPY Cargo.toml Cargo.lock ./

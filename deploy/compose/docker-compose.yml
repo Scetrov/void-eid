@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ghcr.io/scetrov/void-eid/void-eid-backend:latest
+    image: ghcr.io/scetrov/void-eid/void-eid-backend@sha256:86e12178954c0d08f6856f1b370b92ff0227cab17b14668ca1ed10619bb00b71
     ports:
       - "5038:5038"
     env_file: ../../.env
@@ -13,7 +13,7 @@ services:
       - shared_net
 
   murmur:
-    image: ghcr.io/scetrov/void-eid/void-eid-murmur:latest
+    image: ghcr.io/scetrov/void-eid/void-eid-murmur@sha256:82d03b600ce54525640cee1505a15f0bae51e2eb3e1bd3320c9e22623766af64
     ports:
       - "64738:64738/tcp"
       - "64738:64738/udp"
@@ -28,7 +28,7 @@ services:
       - shared_net
 
   frontend:
-    image: ghcr.io/scetrov/void-eid/void-eid-frontend:latest
+    image: ghcr.io/scetrov/void-eid/void-eid-frontend@sha256:8a5eb7c29781b7509a097acff9114d945fa7de1e9e1cfdd011263b05396ba136
     ports:
       - "5173:8080"
     env_file: ../../.env

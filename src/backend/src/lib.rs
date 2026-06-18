@@ -1,7 +1,4 @@
-use axum::{
-    routing::{delete, get, post, put},
-    Router,
-};
+use axum::{routing::get, Router};
 use state::AppState;
 
 pub mod admin;
@@ -21,14 +18,7 @@ pub mod wallet;
 pub fn get_common_router() -> Router<AppState> {
     Router::new()
         .route("/api/me", get(auth::get_me).delete(auth::delete_me))
-        .route("/api/wallets/{id}", delete(wallet::unlink_wallet))
         .route("/api/roster", get(roster::get_roster))
         .route("/api/roster/{discord_id}", get(roster::get_roster_member))
-        .route(
-            "/api/roster/{discord_id}/grant-admin",
-            post(roster::grant_admin),
-        )
         .route("/api/roster/{discord_id}/notes", get(notes::get_notes))
-        .route("/api/roster/{discord_id}/notes", post(notes::create_note))
-        .route("/api/notes/{note_id}", put(notes::edit_note))
 }

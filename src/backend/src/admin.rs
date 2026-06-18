@@ -1,5 +1,6 @@
 use crate::{
     audit::{alert_admin_action, AuditAction},
+    helpers::{validate_text_len, validate_token_text},
     middleware::admin::RequireSuperAdmin,
     models::User,
     state::AppState,
@@ -11,6 +12,10 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
+
+fn validate_tribe_name(name: &str) -> Result<(), (StatusCode, &'static str)> {
+    validate_token_text(name, "Invalid tribe name", 64)
+}
 
 async fn get_admin_id(db: &crate::db::DbPool, discord_id: &str) -> i64 {
     sqlx::query_scalar("SELECT id FROM users WHERE discord_id = ?")
@@ -190,6 +195,21 @@ pub async fn update_user(
     Path(user_id): Path<i64>,
     Json(payload): Json<UpdateUserRequest>,
 ) -> impl IntoResponse {
+    if let Err(e) = validate_text_len(&payload.username, "Invalid username", 1, 100) {
+        return e.into_response();
+    }
+    if let Err(e) = validate_token_text(&payload.discriminator, "Invalid discriminator", 16) {
+        return e.into_response();
+    }
+    if payload.admin_tribes.len() > 50
+        || payload
+            .admin_tribes
+            .iter()
+            .any(|t| validate_tribe_name(t).is_err())
+    {
+        return (StatusCode::BAD_REQUEST, "Invalid admin tribes").into_response();
+    }
+
     let mut tx = match state.db.begin().await {
         Ok(tx) => tx,
         Err(e) => {
@@ -361,16 +381,8 @@ pub async fn create_tribe(
     admin: RequireSuperAdmin,
     Json(payload): Json<CreateTribeRequest>,
 ) -> impl IntoResponse {
-    if payload.name.trim().is_empty() {
-        return StatusCode::BAD_REQUEST.into_response();
-    }
-
-    if payload.name.len() > 100 {
-        return (
-            StatusCode::BAD_REQUEST,
-            "Tribe name exceeds maximum length (100 characters)",
-        )
-            .into_response();
+    if let Err(e) = validate_tribe_name(&payload.name) {
+        return e.into_response();
     }
 
     let mut tx = match state.db.begin().await {
@@ -450,8 +462,11 @@ pub async fn update_tribe(
     Path(tribe_name): Path<String>,
     Json(payload): Json<CreateTribeRequest>, // reusing struct for name update
 ) -> impl IntoResponse {
-    if payload.name.trim().is_empty() {
-        return StatusCode::BAD_REQUEST.into_response();
+    if let Err(e) = validate_tribe_name(&tribe_name) {
+        return e.into_response();
+    }
+    if let Err(e) = validate_tribe_name(&payload.name) {
+        return e.into_response();
     }
 
     let mut tx = match state.db.begin().await {
@@ -554,6 +569,13 @@ pub async fn add_user_to_tribe(
     Path(tribe_name): Path<String>,
     Json(payload): Json<AddUserToTribeRequest>,
 ) -> impl IntoResponse {
+    if let Err(e) = validate_tribe_name(&tribe_name) {
+        return e.into_response();
+    }
+    if let Err(e) = validate_text_len(&payload.username, "Invalid username", 1, 100) {
+        return e.into_response();
+    }
+
     let mut tx = match state.db.begin().await {
         Ok(tx) => tx,
         Err(e) => {

@@ -1,10 +1,10 @@
 use axum::{
     extract::ConnectInfo,
-    http::StatusCode,
-    routing::{delete, get, patch, post},
+    http::{HeaderValue, StatusCode, Uri},
+    routing::{delete, get, patch, post, put},
     Router,
 };
-use std::{net::SocketAddr, sync::Arc};
+use std::{env, net::SocketAddr, sync::Arc};
 use tower_governor::{
     errors::GovernorError,
     governor::GovernorConfigBuilder,
@@ -132,24 +132,71 @@ async fn ping() -> (StatusCode, &'static str) {
     (StatusCode::OK, "pong")
 }
 
+fn require_env(name: &str) -> anyhow::Result<String> {
+    let value = env::var(name).map_err(|_| anyhow::anyhow!("{name} must be set"))?;
+    if value.trim().is_empty() {
+        anyhow::bail!("{name} must not be empty");
+    }
+    Ok(value)
+}
+
+fn require_strong_secret(name: &str, min_len: usize) -> anyhow::Result<String> {
+    let value = require_env(name)?;
+    if value.len() < min_len {
+        anyhow::bail!("{name} must be at least {min_len} characters");
+    }
+    if value.chars().all(|c| c.is_ascii_alphanumeric()) {
+        anyhow::bail!("{name} must include non-alphanumeric entropy");
+    }
+    Ok(value)
+}
+
+fn validate_origin(name: &str, raw: &str) -> anyhow::Result<HeaderValue> {
+    let trimmed = raw.trim().trim_end_matches('/');
+    let uri: Uri = trimmed
+        .parse()
+        .map_err(|_| anyhow::anyhow!("{name} must be a valid absolute URL"))?;
+    match uri.scheme_str() {
+        Some("http") | Some("https") => {}
+        _ => anyhow::bail!("{name} must use http or https"),
+    }
+    if uri.host().is_none() {
+        anyhow::bail!("{name} must include a host");
+    }
+    if uri.path() != "/" || uri.query().is_some() {
+        anyhow::bail!("{name} must be an origin without path or query");
+    }
+    HeaderValue::from_str(trimmed)
+        .map_err(|_| anyhow::anyhow!("{name} is not a valid header value"))
+}
+
+fn validate_security_config() -> anyhow::Result<Vec<HeaderValue>> {
+    require_env("DISCORD_CLIENT_ID")?;
+    require_strong_secret("DISCORD_CLIENT_SECRET", 32)?;
+    require_env("DISCORD_REDIRECT_URI")?;
+    require_strong_secret("JWT_SECRET", 32)?;
+    require_strong_secret("INTERNAL_SECRET", 32)?;
+    require_strong_secret("IDENTITY_HASH_PEPPER", 32)?;
+
+    let frontend_url =
+        env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
+    let production_url = "https://voideid.scetrov.live";
+
+    Ok(vec![
+        validate_origin("FRONTEND_URL", &frontend_url)?,
+        validate_origin("PRODUCTION_FRONTEND_URL", production_url)?,
+    ])
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
+    let allowed_origins = validate_security_config()?;
 
     let db_pool = init_db().await?;
     let state = AppState::new(db_pool);
 
-    // CORS Configuration - Restrict to allowed origins
-    let frontend_url =
-        std::env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
-    let production_url = "https://voideid.scetrov.live".to_string();
-
-    let allowed_origins: Vec<_> = [frontend_url, production_url]
-        .iter()
-        .map(|url| url.trim_end_matches('/').to_string())
-        .filter_map(|url| url.parse::<axum::http::HeaderValue>().ok())
-        .collect();
-
+    // CORS Configuration - Restrict to validated allowed origins
     let cors = CorsLayer::new()
         .allow_origin(allowed_origins)
         .allow_methods([
@@ -189,30 +236,41 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/wallets/link-verify", post(wallet::link_verify))
         .layer(rate_limit_layer.clone());
 
-    // Internal routes (NO rate limiting - protected by INTERNAL_SECRET instead)
-    let internal_routes =
-        Router::new().route("/api/internal/mumble/verify", post(mumble::verify_login));
+    // Rate-limited internal verification routes (also protected by INTERNAL_SECRET)
+    let internal_routes = Router::new()
+        .route("/api/internal/mumble/verify", post(mumble::verify_login))
+        .layer(rate_limit_layer.clone());
 
-    let app = Router::new()
-        .route("/ping", get(ping))
-        .merge(auth_routes)
-        .merge(wallet_routes)
-        .merge(internal_routes)
-        // Admin Routes
-        .route("/api/admin/users", get(admin::list_users))
+    // Rate-limited write-oriented routes
+    let sensitive_routes = Router::new()
         .route("/api/admin/users/{id}", patch(admin::update_user))
-        .route(
-            "/api/admin/tribes",
-            get(admin::list_tribes).post(admin::create_tribe),
-        )
+        .route("/api/admin/tribes", post(admin::create_tribe))
         .route("/api/admin/tribes/{id}", patch(admin::update_tribe))
         .route(
             "/api/admin/tribes/{id}/users",
             post(admin::add_user_to_tribe),
         )
         .route("/api/admin/wallets/{id}", delete(admin::delete_wallet))
-        // Mumble routes
+        .route("/api/wallets/{id}", delete(wallet::unlink_wallet))
+        .route(
+            "/api/roster/{discord_id}/grant-admin",
+            post(roster::grant_admin),
+        )
+        .route("/api/roster/{discord_id}/notes", post(notes::create_note))
+        .route("/api/notes/{note_id}", put(notes::edit_note))
         .route("/api/mumble/account", post(mumble::create_account))
+        .layer(rate_limit_layer.clone());
+
+    let app = Router::new()
+        .route("/ping", get(ping))
+        .merge(auth_routes)
+        .merge(wallet_routes)
+        .merge(internal_routes)
+        .merge(sensitive_routes)
+        // Admin read routes
+        .route("/api/admin/users", get(admin::list_users))
+        .route("/api/admin/tribes", get(admin::list_tribes))
+        // Mumble read routes
         .route("/api/mumble/status", get(mumble::get_status))
         .merge(void_eid_backend::get_common_router())
         .merge(Scalar::with_url("/docs", ApiDoc::openapi()))
