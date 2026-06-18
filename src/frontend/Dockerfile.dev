@@ -1,11 +1,11 @@
-FROM docker.io/oven/bun:latest AS development
+FROM docker.io/oven/bun:1.3.6@sha256:766690ef3be36b73288435428c638e47b8500d01f8fa1c298c4b09dc29841197 AS development
 WORKDIR /app
 
 # Copy package.json and lockfile
 COPY package.json bun.lock* ./
 
 # Install dependencies
-RUN bun install
+RUN bun install --frozen-lockfile
 
 # Copy source code (will be overridden by bind mount in compose, but good for caching)
 COPY . .

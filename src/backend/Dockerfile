@@ -1,4 +1,4 @@
-FROM docker.io/library/debian:trixie-slim
+FROM docker.io/library/debian:trixie-slim@sha256:1275c5673a6135ff07b289ddafe4e2270dceb08eda14c0c69bb1b93ee25a9416
 
 WORKDIR /usr/local/bin
 
@@ -6,6 +6,7 @@ WORKDIR /usr/local/bin
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ca-certificates \
+    curl \
     libssl3 \
     libsqlite3-0 && \
     rm -rf /var/lib/apt/lists/*
@@ -29,6 +30,9 @@ USER appuser
 
 # Expose the API port
 EXPOSE 5038
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:5038/ping || exit 1
 
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
 CMD ["./void-eid-backend"]

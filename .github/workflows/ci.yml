@@ -43,15 +43,16 @@ jobs:
           docker-images: false
           swap-storage: false
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5
 
       - name: Patch version
         if: ${{ inputs.version }}
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
-          VERSION="${{ inputs.version }}"
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.+-]+)?$ ]]; then
             echo "Error: Invalid version format. Must be a valid semantic version."
             exit 1
@@ -59,7 +60,7 @@ jobs:
           sed -i "s/^version = \".*\"/version = \"$VERSION\"/" src/backend/Cargo.toml
 
       - name: Configure sccache
-        uses: actions/github-script@v9
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553
         with:
           script: |
             if (process.env.ACTIONS_CACHE_URL) {
@@ -70,15 +71,15 @@ jobs:
             }
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.10
+        uses: mozilla-actions/sccache-action@1583d6b38d7be47f593cb472781bbb21cab4321e
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.96.0
+        uses: dtolnay/rust-toolchain@4a76a4951e2b37e999824e644cd130c67037ee2b
         with:
           components: clippy, rustfmt
 
       - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae
         with:
           workspaces: src/backend -> target
           cache-targets: "false"
@@ -108,14 +109,14 @@ jobs:
         working-directory: src/backend
 
       - name: Upload backend binary
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: backend-bin
           path: src/backend/target/release/void-eid-backend
           retention-days: 1
 
       - name: Upload stub_api artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: stub_api
           path: src/backend/target/release/stub_api
@@ -133,15 +134,16 @@ jobs:
     env:
       VITE_API_URL: http://localhost:5039
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5
 
       - name: Patch version
         if: ${{ inputs.version }}
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
-          VERSION="${{ inputs.version }}"
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.+-]+)?$ ]]; then
             echo "Error: Invalid version format. Must be a valid semantic version."
             exit 1
@@ -149,12 +151,12 @@ jobs:
           jq --arg v "$VERSION" '.version = $v' src/frontend/package.json > tmp.json && mv tmp.json src/frontend/package.json
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
           bun-version: latest
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
         working-directory: src/frontend
 
       - name: Lint
@@ -166,14 +168,14 @@ jobs:
         working-directory: src/frontend
 
       - name: Upload dist artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: frontend-dist
           path: src/frontend/dist
           retention-days: 1
 
       - name: Build Docker image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf
         with:
           context: src/frontend
           file: src/frontend/Dockerfile
@@ -187,13 +189,13 @@ jobs:
     name: Murmur
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5
 
       - name: Build Docker image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf
         with:
           context: src/murmur
           file: src/murmur/Dockerfile
@@ -211,25 +213,25 @@ jobs:
       matrix:
         project: [chromium, firefox, webkit]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
           bun-version: latest
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
         working-directory: src/frontend
 
       - name: Download stub_api artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: stub_api
           path: src/backend/target/release
 
       - name: Download frontend-dist artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: frontend-dist
           path: src/frontend/dist
@@ -238,13 +240,16 @@ jobs:
         run: chmod +x src/backend/target/release/stub_api
 
       - name: Install Playwright browser
-        run: bun x playwright install --with-deps ${{ matrix.project }}
-        working-directory: src/frontend
-
-      - name: Run Playwright tests
-        run: bun x playwright test --project=${{ matrix.project }}
+        run: bun x playwright install --with-deps "$PLAYWRIGHT_PROJECT"
         working-directory: src/frontend
         env:
+          PLAYWRIGHT_PROJECT: ${{ matrix.project }}
+
+      - name: Run Playwright tests
+        run: bun x playwright test --project="$PLAYWRIGHT_PROJECT"
+        working-directory: src/frontend
+        env:
+          PLAYWRIGHT_PROJECT: ${{ matrix.project }}
           CI: true
           BASE_URL: http://localhost:4173
           STUB_API_CMD: ../backend/target/release/stub_api
@@ -256,7 +261,7 @@ jobs:
           IDENTITY_HASH_PEPPER: ci-test-pepper
 
       - name: Upload blob report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: ${{ !cancelled() }}
         with:
           name: blob-report-${{ matrix.project }}
@@ -271,19 +276,19 @@ jobs:
     permissions:
       actions: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
           bun-version: latest
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
         working-directory: src/frontend
 
       - name: Download all blob reports
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           path: src/frontend/all-blob-reports
           pattern: blob-report-*
@@ -294,7 +299,7 @@ jobs:
         working-directory: src/frontend
 
       - name: Upload merged HTML report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: playwright-report
           path: src/frontend/playwright-report
@@ -322,13 +327,13 @@ jobs:
     env:
       VITE_API_URL: ""
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -336,7 +341,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9
         with:
           images: ghcr.io/${{ github.repository }}/void-eid-${{ matrix.service }}
           tags: |
@@ -345,7 +350,7 @@ jobs:
             type=semver,pattern={{version}},value=${{ inputs.version }},enable=${{ inputs.is_release || 'false' }}
 
       - name: Build and push
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
@@ -366,10 +371,10 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
 
       - name: Download backend binary
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: backend-bin
           path: src/backend
@@ -378,10 +383,10 @@ jobs:
         run: chmod +x src/backend/void-eid-backend
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -389,7 +394,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9
         with:
           images: ghcr.io/${{ github.repository }}/void-eid-backend
           tags: |
@@ -398,7 +403,7 @@ jobs:
             type=semver,pattern={{version}},value=${{ inputs.version }},enable=${{ inputs.is_release || 'false' }}
 
       - name: Build and push
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf
         with:
           context: src/backend
           file: src/backend/Dockerfile

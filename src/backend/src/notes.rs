@@ -1,7 +1,9 @@
 use crate::{
     audit::{log_audit, AuditAction},
     auth::AuthenticatedUser,
-    helpers::{get_user_by_discord_id, require_admin_in_tribe},
+    helpers::{
+        get_user_by_discord_id, require_admin_in_tribe, validate_discord_id, validate_token_text,
+    },
     state::AppState,
 };
 use axum::{
@@ -80,6 +82,15 @@ pub async fn get_notes(
     State(state): State<AppState>,
     auth_user: AuthenticatedUser,
 ) -> impl IntoResponse {
+    if let Err(e) = validate_discord_id(&discord_id) {
+        return e.into_response();
+    }
+    if let Some(tribe) = query.tribe.as_deref() {
+        if let Err(e) = validate_token_text(tribe, "Invalid tribe", 64) {
+            return e.into_response();
+        }
+    }
+
     // Verify admin in tribe
     let (_current_user, tribe, _all_tribes) =
         match require_admin_in_tribe(&state.db, auth_user.user_id, query.tribe.as_deref()).await {
@@ -136,6 +147,15 @@ pub async fn create_note(
     auth_user: AuthenticatedUser,
     Json(payload): Json<CreateNoteRequest>,
 ) -> impl IntoResponse {
+    if let Err(e) = validate_discord_id(&discord_id) {
+        return e.into_response();
+    }
+    if let Some(tribe) = query.tribe.as_deref() {
+        if let Err(e) = validate_token_text(tribe, "Invalid tribe", 64) {
+            return e.into_response();
+        }
+    }
+
     // Verify admin in tribe
     let (current_user, tribe, _all_tribes) =
         match require_admin_in_tribe(&state.db, auth_user.user_id, query.tribe.as_deref()).await {
@@ -237,6 +257,10 @@ pub async fn edit_note(
     auth_user: AuthenticatedUser,
     Json(payload): Json<EditNoteRequest>,
 ) -> impl IntoResponse {
+    if Uuid::parse_str(&note_id).is_err() {
+        return (StatusCode::BAD_REQUEST, "Invalid note id").into_response();
+    }
+
     // Fetch the note
     let note: Option<Note> = sqlx::query_as("SELECT * FROM notes WHERE id = ?")
         .bind(&note_id)

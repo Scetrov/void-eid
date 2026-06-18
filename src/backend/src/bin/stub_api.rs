@@ -50,10 +50,12 @@ async fn stub_login(
         discord_id: user.discord_id,
         username: user.username,
         exp: expiration,
+        iss: None,
+        aud: None,
     };
 
     let token = encode(
-        &Header::default(),
+        &Header::new(jsonwebtoken::Algorithm::HS256),
         &claims,
         &EncodingKey::from_secret(jwt_secret.as_bytes()),
     )

@@ -1,4 +1,5 @@
 use crate::auth::{self, InternalSecret};
+use crate::helpers::validate_text_len;
 use crate::state::AppState;
 use axum::{
     extract::{Json, State},
@@ -139,9 +140,10 @@ pub async fn create_account(
     .await;
 
     if let Err(e) = result {
+        eprintln!("Database error storing Mumble account: {}", e);
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": e.to_string()})),
+            Json(json!({"error": "Internal server error"})),
         )
             .into_response();
     }
@@ -157,9 +159,10 @@ pub async fn create_account(
     )
     .await
     {
+        eprintln!("Audit log error creating Mumble account: {}", e);
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": e.to_string()})),
+            Json(json!({"error": "Internal server error"})),
         )
             .into_response();
     }
@@ -186,7 +189,7 @@ fn resolve_mumble_username(wallet_id: Option<String>, username: String) -> Strin
 
 /// Sanitizes the username for Mumble (e.g. replacing spaces).
 fn sanitize_username(name: &str) -> String {
-    name.replace(" ", "_")
+    name.replace(" ", "_").chars().take(64).collect()
 }
 
 pub async fn verify_login(
@@ -194,6 +197,13 @@ pub async fn verify_login(
     InternalSecret(_secret): InternalSecret, // Ensures this is only called by trusted Authenticator
     Json(payload): Json<VerifyLoginRequest>,
 ) -> impl IntoResponse {
+    if let Err(e) = validate_text_len(&payload.username, "Invalid username", 1, 64) {
+        return e.into_response();
+    }
+    if let Err(e) = validate_text_len(&payload.password, "Invalid password", 1, 256) {
+        return e.into_response();
+    }
+
     let row = sqlx::query("SELECT user_id, password_hash FROM mumble_accounts WHERE username = ?")
         .bind(&payload.username)
         .fetch_optional(&state.db)

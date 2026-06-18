@@ -1,5 +1,6 @@
 use crate::{
     audit::{log_audit, AuditAction},
+    helpers::validate_text_len,
     models::{LinkedWallet, User},
     state::AppState,
 };
@@ -11,12 +12,13 @@ use axum::{
 };
 use chrono::{Duration, Utc};
 use hex;
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::env;
+use subtle::ConstantTimeEq;
 use uuid::Uuid;
 
 use utoipa::{IntoParams, ToSchema};
@@ -26,6 +28,14 @@ pub fn hash_identity(input: &str, pepper: &str) -> String {
     hasher.update(input.as_bytes());
     hasher.update(pepper.as_bytes());
     hex::encode(hasher.finalize())
+}
+
+fn internal_error<E: std::fmt::Display>(context: &'static str, error: E) -> (StatusCode, String) {
+    eprintln!("{}: {}", context, error);
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "Internal server error".to_string(),
+    )
 }
 
 #[derive(Deserialize, ToSchema, IntoParams)]
@@ -41,6 +51,10 @@ pub struct Claims {
     pub discord_id: String,
     pub username: String,
     pub exp: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub iss: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub aud: Option<String>,
 }
 
 #[utoipa::path(
@@ -92,6 +106,11 @@ pub async fn discord_callback(
     Query(params): Query<CallbackParams>,
     State(state): State<AppState>,
 ) -> Result<impl IntoResponse, Response> {
+    validate_text_len(&params.code, "Invalid authorization code", 1, 512)
+        .map_err(|e| e.into_response())?;
+    validate_text_len(&params.state, "Invalid state token", 36, 64)
+        .map_err(|e| e.into_response())?;
+
     // Validate state token (CSRF protection)
     let state_created_at = {
         let mut states = state.oauth_states.lock().unwrap();
@@ -319,10 +338,14 @@ pub async fn discord_callback(
         discord_id: user.discord_id,
         username: user.username,
         exp: expiration,
+        iss: env::var("JWT_ISSUER").ok().filter(|v| !v.trim().is_empty()),
+        aud: env::var("JWT_AUDIENCE")
+            .ok()
+            .filter(|v| !v.trim().is_empty()),
     };
 
     let token = encode(
-        &Header::default(),
+        &Header::new(Algorithm::HS256),
         &claims,
         &EncodingKey::from_secret(jwt_secret.as_bytes()),
     )
@@ -372,6 +395,8 @@ pub async fn exchange_code(
     State(state): State<AppState>,
     Json(payload): Json<ExchangeRequest>,
 ) -> Result<Json<ExchangeResponse>, (StatusCode, &'static str)> {
+    validate_text_len(&payload.code, "Invalid code", 36, 64)?;
+
     // Retrieve and remove auth code (one-time use)
     let (token, created_at) = {
         let mut codes = state.auth_codes.lock().unwrap();
@@ -412,10 +437,23 @@ where
         let secret = env::var("JWT_SECRET")
             .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "JWT Config Error"))?;
 
+        let mut validation = Validation::new(Algorithm::HS256);
+        validation.validate_exp = true;
+        if let Ok(issuer) = env::var("JWT_ISSUER") {
+            if !issuer.trim().is_empty() {
+                validation.set_issuer(&[issuer]);
+            }
+        }
+        if let Ok(audience) = env::var("JWT_AUDIENCE") {
+            if !audience.trim().is_empty() {
+                validation.set_audience(&[audience]);
+            }
+        }
+
         let token_data = decode::<Claims>(
             token,
             &DecodingKey::from_secret(secret.as_bytes()),
-            &Validation::default(),
+            &validation,
         )
         .map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid Token"))?;
 
@@ -546,14 +584,14 @@ pub async fn delete_me(
         .db
         .begin()
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(|e| internal_error("Internal auth operation failed", e))?;
 
     // 1. Fetch user and wallets
     let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ?")
         .bind(auth_user.user_id)
         .fetch_optional(&mut *tx)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(|e| internal_error("Internal auth operation failed", e))?
         .ok_or((StatusCode::NOT_FOUND, "User not found".to_string()))?;
     let wallets = sqlx::query_as::<_, crate::models::FlatLinkedWallet>(
         "SELECT w.*, NULL as tribe FROM wallets w WHERE w.user_id = ?",
@@ -561,7 +599,7 @@ pub async fn delete_me(
     .bind(auth_user.user_id)
     .fetch_all(&mut *tx)
     .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    .map_err(|e| internal_error("Internal auth operation failed", e))?;
 
     // 2. Hash and Denylist Discord ID
     let discord_hash = hash_identity(&user.discord_id, &state.identity_hash_pepper);
@@ -569,7 +607,7 @@ pub async fn delete_me(
         .bind(discord_hash)
         .execute(&mut *tx)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(|e| internal_error("Internal auth operation failed", e))?;
 
     // 3. Hash and Denylist Wallets
     for wallet in wallets {
@@ -579,7 +617,7 @@ pub async fn delete_me(
             .bind(wallet_hash)
             .execute(&mut *tx)
             .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+            .map_err(|e| internal_error("Internal auth operation failed", e))?;
     }
 
     // 4. Hard delete wallets (data scrubbing)
@@ -587,7 +625,7 @@ pub async fn delete_me(
         .bind(auth_user.user_id)
         .execute(&mut *tx)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(|e| internal_error("Internal auth operation failed", e))?;
 
     // 5. Anonymize user row
     let random_id = format!("deleted_{}", rand::random::<u64>());
@@ -596,7 +634,7 @@ pub async fn delete_me(
         .bind(auth_user.user_id)
         .execute(&mut *tx)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(|e| internal_error("Internal auth operation failed", e))?;
 
     // 6. Scrub associated data
     // Delete tribe associations
@@ -604,14 +642,14 @@ pub async fn delete_me(
         .bind(auth_user.user_id)
         .execute(&mut *tx)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(|e| internal_error("Internal auth operation failed", e))?;
 
     // Delete mumble account
     sqlx::query("DELETE FROM mumble_accounts WHERE user_id = ?")
         .bind(auth_user.user_id)
         .execute(&mut *tx)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(|e| internal_error("Internal auth operation failed", e))?;
 
     // Delete notes (where user is author or target)
     sqlx::query("DELETE FROM notes WHERE target_user_id = ? OR author_id = ?")
@@ -619,11 +657,11 @@ pub async fn delete_me(
         .bind(auth_user.user_id)
         .execute(&mut *tx)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(|e| internal_error("Internal auth operation failed", e))?;
 
     tx.commit()
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(|e| internal_error("Internal auth operation failed", e))?;
 
     // 7. Audit Log (After commit to avoid SQLite deadlock)
     let _ = log_audit(
@@ -652,6 +690,8 @@ mod tests {
             discord_id: "discord123".to_string(),
             username: "TestUser".to_string(),
             exp: 1234567890,
+            iss: None,
+            aud: None,
         };
 
         let json = serde_json::to_string(&claims).expect("Failed to serialize");
@@ -680,6 +720,8 @@ mod tests {
             discord_id: "987654321".to_string(),
             username: "RoundtripUser".to_string(),
             exp: 9999999999,
+            iss: None,
+            aud: None,
         };
 
         let json = serde_json::to_string(&original).expect("Serialize failed");
@@ -701,6 +743,8 @@ mod tests {
             discord_id: "discord_id_123".to_string(),
             username: "JwtTestUser".to_string(),
             exp: expiration,
+            iss: None,
+            aud: None,
         };
 
         // Encode
@@ -738,6 +782,8 @@ mod tests {
             discord_id: "discord123".to_string(),
             username: "TestUser".to_string(),
             exp: expiration,
+            iss: None,
+            aud: None,
         };
 
         let token = encode(
@@ -767,6 +813,8 @@ mod tests {
             discord_id: "discord123".to_string(),
             username: "ExpiredUser".to_string(),
             exp: expired,
+            iss: None,
+            aud: None,
         };
 
         let token = encode(
@@ -803,6 +851,8 @@ mod tests {
             discord_id: "discord123".to_string(),
             username: "TestUser".to_string(),
             exp: 9999999999,
+            iss: None,
+            aud: None,
         };
 
         let user_id: i64 = claims.id.parse().expect("Failed to parse user_id");
@@ -816,6 +866,8 @@ mod tests {
             discord_id: "discord123".to_string(),
             username: "TestUser".to_string(),
             exp: 9999999999,
+            iss: None,
+            aud: None,
         };
 
         let result: Result<i64, _> = claims.id.parse();
@@ -966,7 +1018,9 @@ where
         let configured_secret = env::var("INTERNAL_SECRET").expect("INTERNAL_SECRET must be set");
 
         match secret_header {
-            Some(s) if s == configured_secret => Ok(InternalSecret(s.to_string())),
+            Some(s) if s.as_bytes().ct_eq(configured_secret.as_bytes()).into() => {
+                Ok(InternalSecret(s.to_string()))
+            }
             _ => Err((StatusCode::UNAUTHORIZED, "Invalid Internal Secret")),
         }
     }

@@ -54,6 +54,11 @@ pub async fn link_nonce(
     _: AuthenticatedUser, // Require login
     Json(payload): Json<NonceRequest>,
 ) -> impl IntoResponse {
+    let address = payload.address.trim().to_lowercase();
+    if address.len() > 128 || SuiAddress::from_str(&address).is_err() {
+        return (StatusCode::BAD_REQUEST, "Invalid address").into_response();
+    }
+
     let nonce = Uuid::new_v4().to_string();
 
     // Prune expired nonces before inserting (prevent unbounded growth)
@@ -62,10 +67,10 @@ pub async fn link_nonce(
         let now = Utc::now();
         let ttl = chrono::Duration::minutes(5);
         nonces.retain(|_, (_, created_at)| now.signed_duration_since(*created_at) <= ttl);
-        nonces.insert(payload.address.to_lowercase(), (nonce.clone(), now));
+        nonces.insert(address, (nonce.clone(), now));
     }
 
-    Json(NonceResponse { nonce })
+    Json(NonceResponse { nonce }).into_response()
 }
 
 #[derive(Serialize)]
@@ -90,7 +95,10 @@ pub async fn link_verify(
     auth_user: AuthenticatedUser,
     Json(payload): Json<VerifyRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let address_str = payload.address.to_lowercase();
+    let address_str = payload.address.trim().to_lowercase();
+    if address_str.len() > 128 || payload.signature.len() > 1024 {
+        return Err((StatusCode::BAD_REQUEST, "Invalid wallet request".into()));
+    }
 
     // Check if denylisted
     let wallet_hash = crate::auth::hash_identity(&address_str, &state.identity_hash_pepper);
@@ -129,22 +137,19 @@ pub async fn link_verify(
     let stored_nonce = stored_nonce.0; // Extract the actual nonce string
 
     // Verify Signature
-    let sig_bytes = STANDARD
-        .decode(&payload.signature)
-        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid base64: {}", e)))?;
+    let sig_bytes = STANDARD.decode(&payload.signature).map_err(|e| {
+        eprintln!("Invalid wallet signature base64: {}", e);
+        (StatusCode::BAD_REQUEST, "Invalid signature".to_string())
+    })?;
 
     let sig = Signature::from_bytes(&sig_bytes).map_err(|e| {
-        (
-            StatusCode::BAD_REQUEST,
-            format!("Invalid signature format: {}", e),
-        )
+        eprintln!("Invalid wallet signature format: {}", e);
+        (StatusCode::BAD_REQUEST, "Invalid signature".to_string())
     })?;
 
     let sui_address = SuiAddress::from_str(&address_str).map_err(|e| {
-        (
-            StatusCode::BAD_REQUEST,
-            format!("Invalid address format: {}", e),
-        )
+        eprintln!("Invalid wallet address format: {}", e);
+        (StatusCode::BAD_REQUEST, "Invalid address".to_string())
     })?;
 
     let message_bytes = stored_nonce.as_bytes();
@@ -161,14 +166,19 @@ pub async fn link_verify(
     // If verify_secure expects the Struct, we might need a wrapper.
     // Assuming verify_secure<T>(value: &T, intent, author)
 
-    if result.is_err() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            format!("Signature verification failed: {:?}", result.err()),
-        ));
+    if let Err(e) = result {
+        eprintln!("Signature verification failed: {:?}", e);
+        return Err((StatusCode::BAD_REQUEST, "Invalid signature".into()));
     }
 
     let network = payload.network.unwrap_or_else(|| "mainnet".to_string());
+    if network.len() > 32
+        || !network
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
+    {
+        return Err((StatusCode::BAD_REQUEST, "Invalid network".into()));
+    }
 
     // Check availability (including soft-deleted)
     let existing: Option<FlatLinkedWallet> =
@@ -176,7 +186,13 @@ pub async fn link_verify(
             .bind(&address_str)
             .fetch_optional(&state.db)
             .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+            .map_err(|e| {
+                eprintln!("Database error checking wallet availability: {}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Internal server error".to_string(),
+                )
+            })?;
 
     if let Some(w) = existing {
         if w.deleted_at.is_none() {
@@ -193,7 +209,10 @@ pub async fn link_verify(
         .bind(&w.id)
         .execute(&state.db)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(|e| {
+            eprintln!("Database error linking wallet: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string())
+        })?;
 
         // Audit log for re-linking
         let _ = log_audit(

@@ -1,8 +1,9 @@
-FROM docker.io/library/debian:trixie-slim
+FROM docker.io/library/debian:trixie-slim@sha256:1275c5673a6135ff07b289ddafe4e2270dceb08eda14c0c69bb1b93ee25a9416
 
 # Install runtime dependencies
 # python3-zeroc-ice is available in sid
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     mumble-server \
     python3 \
     python3-zeroc-ice \
@@ -23,7 +24,8 @@ COPY Murmur.ice /app/Murmur.ice
 COPY authenticator.py /app/authenticator.py
 ENV ICE_SLICE=/app/Murmur.ice
 COPY start.sh /app/start.sh
-RUN chmod +x /app/start.sh
+RUN chmod +x /app/start.sh && \
+    chown mumble-server:mumble-server /etc/murmur.ini /app/start.sh /app/authenticator.py /app/Murmur.ice
 
 # Create mumble-server user/group if not exists (invoke-rc.d might complain if not present, but for docker build it's fine)
 # The package usually creates the user 'mumble-server'
@@ -33,6 +35,11 @@ RUN getent group mumble-server || groupadd -r mumble-server && \
 # Create data dir
 RUN mkdir -p /data && chown -R mumble-server:mumble-server /data
 
+USER mumble-server
+
 EXPOSE 64738/tcp 64738/udp
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD python3 -c "import socket; s=socket.create_connection(('127.0.0.1', 64738), timeout=3); s.close()" || exit 1
 
 CMD ["/app/start.sh"]

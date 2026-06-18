@@ -7,6 +7,41 @@ use axum::http::StatusCode;
 /// Result type for helper functions that can fail with HTTP errors
 pub type ApiResult<T> = Result<T, (StatusCode, &'static str)>;
 
+pub fn validate_text_len(
+    value: &str,
+    field: &'static str,
+    min: usize,
+    max: usize,
+) -> ApiResult<()> {
+    let len = value.trim().chars().count();
+    if len < min {
+        return Err((StatusCode::BAD_REQUEST, field));
+    }
+    if len > max || value.chars().any(|c| c.is_control()) {
+        return Err((StatusCode::BAD_REQUEST, field));
+    }
+    Ok(())
+}
+
+pub fn validate_token_text(value: &str, field: &'static str, max: usize) -> ApiResult<()> {
+    validate_text_len(value, field, 1, max)?;
+    if !value
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | ' '))
+    {
+        return Err((StatusCode::BAD_REQUEST, field));
+    }
+    Ok(())
+}
+
+pub fn validate_discord_id(value: &str) -> ApiResult<()> {
+    validate_text_len(value, "Invalid Discord ID", 1, 32)?;
+    if !value.chars().all(|c| c.is_ascii_digit()) {
+        return Err((StatusCode::BAD_REQUEST, "Invalid Discord ID"));
+    }
+    Ok(())
+}
+
 /// Fetch a user by their internal UUID
 pub async fn get_user_by_id(db: &DbPool, id: i64) -> Result<Option<User>, sqlx::Error> {
     sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ?")

@@ -17,8 +17,7 @@ echo "Configuring Murmur with ICE secrets from environment..."
 sed -i "s|^icesecretread=.*|icesecretread=${ICE_SECRET_READ}|" /etc/murmur.ini
 sed -i "s|^icesecretwrite=.*|icesecretwrite=${ICE_SECRET_WRITE}|" /etc/murmur.ini
 
-# Fix permissions for data dir
-chown -R mumble-server:mumble-server /data
+# Data dir permissions are prepared at image build time for the non-root runtime user.
 
 # Start Murmur in background
 echo "Starting Murmur..."
