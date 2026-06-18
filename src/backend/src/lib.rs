@@ -14,6 +14,7 @@ pub mod roster;
 pub mod state;
 
 pub mod wallet;
+pub mod sui_verify;
 
 pub fn get_common_router() -> Router<AppState> {
     Router::new()
