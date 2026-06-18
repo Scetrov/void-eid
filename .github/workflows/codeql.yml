@@ -33,7 +33,7 @@ jobs:
 
       - name: Install Rust
         if: matrix.language == 'rust'
-        uses: dtolnay/rust-toolchain@4a76a4951e2b37e999824e644cd130c67037ee2b
+        uses: dtolnay/rust-toolchain@6190aa5fb88a88ee71c12769924bbe63a9ab152e
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@411bbbe57033eedfc1a82d68c01345aa96c737d7
