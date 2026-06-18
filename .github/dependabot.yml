@@ -67,6 +67,12 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    cooldown:
+      default-days: 5
+    groups:
+      backend-docker:
+        patterns:
+          - "*"
     open-pull-requests-limit: 5
     commit-message:
       prefix: "deps(docker)"
@@ -80,6 +86,12 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    cooldown:
+      default-days: 5
+    groups:
+      frontend-docker:
+        patterns:
+          - "*"
     open-pull-requests-limit: 5
     commit-message:
       prefix: "deps(docker)"
@@ -93,6 +105,12 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    cooldown:
+      default-days: 5
+    groups:
+      murmur-docker:
+        patterns:
+          - "*"
     open-pull-requests-limit: 5
     commit-message:
       prefix: "deps(docker)"
