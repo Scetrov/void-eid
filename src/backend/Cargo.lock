@@ -4311,7 +4311,3 @@ dependencies = [
  "log",
  "simd-adler32",
 ]
-
-[[patch.unused]]
-name = "roaring"
-version = "0.11.3"

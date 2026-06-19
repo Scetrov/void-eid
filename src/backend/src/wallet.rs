@@ -128,9 +128,11 @@ pub async fn link_verify(
     let stored_nonce = stored_nonce.0; // Extract the actual nonce string
 
     // Verify Signature
-    if let Err(e) =
-        sui_verify::verify_sui_personal_message(&address_str, &payload.signature, stored_nonce.as_bytes())
-    {
+    if let Err(e) = sui_verify::verify_sui_personal_message(
+        &address_str,
+        &payload.signature,
+        stored_nonce.as_bytes(),
+    ) {
         eprintln!("Signature verification failed: {}", e);
         let msg = if e == sui_verify::Error::InvalidAddress {
             "Invalid address"
@@ -532,5 +534,4 @@ mod tests {
 
         assert!(wallet.is_none());
     }
-
 }
