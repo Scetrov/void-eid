@@ -13,6 +13,7 @@ pub mod notes;
 pub mod roster;
 pub mod state;
 
+pub mod sui_verify;
 pub mod wallet;
 
 pub fn get_common_router() -> Router<AppState> {

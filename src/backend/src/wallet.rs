@@ -4,19 +4,15 @@ use axum::{
     response::IntoResponse,
 };
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 
 use crate::auth::AuthenticatedUser;
 use crate::{
     audit::{log_audit, AuditAction},
     models::FlatLinkedWallet,
     state::AppState,
+    sui_verify,
 };
-use base64::{engine::general_purpose::STANDARD, Engine as _};
 use chrono::Utc;
-use shared_crypto::intent::{Intent, IntentMessage};
-use sui_sdk::types::base_types::SuiAddress;
-use sui_sdk::types::crypto::{Signature, SuiSignature, ToFromBytes};
 use uuid::Uuid;
 
 use utoipa::ToSchema;
@@ -55,7 +51,7 @@ pub async fn link_nonce(
     Json(payload): Json<NonceRequest>,
 ) -> impl IntoResponse {
     let address = payload.address.trim().to_lowercase();
-    if address.len() > 128 || SuiAddress::from_str(&address).is_err() {
+    if address.len() > 128 || sui_verify::parse_address(&address).is_err() {
         return (StatusCode::BAD_REQUEST, "Invalid address").into_response();
     }
 
@@ -71,11 +67,6 @@ pub async fn link_nonce(
     }
 
     Json(NonceResponse { nonce }).into_response()
-}
-
-#[derive(Serialize)]
-struct PersonalMessage<'a> {
-    message: &'a [u8],
 }
 
 #[utoipa::path(
@@ -137,38 +128,18 @@ pub async fn link_verify(
     let stored_nonce = stored_nonce.0; // Extract the actual nonce string
 
     // Verify Signature
-    let sig_bytes = STANDARD.decode(&payload.signature).map_err(|e| {
-        eprintln!("Invalid wallet signature base64: {}", e);
-        (StatusCode::BAD_REQUEST, "Invalid signature".to_string())
-    })?;
-
-    let sig = Signature::from_bytes(&sig_bytes).map_err(|e| {
-        eprintln!("Invalid wallet signature format: {}", e);
-        (StatusCode::BAD_REQUEST, "Invalid signature".to_string())
-    })?;
-
-    let sui_address = SuiAddress::from_str(&address_str).map_err(|e| {
-        eprintln!("Invalid wallet address format: {}", e);
-        (StatusCode::BAD_REQUEST, "Invalid address".to_string())
-    })?;
-
-    let message_bytes = stored_nonce.as_bytes();
-
-    let msg_struct = PersonalMessage {
-        message: message_bytes,
-    };
-
-    let intent = Intent::personal_message();
-    let intent_msg = IntentMessage::new(intent, msg_struct);
-
-    let result = sig.verify_secure(&intent_msg, sui_address, sig.scheme());
-
-    // If verify_secure expects the Struct, we might need a wrapper.
-    // Assuming verify_secure<T>(value: &T, intent, author)
-
-    if let Err(e) = result {
-        eprintln!("Signature verification failed: {:?}", e);
-        return Err((StatusCode::BAD_REQUEST, "Invalid signature".into()));
+    if let Err(e) = sui_verify::verify_sui_personal_message(
+        &address_str,
+        &payload.signature,
+        stored_nonce.as_bytes(),
+    ) {
+        eprintln!("Signature verification failed: {}", e);
+        let msg = if e == sui_verify::Error::InvalidAddress {
+            "Invalid address"
+        } else {
+            "Invalid signature"
+        };
+        return Err((StatusCode::BAD_REQUEST, msg.into()));
     }
 
     let network = payload.network.unwrap_or_else(|| "mainnet".to_string());
