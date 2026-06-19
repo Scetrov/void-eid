@@ -1,5 +1,5 @@
 # Builder stage
-FROM docker.io/oven/bun:1.2.5@sha256:4da29167551ee56bf05864bfff60430aefd1b0bf29a4671f5ed567a07d568d1f AS builder
+FROM docker.io/oven/bun:1.3.14@sha256:e10577f0db68676a7024391c6e5cb4b879ebd17188ab750cf10024a6d700e5c4 AS builder
 WORKDIR /app
 
 # Copy package.json and lockfile (if exists)
@@ -17,7 +17,7 @@ ENV VITE_API_URL=$VITE_API_URL
 RUN bun run build
 
 # Runtime stage
-FROM docker.io/library/debian:trixie-slim@sha256:1275c5673a6135ff07b289ddafe4e2270dceb08eda14c0c69bb1b93ee25a9416
+FROM docker.io/library/debian:trixie-slim@sha256:4e401d95de7083948053197a9c3913343cd06b706bf15eb6a0c3ccd26f436a0e
 
 # Install system dependencies
 RUN apt-get update && \
