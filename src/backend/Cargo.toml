@@ -33,7 +33,7 @@ blake2 = "0.10.6"
 ed25519-dalek = "2.1.1"
 k256 = "0.13.4"
 p256 = "0.13.2"
-signature = "2.2"
+signature = "3.0"
 utoipa = { version = "5.5.0", features = ["axum_extras", "uuid", "chrono"] }
 utoipa-scalar = { version = "0.3.0", features = ["axum"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
