@@ -60,7 +60,7 @@ jobs:
           sed -i "s/^version = \".*\"/version = \"$VERSION\"/" src/backend/Cargo.toml
 
       - name: Configure sccache
-        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
         with:
           script: |
             if (process.env.ACTIONS_CACHE_URL) {
@@ -71,7 +71,7 @@ jobs:
             }
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@1583d6b38d7be47f593cb472781bbb21cab4321e
+        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@6190aa5fb88a88ee71c12769924bbe63a9ab152e
@@ -79,7 +79,7 @@ jobs:
           components: clippy, rustfmt
 
       - name: Rust Cache
-        uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
         with:
           workspaces: src/backend -> target
           cache-targets: "false"
