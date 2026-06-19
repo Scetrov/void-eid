@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@411bbbe57033eedfc1a82d68c01345aa96c737d7
+        uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e
         with:
           languages: ${{ matrix.language }}
 
@@ -36,9 +36,9 @@ jobs:
         uses: dtolnay/rust-toolchain@6190aa5fb88a88ee71c12769924bbe63a9ab152e
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@411bbbe57033eedfc1a82d68c01345aa96c737d7
+        uses: github/codeql-action/autobuild@8aad20d150bbac5944a9f9d289da16a4b0d87c1e
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@411bbbe57033eedfc1a82d68c01345aa96c737d7
+        uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e
         with:
           category: "/language:${{ matrix.language }}"
