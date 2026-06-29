@@ -17,7 +17,7 @@ ENV VITE_API_URL=$VITE_API_URL
 RUN bun run build
 
 # Runtime stage
-FROM docker.io/library/debian:trixie-slim@sha256:4e401d95de7083948053197a9c3913343cd06b706bf15eb6a0c3ccd26f436a0e
+FROM docker.io/library/debian:trixie-slim@sha256:28de0877c2189802884ccd20f15ee41c203573bd87bb6b883f5f46362d24c5c2
 
 # Install system dependencies
 RUN apt-get update && \
