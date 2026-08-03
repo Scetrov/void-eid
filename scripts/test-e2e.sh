@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # Get absolute path to project root
@@ -16,10 +16,10 @@ cargo build --bin stub_api
 echo "Running Playwright Tests..."
 cd "$PROJECT_ROOT/src/frontend"
 
-# We use the playwright command directly.
-# It will manage the lifecycle of the webServer (start/stop)
-# since we set reuseExistingServer: false in playwright.config.ts
-bun x playwright test "$@"
+# Use the lockfile-resolved Playwright executable directly.
+# It will manage the lifecycle of the webServer (start/stop).
+# reuseExistingServer is disabled in playwright.config.ts.
+npx playwright test "$@"
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -eq 0 ]; then

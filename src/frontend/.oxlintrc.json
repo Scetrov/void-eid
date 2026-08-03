@@ -1,0 +1,33 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "typescript", "oxc", "react"],
+  "env": {
+    "browser": true
+  },
+  "ignorePatterns": [
+    "dist/**",
+    "**/*.js",
+    "**/*.jsx",
+    "**/*.mjs",
+    "**/*.cjs"
+  ],
+  "rules": {
+    "react/exhaustive-deps": "warn",
+    "react/only-export-components": [
+      "warn",
+      {
+        "allowExportNames": ["Route"]
+      }
+    ],
+    "react/react-compiler": "error",
+    "react/rules-of-hooks": "error"
+  },
+  "overrides": [
+    {
+      "files": ["src/routes/**/*.ts", "src/routes/**/*.tsx"],
+      "rules": {
+        "react/only-export-components": "off"
+      }
+    }
+  ]
+}

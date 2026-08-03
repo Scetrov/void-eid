@@ -16,8 +16,8 @@ const stubApiPort = Number(process.env.STUB_API_PORT) || 5039;
 
 // For CI, use preview (production build already exists). For local, use dev server.
 const frontendCommand = process.env.CI
-  ? `bun run preview --port ${frontendPort}`
-  : `bun run dev --port ${frontendPort}`;
+  ? `npm run preview -- --port ${frontendPort}`
+  : `npm run dev -- --port ${frontendPort}`;
 
 export default defineConfig({
   testDir: './e2e',
@@ -76,6 +76,7 @@ export default defineConfig({
         PORT: stubApiPort.toString(),
         DATABASE_URL: process.env.DATABASE_URL || 'sqlite::memory:',
         JWT_SECRET: process.env.JWT_SECRET || 'dev-jwt-secret',
+        IDENTITY_HASH_PEPPER: process.env.IDENTITY_HASH_PEPPER || 'test-identity-hash-pepper',
         FRONTEND_URL: process.env.FRONTEND_URL || `http://localhost:${frontendPort}`,
       },
     },
