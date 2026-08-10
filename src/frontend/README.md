@@ -1,73 +1,47 @@
-# React + TypeScript + Vite
+# Void eID Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The frontend is a React 19 and Vite application. **Bun 1.3.14 is the canonical and only supported package manager.** The committed `bun.lock` is the source of truth for dependency resolution; do not create or commit `package-lock.json`, `yarn.lock`, or `pnpm-lock.yaml`.
 
-Currently, two official plugins are available:
+## Prerequisite
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Install [Bun 1.3.14](https://bun.com/docs/installation) and verify the version:
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+bun --version
+# 1.3.14
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+CI, development containers, and frontend container images use the same pinned release.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Install dependencies
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+From `src/frontend`:
+
+```bash
+bun install --frozen-lockfile
 ```
+
+Use a frozen install for normal development and validation. When intentionally changing dependencies, use `bun add`, `bun remove`, or `bun update` and commit both `package.json` and `bun.lock`.
+
+```bash
+bun add <package>
+bun add --dev <package>
+bun remove <package>
+bun update <package>
+```
+
+## Common commands
+
+```bash
+bun run dev       # Start the Vite development server
+bun run lint      # Run Oxlint
+bun run test      # Run Vitest
+bun run build     # Build the production bundle
+bun run test:e2e  # Build the stub API and run Playwright
+```
+
+Use `bun x <binary>` for a package binary that does not have a package script, for example `bun x playwright test`.
+
+## Dependency updates
+
+Dependabot is configured for the Bun ecosystem and must update both `package.json` and `bun.lock`. A dependency pull request is not ready to merge if `bun install --frozen-lockfile` fails.

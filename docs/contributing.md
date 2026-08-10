@@ -7,8 +7,14 @@ We welcome contributions to Void eID!
 ### Code Style
 
 - **Rust**: Follow standard Rust idioms. Run `cargo fmt` and `cargo clippy` before pushing.
-- **TypeScript**: Use ESLint. Run `bun run lint` in the frontend directory.
+- **TypeScript**: Use Oxlint. Run `bun run lint` in the frontend directory.
 - **Commits**: Use conventional commits (e.g., `feat: added wallet support`, `fix: token validation`).
+
+### Frontend package management
+
+Bun 1.3.14 is the canonical frontend package manager. From `src/frontend`, install the committed dependency graph with `bun install --frozen-lockfile` and run package scripts with `bun run <script>`. Use `bun add`, `bun remove`, or `bun update` for intentional dependency changes, and commit both `package.json` and `bun.lock`. Do not create or commit npm, Yarn, or pnpm lockfiles.
+
+See [`src/frontend/README.md`](../src/frontend/README.md) for the complete frontend command reference.
 
 ### Workflow
 

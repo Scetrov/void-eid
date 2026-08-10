@@ -19,7 +19,7 @@ cd "$PROJECT_ROOT/src/frontend"
 # Use the lockfile-resolved Playwright executable directly.
 # It will manage the lifecycle of the webServer (start/stop).
 # reuseExistingServer is disabled in playwright.config.ts.
-npx playwright test "$@"
+bun x playwright test "$@"
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -eq 0 ]; then

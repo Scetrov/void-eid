@@ -144,8 +144,9 @@ temp/
 # =============================================================================
 # Miscellaneous
 # =============================================================================
-# Package manager lockfiles at root (keep subdirectory ones)
+# npm lockfiles; Bun is the canonical frontend package manager.
 /package-lock.json
+/src/frontend/package-lock.json
 
 # Certificates
 *.pem
