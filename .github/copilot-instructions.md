@@ -23,9 +23,10 @@ It is unacceptable to use `git commit --no-verify` or to bypass linting/formatti
 cargo run                    # API at localhost:5038
 cargo fmt && cargo clippy    # Required before commits
 
-# Frontend (from src/frontend/)
+# Frontend (from src/frontend/; requires Bun 1.3.14)
+bun install --frozen-lockfile
 bun run dev                  # Dev server at localhost:5173
-bun run lint                 # ESLint check
+bun run lint                 # Oxlint check
 bun run test                 # Vitest unit tests
 
 # Full stack

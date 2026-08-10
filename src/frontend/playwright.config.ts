@@ -16,8 +16,8 @@ const stubApiPort = Number(process.env.STUB_API_PORT) || 5039;
 
 // For CI, use preview (production build already exists). For local, use dev server.
 const frontendCommand = process.env.CI
-  ? `npm run preview -- --port ${frontendPort}`
-  : `npm run dev -- --port ${frontendPort}`;
+  ? `bun run preview -- --port ${frontendPort}`
+  : `bun run dev -- --port ${frontendPort}`;
 
 export default defineConfig({
   testDir: './e2e',

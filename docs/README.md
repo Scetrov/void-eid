@@ -27,7 +27,7 @@ Void eID provides a seamless way to link Discord identities with Sui Wallets. It
 ### Prerequisites
 
 - [Rust](https://www.rust-lang.org/tools/install) (latest stable)
-- [Node.js](https://nodejs.org/) & [Bun](https://bun.sh/)
+- [Bun 1.3.14](https://bun.com/docs/installation) for frontend dependency management and scripts
 - [Just](https://github.com/casey/just) (optional, strictly recommended for task running if added later)
 - Discord Application Credentials (see [Discord Setup](./discord-setup.md))
 
@@ -66,9 +66,9 @@ Void eID provides a seamless way to link Discord identities with Sui Wallets. It
 ### Frontend Setup
 
 1. Navigate to `src/frontend`.
-2. Install dependencies:
+2. Install the committed dependency graph:
    ```bash
-   bun install
+   bun install --frozen-lockfile
    ```
 3. Run the development server:
    ```bash

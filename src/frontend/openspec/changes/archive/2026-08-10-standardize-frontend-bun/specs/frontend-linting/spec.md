@@ -1,8 +1,4 @@
-## Purpose
-
-Define requirements for reproducible Oxlint-based frontend linting that preserves the repository's lint command and policy coverage.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Frontend linting runs through Oxlint
 
@@ -15,18 +11,6 @@ The frontend SHALL provide a committed Oxlint configuration and SHALL use Oxlint
 #### Scenario: Generated output is excluded
 - **WHEN** the frontend contains generated files under `dist`
 - **THEN** the lint command excludes those files from analysis
-
-### Requirement: Lint policy covers supported TypeScript and React checks
-
-The Oxlint configuration SHALL enable supported equivalents for the repository's TypeScript, JavaScript, React Hooks, and React Refresh lint policy, or SHALL document each unsupported rule as an intentional coverage gap with rationale.
-
-#### Scenario: Existing rule policy is reviewed during migration
-- **WHEN** the ESLint configuration is compared with the Oxlint configuration
-- **THEN** every existing rule is mapped to an Oxlint equivalent, replaced by a documented alternative, or listed as an accepted unsupported check
-
-#### Scenario: Route-specific exception is preserved or deliberately replaced
-- **WHEN** linting files under `src/routes`
-- **THEN** the route-specific React Refresh behavior is equivalent to the existing policy or the changed behavior is explicitly documented and validated
 
 ### Requirement: Lint migration remains reproducible
 

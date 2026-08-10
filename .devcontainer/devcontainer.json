@@ -17,5 +17,5 @@
     "PLAYWRIGHT_BROWSERS_PATH": "/ms-playwright"
   },
   "forwardPorts": [5038, 5173],
-  "postCreateCommand": "npm ci --prefix src/frontend && cd src/backend && cargo fetch"
+  "postCreateCommand": "cd src/frontend && bun install --frozen-lockfile && cd ../backend && cargo fetch"
 }

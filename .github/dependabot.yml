@@ -41,8 +41,8 @@ updates:
       - "dependencies"
       - "rust"
 
-  # Frontend npm dependencies (Bun)
-  - package-ecosystem: "npm"
+  # Frontend Bun dependencies
+  - package-ecosystem: "bun"
     directory: "/src/frontend"
     schedule:
       interval: "weekly"
