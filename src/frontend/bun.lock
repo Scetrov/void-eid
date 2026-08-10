@@ -6,7 +6,7 @@
       "name": "sui",
       "dependencies": {
         "@mysten/dapp-kit": "^1.1.12",
-        "@mysten/sui": "^2.17.0",
+        "@mysten/sui": "^2.23.1",
         "@tanstack/react-query": "^5.101.4",
         "@tanstack/react-router": "^1.170.19",
         "lucide-react": "^1.28.0",
@@ -165,7 +165,7 @@
 
     "@mysten/slush-wallet": ["@mysten/slush-wallet@1.1.12", "", { "dependencies": { "@mysten/utils": "^0.4.0", "@mysten/wallet-standard": "^0.21.12", "@mysten/window-wallet-core": "^0.2.1", "valibot": "^1.4.2" }, "peerDependencies": { "@mysten/sui": "^2.23.1" } }, "sha512-YZepAhwiPRnCYTLzGimuikol9cg2GTr0pN8giCVhBU64QvISz83ADhMHvdSatV+fFcfU/gzz3MZT+YXqRm0p5g=="],
 
-    "@mysten/sui": ["@mysten/sui@2.19.0", "", { "dependencies": { "@graphql-typed-document-node/core": "^3.2.0", "@mysten/bcs": "^2.1.0", "@mysten/utils": "^0.4.0", "@noble/curves": "^2.2.0", "@noble/hashes": "^2.2.0", "@protobuf-ts/grpcweb-transport": "^2.11.1", "@protobuf-ts/runtime": "^2.11.1", "@protobuf-ts/runtime-rpc": "^2.11.1", "@scure/base": "^2.2.0", "@scure/bip32": "^2.2.0", "@scure/bip39": "^2.2.0", "gql.tada": "^1.10.1", "graphql": "^16.14.2", "poseidon-lite": "0.2.1", "valibot": "^1.4.1" } }, "sha512-dXhYK3pUiaybEB6T9nru+cPrFa61NMSjEknOCoAEV5WCC589iY6bP7EM+H84DBMZttB1LhD3gpYnPntQ4Vvcgg=="],
+    "@mysten/sui": ["@mysten/sui@2.23.1", "", { "dependencies": { "@graphql-typed-document-node/core": "^3.2.0", "@mysten/bcs": "^2.1.0", "@mysten/utils": "^0.4.0", "@noble/curves": "^2.2.0", "@noble/hashes": "^2.2.0", "@protobuf-ts/grpcweb-transport": "^2.11.1", "@protobuf-ts/runtime": "^2.11.1", "@protobuf-ts/runtime-rpc": "^2.11.1", "@scure/base": "^2.2.0", "@scure/bip32": "^2.2.0", "@scure/bip39": "^2.2.0", "gql.tada": "^1.10.1", "graphql": "^16.14.2", "poseidon-lite": "0.2.1", "valibot": "^1.4.2" } }, "sha512-9MF+MsQWQWm6TFhUfkddigT2/aMv6t4uoOiW8aft3DFYh8k+TjErSJWKIlqKZZKO+R1paXg09qM3K0ZlOMbMfQ=="],
 
     "@mysten/utils": ["@mysten/utils@0.4.0", "", { "dependencies": { "@scure/base": "^2.2.0" } }, "sha512-nHlXECBl9kE+AHF/aw5a7JVNizae8Kb71A4H18BV/sXd5/l2BaWNGWVatq05fzJo3hF78AWorDxa++1TgcBKWw=="],
 
@@ -837,7 +837,7 @@
 
     "use-sync-external-store": ["use-sync-external-store@1.6.0", "", { "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-Pp6GSwGP/NrPIrxVFAIkOQeyw8lFenOHijQWkUTrDvrF4ALqylP2C/KCkeS9dpUM3KvYRQhna5vt7IL95+ZQ9w=="],
 
-    "valibot": ["valibot@1.4.1", "", { "peerDependencies": { "typescript": ">=5" }, "optionalPeers": ["typescript"] }, "sha512-klCmFTz2jeDluy9RwX+F884TCiogtdBJ/YaxSx1EOBYXa3NXNWj8kR1jjN8rzluwojJVWWaHJ4r1U5LfICnM3g=="],
+    "valibot": ["valibot@1.4.2", "", { "peerDependencies": { "typescript": ">=5" }, "optionalPeers": ["typescript"] }, "sha512-gjdCvJ6d3RyHAneqxMYMW9QMCwYMb3jpOO0IyHZV1bnRHFBHrX3VkIILt5XYR0WhwHiH7Mty8ovuPZ/O3gamrg=="],
 
     "vfile": ["vfile@6.0.3", "", { "dependencies": { "@types/unist": "^3.0.0", "vfile-message": "^4.0.0" } }, "sha512-KzIbH/9tXat2u30jf+smMwFCsno4wHVdNmzFyL+T/L3UGqqk6JKfVqOFOZEpZSHADH1k40ab6NUIXZq422ov3Q=="],
 
@@ -866,10 +866,6 @@
     "@babel/helper-module-transforms/@babel/helper-validator-identifier": ["@babel/helper-validator-identifier@7.28.5", "", {}, "sha512-qSs4ifwzKJSV39ucNjsvc6WVHs6b7S03sOh2OcHF9UHfVPqWWALUsNUVzhSBiItjRZoLHx7nIarVjqKVusUZ1Q=="],
 
     "@babel/helper-module-transforms/@babel/traverse": ["@babel/traverse@7.28.6", "", { "dependencies": { "@babel/code-frame": "^7.28.6", "@babel/generator": "^7.28.6", "@babel/helper-globals": "^7.28.0", "@babel/parser": "^7.28.6", "@babel/template": "^7.28.6", "@babel/types": "^7.28.6", "debug": "^4.3.1" } }, "sha512-fgWX62k02qtjqdSNTAGxmKYY/7FSL9WAS1o2Hu5+I5m9T0yxZzr4cnrfXQ/MX0rIifthCSs6FKTlzYbJcPtMNg=="],
-
-    "@mysten/slush-wallet/valibot": ["valibot@1.4.2", "", { "peerDependencies": { "typescript": ">=5" }, "optionalPeers": ["typescript"] }, "sha512-gjdCvJ6d3RyHAneqxMYMW9QMCwYMb3jpOO0IyHZV1bnRHFBHrX3VkIILt5XYR0WhwHiH7Mty8ovuPZ/O3gamrg=="],
-
-    "@mysten/window-wallet-core/valibot": ["valibot@1.4.2", "", { "peerDependencies": { "typescript": ">=5" }, "optionalPeers": ["typescript"] }, "sha512-gjdCvJ6d3RyHAneqxMYMW9QMCwYMb3jpOO0IyHZV1bnRHFBHrX3VkIILt5XYR0WhwHiH7Mty8ovuPZ/O3gamrg=="],
 
     "@tanstack/router-generator/@babel/types": ["@babel/types@7.29.0", "", { "dependencies": { "@babel/helper-string-parser": "^7.27.1", "@babel/helper-validator-identifier": "^7.28.5" } }, "sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A=="],
 
