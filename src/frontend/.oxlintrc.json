@@ -19,7 +19,6 @@
         "allowExportNames": ["Route"]
       }
     ],
-    "react/react-compiler": "error",
     "react/rules-of-hooks": "error"
   },
   "overrides": [
