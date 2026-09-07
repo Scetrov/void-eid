@@ -1,7 +1,7 @@
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use blake2::{digest::consts::U32, Blake2b, Digest};
 use serde::Serialize;
-use sha2::{Digest as Sha2Digest, Sha256};
+use sha2::Sha256;
 use signature2::hazmat::PrehashVerifier;
 
 /// Errors returned by the local Sui personal-message verifier.
