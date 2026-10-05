@@ -14,10 +14,10 @@
   },
   "dependencies": {
     "@mysten/dapp-kit": "^1.1.17",
-    "@mysten/sui": "^2.31.3",
-    "@tanstack/react-query": "^5.103.2",
-    "@tanstack/react-router": "^1.170.38",
-    "lucide-react": "^1.47.0",
+    "@mysten/sui": "^2.33.2",
+    "@tanstack/react-query": "^5.104.0",
+    "@tanstack/react-router": "^1.170.40",
+    "lucide-react": "^1.49.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-markdown": "^10.1.0",
@@ -28,16 +28,16 @@
     "@babel/core": "^8.0.6",
     "@playwright/test": "^1.63.0",
     "@tanstack/router-devtools": "^1.167.2",
-    "@tanstack/router-plugin": "^1.168.40",
-    "@types/node": "^26.6.2",
+    "@tanstack/router-plugin": "^1.168.41",
+    "@types/node": "^26.6.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "brace-expansion": "^5.0.12",
     "esbuild": "^0.28.2",
-    "oxlint": "1.85.0",
+    "oxlint": "1.86.0",
     "typescript": "^7.0.2",
-    "vite": "^8.3.0",
-    "vitest": "^5.0.1"
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
   }
 }
