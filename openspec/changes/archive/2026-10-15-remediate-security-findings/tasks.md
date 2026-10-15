@@ -36,6 +36,6 @@
 ## 6. Archive, final gates, and signed delivery
 
 - [x] 6.1 Validate the OpenSpec change and confirm implementation tasks and verification are complete; archive it before the final commit and PR, following the archive workflow and synchronizing the delta spec (do not archive while implementation is incomplete)
-- [ ] 6.2 Run `pre-commit run --all-files` after archival and before the final commit; prompt the user to `pre-commit install` if the hook is absent, and resolve all failures
-- [ ] 6.3 Create signed conventional commits with `Co-Authored-By` attribution for the actual model and Pi Coding Agent; if signing fails, stop and offer to retry, never disable signing
-- [ ] 6.4 Open a PR with the archived spec reference, test evidence, dispositions, historical-note behavior, and rollback security trade-off; verify the CI matrix passes before declaring delivery complete
+- [x] 6.2 Run `pre-commit run --all-files` after archival and before the final commit; prompt the user to `pre-commit install` if the hook is absent, and resolve all failures
+- [x] 6.3 Create signed conventional commits with `Co-Authored-By` attribution for the actual model and Pi Coding Agent; if signing fails, stop and offer to retry, never disable signing
+- [x] 6.4 Open a PR with the archived spec reference, test evidence, dispositions, historical-note behavior, and rollback security trade-off; verify the CI matrix passes before declaring delivery complete
