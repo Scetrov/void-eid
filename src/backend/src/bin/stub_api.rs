@@ -161,6 +161,26 @@ async fn seed_db(pool: &SqlitePool) {
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
 
+    // The stub API is a test/dev convenience with a fixed in-memory, seeded user
+    // set and permissive CORS. It must be explicitly opted into. Refuse to start
+    // -- and never touch the database, seed, or bind a listener -- unless
+    // STUB_API is set to exactly "1".
+    match env::var("STUB_API") {
+        Ok(v) if v == "1" => {}
+        Ok(other) => {
+            eprintln!(
+                "stub_api: refusing to start. STUB_API must be set to exactly \"1\" (got \"{other}\")."
+            );
+            std::process::exit(1);
+        }
+        Err(_) => {
+            eprintln!(
+                "stub_api: refusing to start. Set STUB_API=1 to explicitly enable the stub API."
+            );
+            std::process::exit(1);
+        }
+    }
+
     // Force in-memory DB for stub
     env::set_var("DATABASE_URL", "sqlite::memory:");
 

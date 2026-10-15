@@ -98,6 +98,7 @@
       "options": {
         "cwd": "${workspaceFolder}/src/backend",
         "env": {
+          "STUB_API": "1",
           "DATABASE_URL": "sqlite::memory:",
           "JWT_SECRET": "stub-jwt-secret",
           "FRONTEND_URL": "http://localhost:4173"

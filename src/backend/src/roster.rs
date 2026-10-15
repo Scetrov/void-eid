@@ -122,7 +122,7 @@ pub async fn get_roster_member(
 
     // 4. Fetch Wallets with Tribe Info
     let flat_wallets = sqlx::query_as::<_, crate::models::FlatLinkedWallet>(
-        "SELECT w.*, ut.tribe FROM wallets w LEFT JOIN user_tribes ut ON w.id = ut.wallet_id WHERE w.user_id = ?"
+        "SELECT w.*, ut.tribe FROM wallets w LEFT JOIN user_tribes ut ON w.id = ut.wallet_id WHERE w.user_id = ? AND w.deleted_at IS NULL"
     )
     .bind(target_member.id)
     .fetch_all(&state.db)
@@ -318,7 +318,7 @@ pub async fn get_roster(
             .map(|_| "?")
             .collect::<Vec<_>>()
             .join(", ");
-        let sql = format!("SELECT w.*, ut.tribe FROM wallets w LEFT JOIN user_tribes ut ON w.id = ut.wallet_id WHERE w.user_id IN ({})", placeholders);
+        let sql = format!("SELECT w.*, ut.tribe FROM wallets w LEFT JOIN user_tribes ut ON w.id = ut.wallet_id WHERE w.user_id IN ({}) AND w.deleted_at IS NULL", placeholders);
 
         let mut query_builder = sqlx::query_as::<_, crate::models::FlatLinkedWallet>(&sql);
         for id in &member_ids {
@@ -452,6 +452,8 @@ mod integration_tests {
 
     // Helper to setup DB
     async fn setup_db() -> crate::db::DbPool {
+        // AppState::new requires this for deterministic identity hashing.
+        std::env::set_var("IDENTITY_HASH_PEPPER", "test-pepper");
         let pool = SqlitePoolOptions::new()
             .connect("sqlite::memory:")
             .await
@@ -681,6 +683,141 @@ mod integration_tests {
                 .await
                 .unwrap();
         assert_eq!(count.0, 2);
+    }
+
+    #[tokio::test]
+    async fn test_roster_member_omits_deleted_wallets() {
+        let db = setup_db().await;
+        let state = AppState::new(db.clone());
+
+        // Admin in Fire.
+        sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, is_admin) VALUES (?, ?, ?, ?, ?)")
+            .bind(111_i64).bind("123").bind("admin").bind("0000").bind(true)
+            .execute(&db).await.unwrap();
+        sqlx::query("INSERT INTO user_tribes (user_id, tribe, is_admin) VALUES (?, ?, ?)")
+            .bind(111_i64)
+            .bind("Fire")
+            .bind(true)
+            .execute(&db)
+            .await
+            .unwrap();
+
+        // Target member in Fire.
+        sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, is_admin) VALUES (?, ?, ?, ?, ?)")
+            .bind(222_i64).bind("456").bind("member").bind("1111").bind(false)
+            .execute(&db).await.unwrap();
+        sqlx::query("INSERT INTO user_tribes (user_id, tribe) VALUES (?, ?)")
+            .bind(222_i64)
+            .bind("Fire")
+            .execute(&db)
+            .await
+            .unwrap();
+
+        // Active + soft-deleted wallets for the member.
+        sqlx::query("INSERT INTO wallets (id, user_id, address, verified_at, deleted_at, network) VALUES (?, ?, ?, ?, NULL, 'mainnet')")
+            .bind("w-active").bind(222_i64).bind("0xactive").bind(Utc::now())
+            .execute(&db).await.unwrap();
+        sqlx::query("INSERT INTO wallets (id, user_id, address, verified_at, deleted_at, network) VALUES (?, ?, ?, ?, ?, 'mainnet')")
+            .bind("w-deleted").bind(222_i64).bind("0xdeleted").bind(Utc::now()).bind(Utc::now())
+            .execute(&db).await.unwrap();
+
+        let response = get_roster_member(
+            AuthenticatedUser { user_id: 111 },
+            Path("456".to_string()),
+            Query(MemberQuery {
+                tribe: Some("Fire".to_string()),
+                audit_page: None,
+                audit_per_page: None,
+            }),
+            State(state.clone()),
+        )
+        .await
+        .into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), 1 << 20)
+            .await
+            .unwrap();
+        let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let wallets = value
+            .get("wallets")
+            .expect("wallets field")
+            .as_array()
+            .expect("wallets array");
+        let ids: Vec<&str> = wallets.iter().map(|w| w["id"].as_str().unwrap()).collect();
+        assert_eq!(
+            ids,
+            vec!["w-active"],
+            "deleted wallet must be omitted, active preserved"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_roster_omits_deleted_wallets() {
+        let db = setup_db().await;
+        let state = AppState::new(db.clone());
+
+        // Admin in Fire.
+        sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, is_admin) VALUES (?, ?, ?, ?, ?)")
+            .bind(111_i64).bind("123").bind("admin").bind("0000").bind(true)
+            .execute(&db).await.unwrap();
+        sqlx::query("INSERT INTO user_tribes (user_id, tribe, is_admin) VALUES (?, ?, ?)")
+            .bind(111_i64)
+            .bind("Fire")
+            .bind(true)
+            .execute(&db)
+            .await
+            .unwrap();
+
+        // Member in Fire.
+        sqlx::query("INSERT INTO users (id, discord_id, username, discriminator, is_admin) VALUES (?, ?, ?, ?, ?)")
+            .bind(222_i64).bind("456").bind("member").bind("1111").bind(false)
+            .execute(&db).await.unwrap();
+        sqlx::query("INSERT INTO user_tribes (user_id, tribe) VALUES (?, ?)")
+            .bind(222_i64)
+            .bind("Fire")
+            .execute(&db)
+            .await
+            .unwrap();
+
+        // Active + soft-deleted wallets for the member.
+        sqlx::query("INSERT INTO wallets (id, user_id, address, verified_at, deleted_at, network) VALUES (?, ?, ?, ?, NULL, 'mainnet')")
+            .bind("w-active").bind(222_i64).bind("0xactive").bind(Utc::now())
+            .execute(&db).await.unwrap();
+        sqlx::query("INSERT INTO wallets (id, user_id, address, verified_at, deleted_at, network) VALUES (?, ?, ?, ?, ?, 'mainnet')")
+            .bind("w-deleted").bind(222_i64).bind("0xdeleted").bind(Utc::now()).bind(Utc::now())
+            .execute(&db).await.unwrap();
+
+        let response = get_roster(
+            AuthenticatedUser { user_id: 111 },
+            Query(RosterQuery {
+                tribe: Some("Fire".to_string()),
+                sort: None,
+                order: None,
+                search: None,
+            }),
+            State(state.clone()),
+        )
+        .await
+        .into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), 1 << 20)
+            .await
+            .unwrap();
+        let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let members = value.as_array().expect("roster array");
+        let member = members
+            .iter()
+            .find(|m| m["username"] == "member")
+            .expect("member present");
+        let wallets = member["wallets"].as_array().expect("member wallets array");
+        let ids: Vec<&str> = wallets.iter().map(|w| w["id"].as_str().unwrap()).collect();
+        assert_eq!(
+            ids,
+            vec!["w-active"],
+            "roster must omit the soft-deleted wallet"
+        );
     }
 }
 
