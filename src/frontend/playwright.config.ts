@@ -73,6 +73,9 @@ export default defineConfig({
       stderr: 'pipe',
       env: {
         ...process.env,
+        // Explicitly opt the stub API into starting. Without this the stub
+        // refuses to run, so both local and CI Playwright launches must set it.
+        STUB_API: '1',
         PORT: stubApiPort.toString(),
         DATABASE_URL: process.env.DATABASE_URL || 'sqlite::memory:',
         JWT_SECRET: process.env.JWT_SECRET || 'dev-jwt-secret',

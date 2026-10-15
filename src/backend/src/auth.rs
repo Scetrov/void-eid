@@ -1,6 +1,6 @@
 use crate::{
     audit::{log_audit, AuditAction},
-    helpers::validate_text_len,
+    helpers::{validate_discord_id, validate_text_len},
     models::{LinkedWallet, User},
     state::AppState,
 };
@@ -92,106 +92,146 @@ pub async fn discord_login(State(state): State<AppState>) -> impl IntoResponse {
     Redirect::to(&url)
 }
 
-#[utoipa::path(
-    get,
-    path = "/api/auth/discord/callback",
-    params(
-        CallbackParams
-    ),
-    responses(
-        (status = 302, description = "Redirect to frontend with token")
-    )
-)]
-pub async fn discord_callback(
-    Query(params): Query<CallbackParams>,
-    State(state): State<AppState>,
-) -> Result<impl IntoResponse, Response> {
-    validate_text_len(&params.code, "Invalid authorization code", 1, 512)
-        .map_err(|e| e.into_response())?;
-    validate_text_len(&params.state, "Invalid state token", 36, 64)
-        .map_err(|e| e.into_response())?;
+/// Validated profile returned from the Discord OAuth exchange.
+#[derive(Debug, Clone)]
+struct DiscordProfile {
+    discord_id: String,
+    username: String,
+    discriminator: String,
+    avatar: Option<String>,
+}
 
-    // Validate state token (CSRF protection)
-    let state_created_at = {
-        let mut states = state.oauth_states.lock().unwrap();
-        states.remove(&params.state)
-    };
+/// Classification of failures during the Discord OAuth exchange. Each maps to a
+/// generic HTTP response so that Discord payloads or internal state are never
+/// surfaced to the client.
+#[derive(Debug)]
+enum OAuthError {
+    /// Failed to reach the Discord token endpoint at all.
+    Transport,
+    /// Discord returned a non-success status for the token exchange.
+    TokenNonSuccess,
+    /// The token endpoint returned a body that is not valid JSON.
+    TokenParseFailed,
+    /// The token response was valid JSON but carried no usable access token.
+    MissingAccessToken,
+    /// Failed to reach the Discord user endpoint at all.
+    UserTransport,
+    /// Discord returned a non-success status for the user request.
+    UserNonSuccess,
+    /// The user endpoint returned a body that is not valid JSON.
+    UserParseFailed,
+    /// The user `id` was missing, non-string, or failed format validation.
+    InvalidDiscordId,
+}
 
-    let state_created_at = state_created_at.ok_or_else(|| {
-        (StatusCode::BAD_REQUEST, "Invalid or expired state token").into_response()
-    })?;
-
-    // Check if state token is too old (5 minute TTL)
-    if Utc::now() - state_created_at > Duration::minutes(5) {
-        return Err((StatusCode::BAD_REQUEST, "State token expired").into_response());
-    }
-
-    let client_id = env::var("DISCORD_CLIENT_ID").expect("CID missing");
-    let client_secret = env::var("DISCORD_CLIENT_SECRET").expect("Secret missing");
-    let redirect_uri = env::var("DISCORD_REDIRECT_URI").expect("URI missing");
-
-    let client = Client::new();
-
-    let params = [
-        ("client_id", client_id.as_str()),
-        ("client_secret", client_secret.as_str()),
-        ("grant_type", "authorization_code"),
-        ("code", params.code.as_str()),
-        ("redirect_uri", redirect_uri.as_str()),
-    ];
-
-    let token_res = client
-        .post("https://discord.com/api/oauth2/token")
-        .form(&params)
-        .send()
-        .await
-        .map_err(|_| {
-            (
+impl IntoResponse for OAuthError {
+    fn into_response(self) -> Response {
+        match self {
+            OAuthError::Transport => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Failed to connect to Discord",
             )
-                .into_response()
-        })?;
+                .into_response(),
+            OAuthError::TokenNonSuccess => {
+                (StatusCode::BAD_REQUEST, "Discord OAuth failed").into_response()
+            }
+            OAuthError::TokenParseFailed => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to parse token response",
+            )
+                .into_response(),
+            OAuthError::MissingAccessToken => {
+                (StatusCode::BAD_REQUEST, "Discord OAuth failed").into_response()
+            }
+            OAuthError::UserTransport => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch user").into_response()
+            }
+            OAuthError::UserNonSuccess => {
+                (StatusCode::BAD_REQUEST, "Discord OAuth failed").into_response()
+            }
+            OAuthError::UserParseFailed => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to parse user response",
+            )
+                .into_response(),
+            OAuthError::InvalidDiscordId => {
+                (StatusCode::BAD_REQUEST, "Discord OAuth failed").into_response()
+            }
+        }
+    }
+}
+
+/// Perform the Discord authorization-code exchange and fetch the caller's user
+/// profile, validating the returned `id` before it is trusted for storage.
+///
+/// The endpoint URLs are parameters so tests can point the exchange at a local
+/// mock server; the production handler passes the fixed Discord URLs.
+async fn perform_discord_oauth(
+    client: &Client,
+    token_url: &str,
+    user_url: &str,
+    client_id: &str,
+    client_secret: &str,
+    code: &str,
+    redirect_uri: &str,
+) -> Result<DiscordProfile, OAuthError> {
+    let params = [
+        ("client_id", client_id),
+        ("client_secret", client_secret),
+        ("grant_type", "authorization_code"),
+        ("code", code),
+        ("redirect_uri", redirect_uri),
+    ];
+
+    let token_res = client
+        .post(token_url)
+        .form(&params)
+        .send()
+        .await
+        .map_err(|_| OAuthError::Transport)?;
 
     if !token_res.status().is_success() {
-        let status = token_res.status();
-        let body = token_res
-            .text()
-            .await
-            .unwrap_or_else(|_| "Failed to read error body".to_string());
         eprintln!(
-            "Discord token exchange failed: Status: {}, Body: {}",
-            status, body
+            "Discord token exchange failed: status={}",
+            token_res.status()
         );
-        return Err((StatusCode::BAD_REQUEST, "Discord OAuth failed").into_response());
+        return Err(OAuthError::TokenNonSuccess);
     }
 
-    let token_data: Value = token_res.json().await.map_err(|_| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Failed to parse token response",
-        )
-            .into_response()
-    })?;
-
-    let access_token = match token_data["access_token"].as_str() {
-        Some(t) => t,
-        None => return Err((StatusCode::BAD_REQUEST, "No access token").into_response()),
-    };
+    let token_data: Value = token_res
+        .json()
+        .await
+        .map_err(|_| OAuthError::TokenParseFailed)?;
+    let access_token = token_data["access_token"]
+        .as_str()
+        .ok_or(OAuthError::MissingAccessToken)?;
 
     let user_res = client
-        .get("https://discord.com/api/users/@me")
+        .get(user_url)
         .header("Authorization", format!("Bearer {}", access_token))
         .send()
         .await
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch user").into_response())?;
+        .map_err(|_| OAuthError::UserTransport)?;
+
+    // Reject a non-success user response BEFORE reading or validating the body.
+    if !user_res.status().is_success() {
+        eprintln!("Discord user fetch failed: status={}", user_res.status());
+        return Err(OAuthError::UserNonSuccess);
+    }
 
     let discord_user: Value = user_res
         .json()
         .await
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to parse user").into_response())?;
+        .map_err(|_| OAuthError::UserParseFailed)?;
 
-    let discord_id = discord_user["id"].as_str().unwrap_or_default().to_string();
+    let discord_id = discord_user["id"]
+        .as_str()
+        .ok_or(OAuthError::InvalidDiscordId)?
+        .to_string();
+    if validate_discord_id(&discord_id).is_err() {
+        return Err(OAuthError::InvalidDiscordId);
+    }
+
     let username = discord_user["username"]
         .as_str()
         .unwrap_or_default()
@@ -201,6 +241,29 @@ pub async fn discord_callback(
         .unwrap_or_default()
         .to_string();
     let avatar = discord_user["avatar"].as_str().map(|s| s.to_string());
+
+    Ok(DiscordProfile {
+        discord_id,
+        username,
+        discriminator,
+        avatar,
+    })
+}
+
+/// Complete login after a validated Discord profile is available: find-or-create
+/// the user, apply admin/denylist logic, log audits, mint a JWT, and stage a
+/// one-time auth code for the frontend to exchange.
+#[allow(clippy::result_large_err)]
+async fn complete_discord_login(
+    state: AppState,
+    profile: DiscordProfile,
+) -> Result<Redirect, Response> {
+    let DiscordProfile {
+        discord_id,
+        username,
+        discriminator,
+        avatar,
+    } = profile;
 
     // Check for Initial Admin
     let initial_admin_id = env::var("INITIAL_ADMIN_ID").ok();
@@ -213,15 +276,12 @@ pub async fn discord_callback(
             .bind(&discord_hash)
             .fetch_optional(&state.db)
             .await
-            .map_err(|e| {
-                eprintln!("Database error checking denylist: {}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
-            })?;
+            .map_err(|e| internal_error("denylist check", e).into_response())?;
 
     if denylisted.is_some() {
         let frontend_url =
             env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
-        return Ok(Redirect::to(&format!("{}/deleted", frontend_url)).into_response());
+        return Ok(Redirect::to(&format!("{}/deleted", frontend_url)));
     }
 
     // Find or Create User
@@ -233,12 +293,6 @@ pub async fn discord_callback(
     .await
     {
         Ok(Some(mut u)) => {
-            // If they are strictly the initial admin, force upgrade appropriately?
-            // Or just if they match, ensure they are admin.
-            // Let's only upgrade to admin if they are the initial admin.
-            // We probably shouldn't downgrade them automatically if env var changes,
-            // but for "initial" setup, ensuring they get admin is key.
-
             let should_be_admin = u.is_admin || is_initial_admin;
             let was_promoted = is_initial_admin && !u.is_admin;
 
@@ -261,17 +315,10 @@ pub async fn discord_callback(
         }
         Ok(None) => {
             let now = Utc::now();
-            // Generate random 64-bit integer (using i64 positive range for SQLite compatibility)
-            // We loop to ensure uniqueness, though collision is extremely unlikely.
             let mut new_id = rand::random::<i64>().abs();
-            // Ensure strictly positive and not 0 (though 0 is valid int, usually implementation detail)
             if new_id == 0 {
                 new_id = 1;
             }
-
-            // Simple collision check (optional but good practice)
-            // In a real high-concurrency scenario, DB constraint unique error would handle this,
-            // but here we can just retry if strict. For now, trust entropy.
 
             let new_user = User {
                 id: new_id,
@@ -294,7 +341,6 @@ pub async fn discord_callback(
                 .execute(&state.db)
                 .await;
 
-            // New user created as admin
             (new_user, is_initial_admin)
         }
         Err(e) => {
@@ -320,7 +366,7 @@ pub async fn discord_callback(
         let _ = log_audit(
             &state.db,
             AuditAction::AdminGrant,
-            user.id, // Actor is the system (represented by the user themselves for initial admin)
+            user.id,
             Some(user.id),
             &format!("User {} granted admin via INITIAL_ADMIN_ID", user.username),
         )
@@ -368,8 +414,64 @@ pub async fn discord_callback(
     Ok(Redirect::to(&format!(
         "{}/auth/callback?code={}",
         frontend_url, auth_code
-    ))
-    .into_response())
+    )))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/auth/discord/callback",
+    params(
+        CallbackParams
+    ),
+    responses(
+        (status = 302, description = "Redirect to frontend with token")
+    )
+)]
+#[allow(clippy::result_large_err)]
+pub async fn discord_callback(
+    Query(params): Query<CallbackParams>,
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, Response> {
+    validate_text_len(&params.code, "Invalid authorization code", 1, 512)
+        .map_err(|e| e.into_response())?;
+    validate_text_len(&params.state, "Invalid state token", 36, 64)
+        .map_err(|e| e.into_response())?;
+
+    // Validate state token (CSRF protection)
+    let state_created_at = {
+        let mut states = state.oauth_states.lock().unwrap();
+        states.remove(&params.state)
+    };
+
+    let state_created_at = state_created_at.ok_or_else(|| {
+        (StatusCode::BAD_REQUEST, "Invalid or expired state token").into_response()
+    })?;
+
+    // Check if state token is too old (5 minute TTL)
+    if Utc::now() - state_created_at > Duration::minutes(5) {
+        return Err((StatusCode::BAD_REQUEST, "State token expired").into_response());
+    }
+
+    let client_id = env::var("DISCORD_CLIENT_ID").expect("CID missing");
+    let client_secret = env::var("DISCORD_CLIENT_SECRET").expect("Secret missing");
+    let redirect_uri = env::var("DISCORD_REDIRECT_URI").expect("URI missing");
+
+    let client = Client::new();
+
+    let profile = perform_discord_oauth(
+        &client,
+        "https://discord.com/api/oauth2/token",
+        "https://discord.com/api/users/@me",
+        &client_id,
+        &client_secret,
+        &params.code,
+        &redirect_uri,
+    )
+    .await
+    .map_err(|e| e.into_response())?;
+
+    let redirect = complete_discord_login(state, profile).await?;
+    Ok(redirect.into_response())
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -1022,6 +1124,300 @@ where
                 Ok(InternalSecret(s.to_string()))
             }
             _ => Err((StatusCode::UNAUTHORIZED, "Invalid Internal Secret")),
+        }
+    }
+}
+
+#[cfg(test)]
+mod oauth_callback_tests {
+    use super::*;
+    use axum::{
+        routing::{get, post},
+        Router,
+    };
+
+    /// A local in-process mock of the Discord token + user endpoints so the
+    /// OAuth callback can be tested without contacting Discord.
+    struct MockDiscord {
+        base_url: String,
+        _handle: tokio::task::JoinHandle<()>,
+    }
+
+    impl Drop for MockDiscord {
+        fn drop(&mut self) {
+            self._handle.abort();
+        }
+    }
+
+    async fn start_mock_discord(
+        token_status: u16,
+        token_body: &str,
+        user_status: u16,
+        user_body: &str,
+    ) -> MockDiscord {
+        let token_body = token_body.to_string();
+        let user_body = user_body.to_string();
+        let router = Router::new()
+            .route(
+                "/token",
+                post(move || {
+                    let (status, body) = (StatusCode::from_u16(token_status).unwrap(), token_body);
+                    async move { (status, body) }
+                }),
+            )
+            .route(
+                "/user",
+                get(move || {
+                    let (status, body) = (StatusCode::from_u16(user_status).unwrap(), user_body);
+                    async move { (status, body) }
+                }),
+            );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let handle = tokio::spawn(async move {
+            axum::serve(listener, router).await.unwrap();
+        });
+        MockDiscord {
+            base_url: format!("http://{addr}"),
+            _handle: handle,
+        }
+    }
+
+    fn user_body(id: &str) -> String {
+        format!(
+            "{{\"id\":\"{}\",\"username\":\"tester\",\"discriminator\":\"0001\"}}",
+            id
+        )
+    }
+
+    async fn run_exchange(server: &MockDiscord) -> Result<DiscordProfile, OAuthError> {
+        let client = Client::new();
+        perform_discord_oauth(
+            &client,
+            &format!("{}/token", server.base_url),
+            &format!("{}/user", server.base_url),
+            "test-client-id",
+            "test-secret",
+            "test-code",
+            "http://localhost/cb",
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn oauth_success_returns_validated_profile() {
+        let server = start_mock_discord(
+            200,
+            "{\"access_token\":\"tok\",\"token_type\":\"Bearer\"}",
+            200,
+            &user_body("1234567890"),
+        )
+        .await;
+        let profile = run_exchange(&server).await.unwrap();
+        assert_eq!(profile.discord_id, "1234567890");
+        assert_eq!(profile.username, "tester");
+        assert_eq!(profile.discriminator, "0001");
+        assert!(profile.avatar.is_none());
+    }
+
+    #[tokio::test]
+    async fn oauth_token_non_success_is_rejected() {
+        let server = start_mock_discord(
+            400,
+            "{\"error\":\"bad_request\"}",
+            200,
+            &user_body("1234567890"),
+        )
+        .await;
+        let err = run_exchange(&server).await.unwrap_err();
+        assert!(matches!(err, OAuthError::TokenNonSuccess));
+    }
+
+    #[tokio::test]
+    async fn oauth_token_malformed_json_is_rejected() {
+        let server =
+            start_mock_discord(200, "this is not json", 200, &user_body("1234567890")).await;
+        let err = run_exchange(&server).await.unwrap_err();
+        assert!(matches!(err, OAuthError::TokenParseFailed));
+    }
+
+    #[tokio::test]
+    async fn oauth_missing_access_token_is_rejected() {
+        let server = start_mock_discord(
+            200,
+            "{\"token_type\":\"Bearer\"}",
+            200,
+            &user_body("1234567890"),
+        )
+        .await;
+        let err = run_exchange(&server).await.unwrap_err();
+        assert!(matches!(err, OAuthError::MissingAccessToken));
+    }
+
+    /// A non-success user response must be rejected BEFORE the body is parsed or
+    /// validated: the body here carries no usable id, so a status gate that ran
+    /// after parsing would surface InvalidDiscordId instead.
+    #[tokio::test]
+    async fn oauth_user_non_success_is_rejected_before_body_validation() {
+        let server = start_mock_discord(
+            200,
+            "{\"access_token\":\"tok\"}",
+            403,
+            "{\"error\":\"forbidden\"}",
+        )
+        .await;
+        let err = run_exchange(&server).await.unwrap_err();
+        assert!(matches!(err, OAuthError::UserNonSuccess));
+    }
+
+    #[tokio::test]
+    async fn oauth_user_malformed_json_is_rejected() {
+        let server =
+            start_mock_discord(200, "{\"access_token\":\"tok\"}", 200, "{not json at all").await;
+        let err = run_exchange(&server).await.unwrap_err();
+        assert!(matches!(err, OAuthError::UserParseFailed));
+    }
+
+    #[tokio::test]
+    async fn oauth_invalid_discord_id_is_rejected() {
+        let cases = vec![
+            ("missing", "{\"username\":\"tester\"}"),
+            ("null", "{\"id\":null,\"username\":\"tester\"}"),
+            ("wrong_type", "{\"id\":1234567890,\"username\":\"tester\"}"),
+            ("empty", "{\"id\":\"\",\"username\":\"tester\"}"),
+            ("whitespace", "{\"id\":\"   \",\"username\":\"tester\"}"),
+            (
+                "non_digit",
+                "{\"id\":\"12a4567890\",\"username\":\"tester\"}",
+            ),
+            (
+                "overlength",
+                "{\"id\":\"123456789012345678901234567890123\",\"username\":\"tester\"}",
+            ),
+        ];
+        for (name, body) in cases {
+            let server = start_mock_discord(200, "{\"access_token\":\"tok\"}", 200, body).await;
+            let err = run_exchange(&server).await.unwrap_err();
+            assert!(
+                matches!(err, OAuthError::InvalidDiscordId),
+                "case {name} should be rejected as InvalidDiscordId"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn oauth_transport_failure_is_rejected() {
+        // Bind a listener to obtain a free port, then close it so the client
+        // hits a connection-refused transport error.
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        drop(listener);
+
+        let client = Client::new();
+        let err = perform_discord_oauth(
+            &client,
+            &format!("http://{addr}/token"),
+            &format!("http://{addr}/user"),
+            "cid",
+            "secret",
+            "code",
+            "redir",
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(err, OAuthError::Transport));
+    }
+
+    #[tokio::test]
+    async fn complete_login_generates_auth_code_and_persists_user() {
+        std::env::set_var("IDENTITY_HASH_PEPPER", "test-pepper");
+        std::env::set_var("JWT_SECRET", "test-jwt-secret");
+        std::env::set_var("DATABASE_URL", "sqlite::memory:");
+        std::env::set_var("FRONTEND_URL", "http://localhost:5173");
+
+        let db = crate::db::init_db().await.expect("init db");
+        let state = AppState::new(db.clone());
+
+        let server = start_mock_discord(
+            200,
+            "{\"access_token\":\"tok\"}",
+            200,
+            &user_body("1234567890"),
+        )
+        .await;
+        let profile = run_exchange(&server).await.unwrap();
+
+        let redirect = complete_discord_login(state.clone(), profile)
+            .await
+            .unwrap();
+        let response = redirect.into_response();
+        let location = response
+            .headers()
+            .get(axum::http::header::LOCATION)
+            .expect("Location header")
+            .to_str()
+            .unwrap()
+            .to_string();
+        let expected_prefix = "http://localhost:5173/auth/callback?code=";
+        assert!(
+            location.starts_with(expected_prefix),
+            "unexpected redirect: {location}"
+        );
+        let code = location.trim_start_matches(expected_prefix).to_string();
+        assert!(!code.is_empty());
+
+        // The one-time auth code is stored and maps to a JWT.
+        {
+            let codes = state.auth_codes.lock().unwrap();
+            assert_eq!(codes.len(), 1, "exactly one auth code staged");
+            assert!(codes.contains_key(&code));
+        }
+
+        // The user was persisted from the validated profile.
+        let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users WHERE discord_id = ?")
+            .bind("1234567890")
+            .fetch_one(&db)
+            .await
+            .unwrap();
+        assert_eq!(count, 1);
+    }
+
+    /// Rejections from the mockable OAuth implementation must leave the user
+    /// table and the one-time auth-code store completely untouched, since a
+    /// rejected profile never reaches `complete_discord_login` (the only place
+    /// users are persisted and auth codes are staged).
+    #[tokio::test]
+    async fn oauth_rejections_leave_no_user_or_auth_code() {
+        std::env::set_var("IDENTITY_HASH_PEPPER", "test-pepper");
+        std::env::set_var("JWT_SECRET", "test-jwt-secret");
+        std::env::set_var("DATABASE_URL", "sqlite::memory:");
+        let db = crate::db::init_db().await.expect("init db");
+        let state = AppState::new(db.clone());
+
+        let bodies = [
+            "{\"username\":\"tester\"}",                      // missing id
+            "{\"id\":null}",                                  // null id
+            "{\"id\":1234567890}",                            // wrong type
+            "{\"id\":\"\"}",                                  // empty
+            "{\"id\":\"   \"}",                               // whitespace
+            "{\"id\":\"12a4567890\"}",                        // non-digit
+            "{\"id\":\"123456789012345678901234567890123\"}", // overlength
+        ];
+
+        for body in bodies {
+            let server = start_mock_discord(200, "{\"access_token\":\"tok\"}", 200, body).await;
+            let err = run_exchange(&server).await.unwrap_err();
+            assert!(matches!(err, OAuthError::InvalidDiscordId));
+            let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
+                .fetch_one(&db)
+                .await
+                .unwrap();
+            assert_eq!(count, 0, "no user may be persisted for a rejected profile");
+            let codes = state.auth_codes.lock().unwrap();
+            assert!(
+                codes.is_empty(),
+                "no auth code may be staged for a rejected profile"
+            );
         }
     }
 }

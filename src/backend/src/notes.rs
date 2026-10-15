@@ -2,7 +2,8 @@ use crate::{
     audit::{log_audit, AuditAction},
     auth::AuthenticatedUser,
     helpers::{
-        get_user_by_discord_id, require_admin_in_tribe, validate_discord_id, validate_token_text,
+        get_user_by_discord_id, get_user_tribes, require_admin_in_tribe, validate_discord_id,
+        validate_token_text,
     },
     state::AppState,
 };
@@ -105,6 +106,15 @@ pub async fn get_notes(
         Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response(),
     };
 
+    // Verify the target is a member of the selected tribe before reading.
+    let target_tribes = match get_user_tribes(&state.db, target_user.id).await {
+        Ok(t) => t,
+        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response(),
+    };
+    if !target_tribes.contains(&tribe) {
+        return (StatusCode::FORBIDDEN, "Forbidden").into_response();
+    }
+
     // Fetch notes with author info
     let notes = sqlx::query_as::<_, NoteWithAuthor>(
         r#"
@@ -169,6 +179,15 @@ pub async fn create_note(
         Ok(None) => return (StatusCode::NOT_FOUND, "User not found").into_response(),
         Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response(),
     };
+
+    // Verify the target is a member of the selected tribe before creating.
+    let target_tribes = match get_user_tribes(&state.db, target_user.id).await {
+        Ok(t) => t,
+        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response(),
+    };
+    if !target_tribes.contains(&tribe) {
+        return (StatusCode::FORBIDDEN, "Forbidden").into_response();
+    }
 
     if payload.content.trim().is_empty() {
         return (StatusCode::BAD_REQUEST, "Note content cannot be empty").into_response();
@@ -554,5 +573,253 @@ mod tests {
         assert_eq!(notes.len(), 1);
         assert_eq!(notes[0].author_username, "AdminUser");
         assert_eq!(notes[0].content, "Note with author join");
+    }
+
+    // --- Handler tests for target-membership enforcement (tasks 2.3 / 2.4) ---
+
+    async fn insert_user(
+        pool: &crate::db::DbPool,
+        id: i64,
+        discord_id: &str,
+        username: &str,
+        is_admin: bool,
+    ) {
+        sqlx::query(
+            "INSERT INTO users (id, discord_id, username, discriminator, is_admin) VALUES (?, ?, ?, ?, ?)",
+        )
+        .bind(id)
+        .bind(discord_id)
+        .bind(username)
+        .bind("0000")
+        .bind(is_admin)
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+
+    async fn add_tribe(pool: &crate::db::DbPool, user_id: i64, tribe: &str, is_admin: bool) {
+        sqlx::query("INSERT INTO user_tribes (user_id, tribe, is_admin) VALUES (?, ?, ?)")
+            .bind(user_id)
+            .bind(tribe)
+            .bind(is_admin)
+            .execute(pool)
+            .await
+            .unwrap();
+    }
+
+    /// Fresh DB with numeric Discord IDs: a global admin who manages
+    /// `test_tribe`, an in-tribe target (1002), and an out-of-tribe target (1003).
+    async fn setup_notes_db() -> crate::db::DbPool {
+        let pool = SqlitePoolOptions::new()
+            .connect("sqlite::memory:")
+            .await
+            .expect("pool");
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .expect("migrate");
+
+        insert_user(&pool, 1001, "1001", "AdminUser", true).await;
+        add_tribe(&pool, 1001, "test_tribe", true).await;
+
+        insert_user(&pool, 1002, "1002", "InTribMember", false).await;
+        add_tribe(&pool, 1002, "test_tribe", false).await;
+
+        insert_user(&pool, 1003, "1003", "OutTribMember", false).await;
+        add_tribe(&pool, 1003, "other_tribe", false).await;
+
+        pool
+    }
+
+    async fn call_create_note(
+        state: &AppState,
+        author: i64,
+        discord_id: &str,
+        tribe: Option<&str>,
+        content: &str,
+    ) -> axum::response::Response {
+        create_note(
+            Path(discord_id.to_string()),
+            Query(NotesQuery {
+                tribe: tribe.map(|s| s.to_string()),
+            }),
+            State(state.clone()),
+            AuthenticatedUser { user_id: author },
+            Json(CreateNoteRequest {
+                content: content.to_string(),
+            }),
+        )
+        .await
+        .into_response()
+    }
+
+    async fn call_get_notes(
+        state: &AppState,
+        author: i64,
+        discord_id: &str,
+        tribe: Option<&str>,
+    ) -> axum::response::Response {
+        get_notes(
+            Path(discord_id.to_string()),
+            Query(NotesQuery {
+                tribe: tribe.map(|s| s.to_string()),
+            }),
+            State(state.clone()),
+            AuthenticatedUser { user_id: author },
+        )
+        .await
+        .into_response()
+    }
+
+    #[tokio::test]
+    async fn note_create_out_of_tribe_forbidden_no_insert() {
+        std::env::set_var("IDENTITY_HASH_PEPPER", "test-pepper");
+        let db = setup_notes_db().await;
+        let state = AppState::new(db.clone());
+
+        let resp = call_create_note(&state, 1001, "1003", Some("test_tribe"), "sneaky").await;
+        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+
+        let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM notes")
+            .fetch_one(&db)
+            .await
+            .unwrap();
+        assert_eq!(
+            count, 0,
+            "no note may be inserted for an out-of-tribe target"
+        );
+    }
+
+    #[tokio::test]
+    async fn note_create_in_tribe_allowed() {
+        std::env::set_var("IDENTITY_HASH_PEPPER", "test-pepper");
+        let db = setup_notes_db().await;
+        let state = AppState::new(db.clone());
+
+        let resp = call_create_note(&state, 1001, "1002", Some("test_tribe"), "legit").await;
+        assert_eq!(resp.status(), StatusCode::CREATED);
+
+        let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM notes")
+            .fetch_one(&db)
+            .await
+            .unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[tokio::test]
+    async fn note_read_out_of_tribe_forbidden() {
+        std::env::set_var("IDENTITY_HASH_PEPPER", "test-pepper");
+        let db = setup_notes_db().await;
+        let state = AppState::new(db.clone());
+
+        let resp = call_get_notes(&state, 1001, "1003", Some("test_tribe")).await;
+        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn note_read_in_tribe_allowed() {
+        std::env::set_var("IDENTITY_HASH_PEPPER", "test-pepper");
+        let db = setup_notes_db().await;
+        let state = AppState::new(db.clone());
+
+        let seed = call_create_note(&state, 1001, "1002", Some("test_tribe"), "hello").await;
+        assert_eq!(seed.status(), StatusCode::CREATED);
+
+        let resp = call_get_notes(&state, 1001, "1002", Some("test_tribe")).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let notes: Vec<NoteWithAuthor> = serde_json::from_slice(
+            &axum::body::to_bytes(resp.into_body(), 1 << 20)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(notes.len(), 1);
+        assert_eq!(notes[0].tribe, "test_tribe");
+    }
+
+    #[tokio::test]
+    async fn note_read_unknown_target_404_preserved() {
+        std::env::set_var("IDENTITY_HASH_PEPPER", "test-pepper");
+        let db = setup_notes_db().await;
+        let state = AppState::new(db.clone());
+
+        let resp = call_get_notes(&state, 1001, "9999", Some("test_tribe")).await;
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn note_read_multi_tribe_exposes_only_selected() {
+        std::env::set_var("IDENTITY_HASH_PEPPER", "test-pepper");
+        let db = setup_notes_db().await;
+        // Target 1004 belongs to both tribes.
+        insert_user(&db, 1004, "1004", "MultiTrib", false).await;
+        add_tribe(&db, 1004, "test_tribe", false).await;
+        add_tribe(&db, 1004, "other_tribe", false).await;
+        let state = AppState::new(db.clone());
+
+        // Legitimate note in the selected tribe.
+        let c = call_create_note(&state, 1001, "1004", Some("test_tribe"), "in test").await;
+        assert_eq!(c.status(), StatusCode::CREATED);
+
+        // A note in a different tribe for the same target (direct insert).
+        sqlx::query(
+            "INSERT INTO notes (id, target_user_id, author_id, tribe, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(Uuid::new_v4().to_string())
+        .bind(1004_i64)
+        .bind(1001_i64)
+        .bind("other_tribe")
+        .bind("in other")
+        .bind(Utc::now())
+        .bind(Utc::now())
+        .execute(&db)
+        .await
+        .unwrap();
+
+        let resp = call_get_notes(&state, 1001, "1004", Some("test_tribe")).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let notes: Vec<NoteWithAuthor> = serde_json::from_slice(
+            &axum::body::to_bytes(resp.into_body(), 1 << 20)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            notes.len(),
+            1,
+            "only the selected tribe's notes may be exposed"
+        );
+        assert_eq!(notes[0].tribe, "test_tribe");
+    }
+
+    #[tokio::test]
+    async fn note_read_membership_loss_and_restoration() {
+        std::env::set_var("IDENTITY_HASH_PEPPER", "test-pepper");
+        let db = setup_notes_db().await;
+        let state = AppState::new(db.clone());
+
+        // Legitimate historical note.
+        let c = call_create_note(&state, 1001, "1002", Some("test_tribe"), "historical").await;
+        assert_eq!(c.status(), StatusCode::CREATED);
+
+        // Target leaves the tribe: reads become 403 but the note remains stored.
+        sqlx::query("DELETE FROM user_tribes WHERE user_id = ? AND tribe = ?")
+            .bind(1002_i64)
+            .bind("test_tribe")
+            .execute(&db)
+            .await
+            .unwrap();
+        let blocked = call_get_notes(&state, 1001, "1002", Some("test_tribe")).await;
+        assert_eq!(blocked.status(), StatusCode::FORBIDDEN);
+        let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM notes")
+            .fetch_one(&db)
+            .await
+            .unwrap();
+        assert_eq!(count, 1, "historical notes must remain stored");
+
+        // Membership restored: reads succeed again.
+        add_tribe(&db, 1002, "test_tribe", false).await;
+        let restored = call_get_notes(&state, 1001, "1002", Some("test_tribe")).await;
+        assert_eq!(restored.status(), StatusCode::OK);
     }
 }
